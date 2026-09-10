@@ -28,6 +28,15 @@ export default function PersonalizacionPage() {
   const [alertaVencimientoDias, setAlertaVencimientoDias] = useState(tenant?.alertaVencimientoDias ?? 5);
   const [politicaBloqueoCredito, setPoliticaBloqueoCredito] = useState(tenant?.politicaBloqueoCredito || 'ESTRICTO');
 
+  // Configuración PAC / SAT CFDI 4.0
+  const [pacProveedor, setPacProveedor] = useState((tenant as any)?.pacProveedor || 'FINKOK');
+  const [pacUsuario, setPacUsuario] = useState((tenant as any)?.pacUsuario || '');
+  const [pacPassword, setPacPassword] = useState((tenant as any)?.pacPassword || '');
+  const [pacModoProduccion, setPacModoProduccion] = useState((tenant as any)?.pacModoProduccion || false);
+  const [serieFactura, setSerieFactura] = useState((tenant as any)?.serieFactura || 'A');
+  const [seriePagoRep, setSeriePagoRep] = useState((tenant as any)?.seriePagoRep || 'P');
+  const [serieCartaPorte, setSerieCartaPorte] = useState((tenant as any)?.serieCartaPorte || 'CP');
+
   const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -64,6 +73,13 @@ export default function PersonalizacionPage() {
         diasGraciaCredito: Number(diasGraciaCredito),
         alertaVencimientoDias: Number(alertaVencimientoDias),
         politicaBloqueoCredito,
+        pacProveedor,
+        pacUsuario,
+        pacPassword,
+        pacModoProduccion,
+        serieFactura,
+        seriePagoRep,
+        serieCartaPorte,
       };
 
       const res = await fetch(`/api/tenants/${tenant.id}`, {
@@ -312,6 +328,109 @@ export default function PersonalizacionPage() {
                 className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
               />
             </div>
+          </div>
+        </div>
+
+        {/* Sección 4: Proveedor Autorizado de Certificación (PAC) & Certificados CSD */}
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-5">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="w-5 h-5 text-indigo-600" />
+              <div>
+                <h3 className="font-bold text-slate-900 text-base">Conexión con PAC & Certificados SAT (CSD)</h3>
+                <p className="text-xs text-slate-500">Configuración del motor de timbrado en tiempo real para CFDI 4.0, REP 2.0 y Carta Porte 3.1</p>
+              </div>
+            </div>
+            <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700">
+              {pacModoProduccion ? '🔴 MODO PRODUCCIÓN' : '🟢 MODO SANDBOX (PRUEBAS)'}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Proveedor PAC</label>
+              <select
+                value={pacProveedor}
+                onChange={(e) => setPacProveedor(e.target.value)}
+                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              >
+                <option value="FINKOK">Finkok (Recomendado)</option>
+                <option value="SW_SAPIEN">SW SmarterWeb / Sapien</option>
+                <option value="PRODIGIA">Prodigia PAC</option>
+                <option value="SIMULADOR">Simulador Local (Desarrollo sin costo)</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Usuario / Contrato PAC</label>
+              <input
+                type="text"
+                value={pacUsuario}
+                onChange={(e) => setPacUsuario(e.target.value)}
+                placeholder="ej. usuario@empresa.com"
+                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 font-mono"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Contraseña / Token API PAC</label>
+              <input
+                type="password"
+                value={pacPassword}
+                onChange={(e) => setPacPassword(e.target.value)}
+                placeholder="••••••••••••"
+                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 font-mono"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 border-t border-slate-100">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Serie Facturas (Ingreso)</label>
+              <input
+                type="text"
+                value={serieFactura}
+                onChange={(e) => setSerieFactura(e.target.value.toUpperCase())}
+                maxLength={4}
+                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 font-mono"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Serie Complemento Pago (REP)</label>
+              <input
+                type="text"
+                value={seriePagoRep}
+                onChange={(e) => setSeriePagoRep(e.target.value.toUpperCase())}
+                maxLength={4}
+                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 font-mono"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Serie Carta Porte (Traslado)</label>
+              <input
+                type="text"
+                value={serieCartaPorte}
+                onChange={(e) => setSerieCartaPorte(e.target.value.toUpperCase())}
+                maxLength={4}
+                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 font-mono"
+              />
+            </div>
+          </div>
+
+          <div className="pt-2">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={pacModoProduccion}
+                onChange={(e) => setPacModoProduccion(e.target.checked)}
+                className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
+              />
+              <span className="text-xs font-bold text-slate-800">
+                Habilitar Timbrado Fiscal Oficial ante el SAT (Requiere timbres contratados con el PAC)
+              </span>
+            </label>
           </div>
         </div>
 

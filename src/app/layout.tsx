@@ -1,8 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { AuthProvider } from '@/lib/auth-context';
-import Navbar from '@/components/layout/Navbar';
-import Sidebar from '@/components/layout/Sidebar';
+import AppShell from '@/components/layout/AppShell';
 
 export const metadata: Metadata = {
   title: 'ControlERP - Plataforma SaaS Multi-Giro',
@@ -16,17 +15,14 @@ export default function RootLayout({
 }) {
   return (
     <html lang="es">
-      <body className="bg-slate-50 text-slate-900 min-h-screen antialiased flex flex-col">
+      <body className="bg-slate-950 text-slate-900 min-h-screen antialiased">
         <AuthProvider>
-          <Navbar />
-          <div className="flex flex-1">
-            <Sidebar />
-            <main className="flex-1 p-6 overflow-y-auto max-h-[calc(100vh-4rem)]">
-              {children}
-            </main>
-          </div>
+          <AppShell>
+            {children}
+          </AppShell>
         </AuthProvider>
       </body>
     </html>
   );
 }
+

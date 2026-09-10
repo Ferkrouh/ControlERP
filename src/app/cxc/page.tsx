@@ -27,6 +27,7 @@ export default function CxCPage() {
   const [montoAbono, setMontoAbono] = useState<number>(0);
   const [metodoPago, setMetodoPago] = useState('TRANSFERENCIA');
   const [referencia, setReferencia] = useState('');
+  const [timbrarRep, setTimbrarRep] = useState(true);
   const [processingAbono, setProcessingAbono] = useState(false);
   const [abonoMsg, setAbonoMsg] = useState('');
 
@@ -66,6 +67,7 @@ export default function CxCPage() {
           monto: Number(montoAbono),
           metodo: metodoPago,
           referencia,
+          timbrarRep,
           usuarioNombre: user?.nombre || 'Operador Cobranza',
         }),
       });
@@ -93,7 +95,16 @@ export default function CxCPage() {
   // Cálculos de Resumen
   const totalPorCobrar = cxcList.reduce((acc, c) => acc + (c.saldoPendiente || 0), 0);
   const totalVencido = cxcList
-    .filter((c) => c.estado === 'VENCIDA' || new Date(c.fechaVencimiento) < new Date())
+    .filter((c) => (c.estado === 'VENCIDA' || new Date(c.fechaVencimiento) < new Date()) && c.saldoPendiente > 0)
+    .reduce((acc, c) => acc + (c.saldoPendiente || 0), 0);
+
+  const totalPorVencer = cxcList
+    .filter((c) => {
+      if (c.saldoPendiente <= 0) return false;
+      const vto = new Date(c.fechaVencimiento);
+      const diffDias = Math.ceil((vto.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+      return diffDias >= 0 && diffDias <= 5;
+    })
     .reduce((acc, c) => acc + (c.saldoPendiente || 0), 0);
 
   const filteredDocs = cxcList.filter((c) => {
@@ -101,10 +112,16 @@ export default function CxCPage() {
       c.folio.toLowerCase().includes(search.toLowerCase()) ||
       c.cliente.razonSocial.toLowerCase().includes(search.toLowerCase());
 
+    const isVencida = (c.estado === 'VENCIDA' || new Date(c.fechaVencimiento) < new Date()) && c.saldoPendiente > 0;
+    const vto = new Date(c.fechaVencimiento);
+    const diffDias = Math.ceil((vto.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+    const isPorVencer = c.saldoPendiente > 0 && diffDias >= 0 && diffDias <= 5;
+
     if (filtroEstado === 'TODOS') return matchSearch;
     if (filtroEstado === 'PENDIENTES') return matchSearch && c.saldoPendiente > 0;
-    if (filtroEstado === 'VENCIDAS') return matchSearch && (c.estado === 'VENCIDA' || new Date(c.fechaVencimiento) < new Date());
-    if (filtroEstado === 'PAGADAS') return matchSearch && c.estado === 'PAGADA';
+    if (filtroEstado === 'POR_VENCER') return matchSearch && isPorVencer;
+    if (filtroEstado === 'VENCIDAS') return matchSearch && isVencida;
+    if (filtroEstado === 'PAGADAS') return matchSearch && c.saldoPendiente === 0;
     return matchSearch;
   });
 
@@ -131,27 +148,39 @@ export default function CxCPage() {
       )}
 
       {/* Tarjetas de Resumen de Cartera */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
           <span className="text-xs font-semibold uppercase text-slate-500">Cartera Pendiente Total</span>
-          <p className="text-2xl font-bold text-slate-900 mt-2">
+          <p className="text-xl font-bold font-mono text-slate-900 mt-1">
             ${totalPorCobrar.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
           </p>
-          <p className="text-xs text-slate-500 mt-1">Suma de saldos pendientes</p>
+          <p className="text-[11px] text-slate-500 mt-0.5">Suma de saldos pendientes</p>
         </div>
 
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-          <span className="text-xs font-semibold uppercase text-slate-500">Saldo Vencido (En Mora)</span>
-          <p className="text-2xl font-bold text-rose-600 mt-2">
+        <div className="bg-white p-4 rounded-xl border border-rose-200 bg-rose-50/20 shadow-sm">
+          <span className="text-xs font-semibold uppercase text-rose-600 flex items-center gap-1">
+            <AlertTriangle className="w-3.5 h-3.5" /> Saldo Vencido (Mora)
+          </span>
+          <p className="text-xl font-bold font-mono text-rose-600 mt-1">
             ${totalVencido.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
           </p>
-          <p className="text-xs text-rose-500 font-semibold mt-1">Requiere gestión de cobranza inmediata</p>
+          <p className="text-[11px] text-rose-500 font-semibold mt-0.5">Requiere cobro urgente</p>
         </div>
 
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+        <div className="bg-white p-4 rounded-xl border border-amber-200 bg-amber-50/20 shadow-sm">
+          <span className="text-xs font-semibold uppercase text-amber-600 flex items-center gap-1">
+            <Clock className="w-3.5 h-3.5" /> Por Vencer (&le; 5 días)
+          </span>
+          <p className="text-xl font-bold font-mono text-amber-600 mt-1">
+            ${totalPorVencer.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+          </p>
+          <p className="text-[11px] text-amber-600 font-medium mt-0.5">Gestión preventiva de cobro</p>
+        </div>
+
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
           <span className="text-xs font-semibold uppercase text-slate-500">Documentos Emitidos</span>
-          <p className="text-2xl font-bold text-slate-900 mt-2">{cxcList.length} facturas</p>
-          <p className="text-xs text-slate-500 mt-1">Con términos de crédito aplicados</p>
+          <p className="text-xl font-bold text-slate-900 mt-1">{cxcList.length} facturas</p>
+          <p className="text-[11px] text-slate-500 mt-0.5">Con crédito activo</p>
         </div>
       </div>
 
@@ -168,19 +197,29 @@ export default function CxCPage() {
           />
         </div>
 
-        <div className="flex items-center gap-2 self-start sm:self-auto text-xs">
-          <span className="text-slate-500 font-medium">Filtrar:</span>
-          {['TODOS', 'PENDIENTES', 'VENCIDAS', 'PAGADAS'].map((st) => (
+        <div className="flex items-center gap-2 self-start sm:self-auto text-xs overflow-x-auto">
+          <span className="text-slate-500 font-medium shrink-0">Filtrar:</span>
+          {[
+            { id: 'TODOS', label: 'Todos' },
+            { id: 'PENDIENTES', label: 'Pendientes' },
+            { id: 'POR_VENCER', label: 'Por Vencer (5d)' },
+            { id: 'VENCIDAS', label: 'Vencidas' },
+            { id: 'PAGADAS', label: 'Pagadas' },
+          ].map((tab) => (
             <button
-              key={st}
-              onClick={() => setFiltroEstado(st)}
-              className={`px-3 py-1.5 rounded-lg font-semibold transition-all ${
-                filtroEstado === st
-                  ? 'bg-blue-600 text-white shadow-sm'
+              key={tab.id}
+              onClick={() => setFiltroEstado(tab.id)}
+              className={`px-3 py-1.5 rounded-lg font-semibold transition-all shrink-0 ${
+                filtroEstado === tab.id
+                  ? tab.id === 'VENCIDAS'
+                    ? 'bg-rose-600 text-white shadow-sm'
+                    : tab.id === 'POR_VENCER'
+                    ? 'bg-amber-500 text-white shadow-sm'
+                    : 'bg-blue-600 text-white shadow-sm'
                   : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
               }`}
             >
-              {st}
+              {tab.label}
             </button>
           ))}
         </div>
@@ -203,16 +242,21 @@ export default function CxCPage() {
                   <th className="py-3 px-4">Vencimiento</th>
                   <th className="py-3 px-4 text-right">Total Factura</th>
                   <th className="py-3 px-4 text-right">Saldo Pendiente</th>
-                  <th className="py-3 px-4 text-center">Estado</th>
+                  <th className="py-3 px-4 text-center">Estado de Cartera</th>
                   {!isReadOnly && <th className="py-3 px-4 text-center">Acción</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredDocs.map((doc) => {
                   const isVencida = new Date(doc.fechaVencimiento) < new Date() && doc.saldoPendiente > 0;
+                  const vto = new Date(doc.fechaVencimiento);
+                  const diffDias = Math.ceil((vto.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+                  const isPorVencer = doc.saldoPendiente > 0 && diffDias >= 0 && diffDias <= 5;
 
                   return (
-                    <tr key={doc.id} className="hover:bg-slate-50/70 transition-colors">
+                    <tr key={doc.id} className={`transition-colors ${
+                      isVencida ? 'bg-rose-50/40 hover:bg-rose-50/70' : isPorVencer ? 'bg-amber-50/30 hover:bg-amber-50/60' : 'hover:bg-slate-50/70'
+                    }`}>
                       <td className="py-3 px-4 font-mono font-bold text-blue-700">
                         {doc.folio}
                       </td>
@@ -227,27 +271,38 @@ export default function CxCPage() {
                       </td>
 
                       <td className="py-3 px-4 text-xs">
-                        <span className={isVencida ? 'text-rose-600 font-bold' : 'text-slate-600 font-medium'}>
-                          {new Date(doc.fechaVencimiento).toLocaleDateString('es-MX')}
-                        </span>
+                        <div className="flex flex-col">
+                          <span className={isVencida ? 'text-rose-600 font-bold' : isPorVencer ? 'text-amber-700 font-bold' : 'text-slate-600 font-medium'}>
+                            {new Date(doc.fechaVencimiento).toLocaleDateString('es-MX')}
+                          </span>
+                          {doc.saldoPendiente > 0 && (
+                            <span className="text-[10px] font-medium text-slate-400">
+                              {diffDias < 0 ? `Vencido hace ${Math.abs(diffDias)} días` : diffDias === 0 ? 'Vence hoy' : `Vence en ${diffDias} días`}
+                            </span>
+                          )}
+                        </div>
                       </td>
 
-                      <td className="py-3 px-4 text-right font-semibold text-slate-800">
+                      <td className="py-3 px-4 text-right font-semibold font-mono text-slate-800">
                         ${doc.montoTotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
                       </td>
 
-                      <td className="py-3 px-4 text-right font-bold text-slate-900">
+                      <td className="py-3 px-4 text-right font-bold font-mono text-slate-900">
                         ${doc.saldoPendiente.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
                       </td>
 
                       <td className="py-3 px-4 text-center">
                         {doc.saldoPendiente === 0 ? (
                           <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                            PAGADA
+                            LIQUIDADA
                           </span>
                         ) : isVencida ? (
-                          <span className="bg-rose-100 text-rose-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                            VENCIDA
+                          <span className="bg-rose-100 text-rose-800 text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                            <AlertTriangle className="w-2.5 h-2.5" /> VENCIDA
+                          </span>
+                        ) : isPorVencer ? (
+                          <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                            <Clock className="w-2.5 h-2.5" /> POR VENCER
                           </span>
                         ) : (
                           <span className="bg-blue-100 text-blue-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
@@ -352,6 +407,22 @@ export default function CxCPage() {
                 />
               </div>
 
+              {/* Opción Timbrado Fiscal REP 2.0 */}
+              <div className="p-3 bg-purple-50 border border-purple-200 rounded-xl">
+                <label className="flex items-center gap-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={timbrarRep}
+                    onChange={(e) => setTimbrarRep(e.target.checked)}
+                    className="w-4 h-4 text-purple-600 rounded border-slate-300 focus:ring-purple-500"
+                  />
+                  <div>
+                    <span className="text-xs font-bold text-purple-900 block">Timbrar Complemento de Pago (REP 2.0)</span>
+                    <span className="text-[11px] text-purple-700 block">Emite recibo fiscal electrónico ante el SAT con desglose de saldo anterior e insoluto.</span>
+                  </div>
+                </label>
+              </div>
+
               {abonoMsg && (
                 <p className="text-xs font-semibold text-emerald-700 bg-emerald-50 p-2.5 rounded-lg border border-emerald-200">
                   {abonoMsg}
@@ -371,7 +442,7 @@ export default function CxCPage() {
                   disabled={processingAbono}
                   className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-5 py-2 rounded-lg shadow-sm disabled:opacity-50"
                 >
-                  {processingAbono ? 'Aplicando...' : 'Aplicar Abono'}
+                  {processingAbono ? 'Aplicando y Timbrando...' : 'Aplicar Abono'}
                 </button>
               </div>
             </form>

@@ -260,9 +260,13 @@ export default function ClientesPage() {
                           <span className="bg-rose-100 text-rose-800 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center justify-center gap-1">
                             <Lock className="w-3 h-3" /> Bloqueado
                           </span>
+                        ) : cli.cxc?.some((x: any) => (x.estado === 'VENCIDA' || new Date(x.fechaVencimiento) < new Date()) && x.saldoPendiente > 0) ? (
+                          <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center justify-center gap-1" title="Tiene facturas con plazo vencido en CxC">
+                            <Clock className="w-3 h-3 text-amber-600" /> En Mora ({cli.cxc?.filter((x: any) => (x.estado === 'VENCIDA' || new Date(x.fechaVencimiento) < new Date()) && x.saldoPendiente > 0).length})
+                          </span>
                         ) : (
                           <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center justify-center gap-1">
-                            <CheckCircle2 className="w-3 h-3" /> Activo
+                            <CheckCircle2 className="w-3 h-3" /> Al Corriente
                           </span>
                         )}
                       </td>

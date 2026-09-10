@@ -21,7 +21,11 @@ import {
   Lock,
   Eye,
   History,
-  ShoppingCart
+  ShoppingCart,
+  Zap,
+  Landmark,
+  Factory,
+  Kanban
 } from 'lucide-react';
 
 export default function Sidebar() {
@@ -139,10 +143,33 @@ export default function Sidebar() {
             {!isSuperadmin && rol !== 'ALMACENISTA' && (
               <>
                 <div className="pt-4 pb-1 px-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                  Área Comercial & Crédito
+                  Área Comercial
                 </div>
 
-                {/* Ventas & Facturación */}
+                {/* Punto de Venta POS (Mostrador Rápido) */}
+                <Link
+                  href="/pos"
+                  className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    isActive('/pos') ? 'bg-emerald-600 text-white' : 'hover:bg-slate-900 hover:text-white text-emerald-400'
+                  }`}
+                >
+                  <Zap className="w-4 h-4" />
+                  <span>Punto de Venta (POS)</span>
+                </Link>
+
+                {/* Cotizaciones & Presupuestos */}
+                <Link
+                  href="/cotizaciones"
+                  className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    isActive('/cotizaciones') ? 'bg-blue-600 text-white' : 'hover:bg-slate-900 hover:text-white'
+                  }`}
+                >
+                  <FileText className="w-4 h-4" />
+                  <span>Cotizaciones</span>
+                  {rol === 'AUDITOR' && <Eye className="w-3.5 h-3.5 ml-auto text-slate-400" />}
+                </Link>
+
+                {/* Ventas */}
                 <Link
                   href="/ventas"
                   className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -150,7 +177,7 @@ export default function Sidebar() {
                   }`}
                 >
                   <ShoppingCart className="w-4 h-4" />
-                  <span>Ventas & Facturación</span>
+                  <span>Ventas</span>
                   {rol === 'AUDITOR' && <Eye className="w-3.5 h-3.5 ml-auto text-slate-400" />}
                 </Link>
 
@@ -183,6 +210,18 @@ export default function Sidebar() {
                 <div className="pt-4 pb-1 px-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
                   Compras & Proveedores
                 </div>
+
+                {/* Órdenes de Compra (3-Way Matching) */}
+                <Link
+                  href="/ordenes-compra"
+                  className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    isActive('/ordenes-compra') ? 'bg-blue-600 text-white' : 'hover:bg-slate-900 hover:text-white'
+                  }`}
+                >
+                  <FileText className="w-4 h-4" />
+                  <span>Órdenes de Compra (OC)</span>
+                  {rol === 'AUDITOR' && <Eye className="w-3.5 h-3.5 ml-auto text-slate-400" />}
+                </Link>
 
                 {/* Recepción de Compras */}
                 <Link
@@ -223,6 +262,42 @@ export default function Sidebar() {
                     {rol === 'AUDITOR' && <Eye className="w-3.5 h-3.5 ml-auto text-slate-400" />}
                   </Link>
                 )}
+
+                {/* Tesorería, Bancos & Flujo de Caja */}
+                <Link
+                  href="/tesoreria"
+                  className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    isActive('/tesoreria') ? 'bg-emerald-600 text-white' : 'hover:bg-slate-900 hover:text-white text-emerald-400'
+                  }`}
+                >
+                  <Landmark className="w-4 h-4" />
+                  <span>Tesorería & Bancos</span>
+                  {rol === 'AUDITOR' && <Eye className="w-3.5 h-3.5 ml-auto text-slate-400" />}
+                </Link>
+
+                {/* CRM & Pipeline de Ventas */}
+                <Link
+                  href="/crm"
+                  className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    isActive('/crm') ? 'bg-indigo-600 text-white' : 'hover:bg-slate-900 hover:text-white text-indigo-400'
+                  }`}
+                >
+                  <Kanban className="w-4 h-4" />
+                  <span>CRM & Pipeline</span>
+                  {rol === 'AUDITOR' && <Eye className="w-3.5 h-3.5 ml-auto text-slate-400" />}
+                </Link>
+
+                {/* Manufactura & Producción MRP */}
+                <Link
+                  href="/manufactura"
+                  className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    isActive('/manufactura') ? 'bg-indigo-600 text-white' : 'hover:bg-slate-900 hover:text-white'
+                  }`}
+                >
+                  <Factory className="w-4 h-4" />
+                  <span>Manufactura (MRP)</span>
+                  {rol === 'AUDITOR' && <Eye className="w-3.5 h-3.5 ml-auto text-slate-400" />}
+                </Link>
               </>
             )}
 

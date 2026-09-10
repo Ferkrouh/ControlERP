@@ -111,6 +111,8 @@ export async function getAuthSession(req?: NextRequest): Promise<UserSession | n
   }
 }
 
+export const getSession = getAuthSession;
+
 /**
  * Helper para validar permisos server-side y resolver el tenantId seguro.
  * Devuelve error estructurado si el usuario no está autenticado o no tiene permisos.

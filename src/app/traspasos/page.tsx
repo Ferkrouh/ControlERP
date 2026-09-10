@@ -28,6 +28,11 @@ export default function TraspasosPage() {
   const [productoId, setProductoId] = useState('');
   const [cantidad, setCantidad] = useState(5);
   const [observaciones, setObservaciones] = useState('');
+  const [requiereCartaPorte, setRequiereCartaPorte] = useState(false);
+  const [distanciaKm, setDistanciaKm] = useState(25);
+  const [vehiculoPlacas, setVehiculoPlacas] = useState('');
+  const [operadorNombre, setOperadorNombre] = useState('');
+  const [operadorRfc, setOperadorRfc] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -86,6 +91,7 @@ export default function TraspasosPage() {
 
     setSubmitting(true);
     try {
+      const prodSelected = productos.find((p) => p.id === productoId);
       const res = await fetch('/api/traspasos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -94,7 +100,16 @@ export default function TraspasosPage() {
           almacenOrigenId,
           almacenDestinoId,
           observaciones,
-          items: [{ productoId, cantidadEnviada: Number(cantidad) }],
+          requiereCartaPorte,
+          distanciaKm,
+          vehiculoPlacas,
+          operadorNombre,
+          operadorRfc,
+          items: [{ 
+            productoId, 
+            cantidadEnviada: Number(cantidad),
+            nombre: prodSelected?.nombre || 'Artículo',
+          }],
         }),
       });
 
@@ -240,6 +255,22 @@ export default function TraspasosPage() {
                       </div>
                       {trasp.observaciones && (
                         <p className="text-[11px] text-slate-400 mt-0.5">{trasp.observaciones}</p>
+                      )}
+                      {trasp.requiereCartaPorte && (
+                        <div className="mt-1 flex items-center gap-1.5">
+                          {trasp.estadoCartaPorte === 'TIMBRADA' ? (
+                            <span className="inline-flex items-center gap-1 bg-purple-100 text-purple-800 text-[9px] font-mono font-bold px-2 py-0.5 rounded-full" title={trasp.uuidCartaPorte}>
+                              <CheckCircle2 className="w-3 h-3 text-purple-600" /> Carta Porte 3.1 SAT
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-600 text-[9px] font-mono px-2 py-0.5 rounded-full">
+                              Carta Porte: {trasp.estadoCartaPorte}
+                            </span>
+                          )}
+                          {trasp.vehiculoPlacas && (
+                            <span className="text-[9px] font-mono text-slate-500">Placas: {trasp.vehiculoPlacas}</span>
+                          )}
+                        </div>
                       )}
                     </td>
 
@@ -388,6 +419,67 @@ export default function TraspasosPage() {
                   placeholder="Ej. Reabastecimiento urgente de stock para entrega"
                   className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300"
                 />
+              </div>
+
+              {/* Complemento Carta Porte 3.1 SAT */}
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={requiereCartaPorte}
+                    onChange={(e) => setRequiereCartaPorte(e.target.checked)}
+                    className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
+                  />
+                  <div>
+                    <span className="text-xs font-bold text-slate-900 block">¿Requiere Carta Porte 3.1? (Tránsito Carretero Federal)</span>
+                    <span className="text-[11px] text-slate-500 block">Emite CFDI de Traslado con complemento para amparar el transporte ante la Guardia Nacional / SAT.</span>
+                  </div>
+                </label>
+
+                {requiereCartaPorte && (
+                  <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200 text-xs">
+                    <div>
+                      <label className="block text-[11px] text-slate-600 mb-0.5">Distancia Recorrida (Km)</label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={distanciaKm}
+                        onChange={(e) => setDistanciaKm(Number(e.target.value))}
+                        className="w-full px-2 py-1 border rounded bg-white font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] text-slate-600 mb-0.5">Placas Vehículo</label>
+                      <input
+                        type="text"
+                        placeholder="ej. P-991-NL"
+                        value={vehiculoPlacas}
+                        onChange={(e) => setVehiculoPlacas(e.target.value.toUpperCase())}
+                        className="w-full px-2 py-1 border rounded bg-white font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] text-slate-600 mb-0.5">Nombre del Chofer / Operador</label>
+                      <input
+                        type="text"
+                        placeholder="Nombre completo"
+                        value={operadorNombre}
+                        onChange={(e) => setOperadorNombre(e.target.value)}
+                        className="w-full px-2 py-1 border rounded bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] text-slate-600 mb-0.5">RFC Chofer</label>
+                      <input
+                        type="text"
+                        placeholder="RFC a 13 posiciones"
+                        value={operadorRfc}
+                        onChange={(e) => setOperadorRfc(e.target.value.toUpperCase())}
+                        className="w-full px-2 py-1 border rounded bg-white font-mono"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               {errorMsg && (

@@ -28,3 +28,13 @@
 ## Convenciones de Base de Datos y APIs
 - Todos los modelos transaccionales deben aislarse estrictamente por `tenantId`.
 - Las modificaciones a límites de crédito, precios o existencias deben registrarse en `RegistroAuditoria` o `MovimientoKardex`.
+
+## Módulos Implementados en el Sistema (Fases 1 a 7 - Odoo Architecture)
+1. **Core Foundation (Fase 1):** Multi-tenant SaaS, RBAC de 5 roles (`SUPERADMIN`, `ADMIN`, `ENCARGADO`, `ALMACENISTA`, `AUDITOR`), control estricto de crédito y cartera, CxC, CxP, inventarios multialmacén con Kárdex en tiempo real (Costo Promedio), reportes mensuales y despliegue Docker en Ubuntu.
+2. **Ciclo Comercial & POS (Fase 2):** Cotizaciones y presupuestos formales con conversión a venta en 1 clic (`/cotizaciones`), Punto de Venta de mostrador rápido (`/pos`) con escaneo de código de barras, calculadora de cambio y tickets térmicos, arqueo/corte Z de caja (`TurnoCajaPOS`) y listas de precios (`ListaPrecio`).
+3. **Cadena de Suministro & 3-Way Matching (Fase 3):** Órdenes de compra autorizadas (`/ordenes-compra`), validación de 3 vías (`OC = Factura/Remisión = Picking físico en almacén`), entregas parciales/totales y control de lotes y fechas de caducidad (`LoteProducto`).
+4. **SAT CFDI 4.0 Readiness (Fase 4):** Adaptador fiscal multi-PAC (Finkok, SW Sapien, Prodigia, Simulador), timbrado de facturas de ingreso en 1 clic con XML y UUID SAT (`/ventas`), Complemento de Pago REP 2.0 en abonos a CxC (`/cxc`), y Carta Porte 3.1 en traslados carreteros (`/traspasos`).
+5. **Tesorería & Bancos (Fase 5):** Catálogo de cuentas bancarias multimoneda y cajas chicas (`/tesoreria`), flujo de ingresos/egresos con saldo acumulativo y conciliación bancaria en 1 clic (`CuentaBancaria`, `MovimientoBancario`).
+6. **Manufactura & MRP (Fase 6):** Listas de Materiales / BOM con componentes y porcentaje de merma (`/manufactura`), órdenes de producción (`OP-YYYY-XXXX`) y motor transaccional de conversión física que descuenta insumos y da entrada al producto terminado recalculando su costo promedio ponderado (`ListaMateriales`, `OrdenProduccion`).
+7. **CRM Comercial & Pipeline (Fase 7):** Tablero visual Kanban con 6 etapas de ventas (`/crm`), pronóstico ponderado de ventas (Sales Forecasting) y registro de oportunidades (`OportunidadCRM`).
+
