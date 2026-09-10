@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: controlerp-app
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=file:./dev.db
+      - NEXT_PUBLIC_APP_NAME=ControlERP
+    volumes:
+      - ./data:/app/data
+
+  # Túnel Cloudflare para acceso remoto seguro desde Internet sin abrir puertos en el router
+  # Para activarlo: reemplaza TUNNEL_TOKEN con el token de tu túnel en dash.cloudflare.com
+  cloudflare-tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: controlerp-tunnel
+    restart: always
+    command: tunnel run
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN:-dummy_token_configurar_en_env}
+    depends_on:
+      - app

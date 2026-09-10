@@ -1,0 +1,133 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-09T18:43:30.000Z",
+  "title": "Design System: ControlERP",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "Ledger Corporate Blue",
+        "canonical": "#2563eb",
+        "tonalRamp": ["#172554", "#1e3a8a", "#1e40af", "#1d4ed8", "#2563eb", "#3b82f6", "#60a5fa", "#dbeafe"]
+      },
+      "platform-purple": {
+        "role": "secondary",
+        "displayName": "Platform Sovereign Violet",
+        "canonical": "#7c3aed",
+        "tonalRamp": ["#2e1065", "#3b0764", "#581c87", "#6b21a8", "#7c3aed", "#9333ea", "#c084fc", "#f3e8ff"]
+      },
+      "neutral-bg": {
+        "role": "neutral",
+        "displayName": "Ledger Canvas",
+        "canonical": "#f8fafc",
+        "tonalRamp": ["#020617", "#0f172a", "#1e293b", "#334155", "#64748b", "#cbd5e1", "#e2e8f0", "#f8fafc"]
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Títulos principales y cifras macro de balance" },
+      "headline": { "displayName": "Headline", "purpose": "Encabezados de dashboards y modales prioritarios" },
+      "body": { "displayName": "Body", "purpose": "Contenido transaccional de tablas y formularios" }
+    },
+    "shadows": [
+      {
+        "name": "card-float",
+        "value": "0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.04)",
+        "purpose": "Tarjetas KPI, paneles de balance ejecutivo y contenedores centrales flotantes."
+      },
+      {
+        "name": "hover-lift",
+        "value": "0 20px 25px -5px rgba(15, 23, 42, 0.12), 0 10px 10px -5px rgba(15, 23, 42, 0.06)",
+        "purpose": "Elevación interactiva al pasar el cursor sobre tarjetas y botones de acción."
+      },
+      {
+        "name": "modal-elevation",
+        "value": "0 25px 50px -12px rgba(15, 23, 42, 0.25)",
+        "purpose": "Diálogos modales de venta, alta de producto y autorización de crédito."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-standard",
+        "value": "cubic-bezier(0.4, 0, 0.2, 1)",
+        "purpose": "Transiciones suaves entre estados interactivos y elevación de tarjetas."
+      }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" },
+      { "name": "xl", "value": "1280px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Botón de acción principal para confirmar operaciones de venta, compra o guardar registros.",
+      "html": "<button class=\"ds-btn-primary\">Confirmar Operación</button>",
+      "css": ".ds-btn-primary { background: #2563eb; color: #ffffff; padding: 10px 18px; font-size: 14px; font-weight: 600; border: none; border-radius: 10px; cursor: pointer; transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2); } .ds-btn-primary:hover { background: #1d4ed8; transform: translateY(-1px); box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.3); }"
+    },
+    {
+      "name": "Floating Metric Card",
+      "kind": "card",
+      "refersTo": "card-floating",
+      "description": "Tarjeta flotante elevada para KPIs financieros, saldos de crédito y existencias de almacén.",
+      "html": "<div class=\"ds-card-metric\"><div class=\"ds-metric-title\">Cuentas por Cobrar</div><div class=\"ds-metric-value\">$142,500.00</div><div class=\"ds-metric-sub text-emerald-600\">+12% vs mes anterior</div></div>",
+      "css": ".ds-card-metric { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 20px; box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.04); transition: transform 0.2s, box-shadow 0.2s; } .ds-card-metric:hover { transform: translateY(-2px); box-shadow: 0 20px 25px -5px rgba(15, 23, 42, 0.12); } .ds-metric-title { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; margin-bottom: 8px; } .ds-metric-value { font-size: 24px; font-weight: 700; color: #0f172a; font-family: ui-monospace, monospace; } .ds-metric-sub { font-size: 12px; font-weight: 500; color: #10b981; margin-top: 6px; }"
+    },
+    {
+      "name": "Search & Filter Input",
+      "kind": "input",
+      "refersTo": "input-field",
+      "description": "Campo de búsqueda rápida por SKU, código de barras o razón social.",
+      "html": "<input class=\"ds-input-search\" type=\"text\" placeholder=\"Buscar por SKU, código o nombre...\" />",
+      "css": ".ds-input-search { width: 100%; max-width: 340px; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 10px; padding: 9px 14px; font-size: 13px; color: #0f172a; outline: none; transition: border-color 0.15s, box-shadow 0.15s; } .ds-input-search:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Fintech Ledger",
+    "overview": "ControlERP encarna la pulcritud financiera, el rigor de auditoría contable y la precisión transaccional de una institución de banca corporativa moderna adaptada al dinamismo de la distribución mayorista y la logística multialmacén. Cada elemento en pantalla transmite solvencia, certidumbre numérica e inmediatez de control.",
+    "keyCharacteristics": [
+      "Claridad contable y tipográfica con énfasis en fuentes monoespaciadas para cifras y folios",
+      "Tarjetas flotantes elevadas con profundidad espacial para métricas y balances clave",
+      "Cromática semántica rigurosa para estados de crédito, inventario y fiscalidad",
+      "Gobernanza visual diferenciada por rol (Superadmin en púrpura soberano vs. operación tenant en azul corporativo)"
+    ],
+    "rules": [
+      {
+        "name": "The Tenant Identity Rule",
+        "body": "La interfaz respeta el color primario asignado por cada negocio (tenant.colorPrimario), pero nunca reemplaza los colores semánticos de riesgo, auditoría ni el púrpura del Superadmin.",
+        "section": "colors"
+      },
+      {
+        "name": "The Financial Signal Rule",
+        "body": "Ningún número financiero o nivel de stock crítico se muestra sin su contexto semántico (icono, etiqueta de estado o contraste cromático explícito).",
+        "section": "colors"
+      },
+      {
+        "name": "The Fiscal Code Rule",
+        "body": "Los números de parte (SKU), códigos de barras, RFCs, folios fiscales (UUID) y cantidades en moneda deben utilizar tipografía monoespaciada para evitar desalineación visual al comparar registros.",
+        "section": "typography"
+      },
+      {
+        "name": "The Sovereign Lift Rule",
+        "body": "Los modales y diálogos de confirmación crítica emplean una sombra profunda combinada con un telón de fondo desenfocado (backdrop-blur-sm bg-slate-950/60), forzando concentración total en la acción contable.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do presentar importes monetarios formateados con separador de miles y dos decimales ($1,250.00 MXN).",
+      "Do utilizar tipografía monoespaciada para folios, RFCs, SKUs y números de serie en todas las tablas y tarjetas.",
+      "Do aplicar la sombra flotante (Card Float) a paneles de KPI y tarjetas principales para conservar la profundidad estética aprobada.",
+      "Do alertar claramente el límite de crédito disponible antes de confirmar cualquier remisión o venta a crédito.",
+      "Do preservar el aislamiento estricto entre la interfaz de Superadmin (púrpura) y la interfaz de tenant (azul/corporativo)."
+    ],
+    "donts": [
+      "Don't eliminar los bordes divisores o las sombras en tablas y formularios volviendo la pantalla plana y confusa.",
+      "Don't utilizar colores de estado arbitrarios (ej. azul para advertencia de vencimiento o verde para crédito bloqueado).",
+      "Don't esconder las existencias por almacén en una sola cifra consolidada sin opción de desglose multialmacén.",
+      "Don't permitir confirmación de compras o ventas sin mostrar el resumen financiero con impuestos desglosados."
+    ]
+  }
+}
