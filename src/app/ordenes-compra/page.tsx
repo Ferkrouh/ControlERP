@@ -20,7 +20,8 @@ import {
   PackageCheck,
   TrendingUp,
   DollarSign,
-  Filter
+  Filter,
+  X
 } from 'lucide-react';
 
 interface CartItem {
@@ -88,6 +89,18 @@ export default function OrdenesCompraPage() {
       loadData();
     }
   }, [user]);
+
+  // Accesibilidad: Cerrar modales con tecla Escape
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (showModal) setShowModal(false);
+        if (showRecibirModal) setShowRecibirModal(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showModal, showRecibirModal]);
 
   const loadData = async () => {
     try {
@@ -667,7 +680,7 @@ export default function OrdenesCompraPage() {
           <button
             type="button"
             onClick={() => setActiveTab('TODAS')}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${
               activeTab === 'TODAS'
                 ? 'bg-blue-600 text-white shadow-sm'
                 : 'text-slate-400 hover:text-white hover:bg-slate-900'
@@ -678,7 +691,7 @@ export default function OrdenesCompraPage() {
           <button
             type="button"
             onClick={() => setActiveTab('PENDIENTES')}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${
               activeTab === 'PENDIENTES'
                 ? 'bg-blue-600 text-white shadow-sm'
                 : 'text-slate-400 hover:text-white hover:bg-slate-900'
@@ -689,7 +702,7 @@ export default function OrdenesCompraPage() {
           <button
             type="button"
             onClick={() => setActiveTab('PARCIALES')}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-amber-500/50 ${
               activeTab === 'PARCIALES'
                 ? 'bg-amber-600 text-white shadow-sm'
                 : 'text-slate-400 hover:text-white hover:bg-slate-900'
@@ -700,7 +713,7 @@ export default function OrdenesCompraPage() {
           <button
             type="button"
             onClick={() => setActiveTab('SURTIDAS')}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500/50 ${
               activeTab === 'SURTIDAS'
                 ? 'bg-emerald-600 text-white shadow-sm'
                 : 'text-slate-400 hover:text-white hover:bg-slate-900'
@@ -776,7 +789,8 @@ export default function OrdenesCompraPage() {
                         <button
                           onClick={() => handlePrintOrdenCompra(oc)}
                           title="Imprimir Orden de Compra"
-                          className="p-1.5 hover:bg-slate-800 rounded text-slate-400 hover:text-white transition-colors"
+                          aria-label={`Imprimir Orden de Compra ${oc.folio}`}
+                          className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/50"
                         >
                           <Printer className="w-4 h-4" />
                         </button>
@@ -784,7 +798,8 @@ export default function OrdenesCompraPage() {
                         {oc.estado !== 'RECIBIDA_TOTAL' && user?.rol !== 'AUDITOR' && (
                           <button
                             onClick={() => handleOpenRecibir(oc)}
-                            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white text-xs font-semibold transition-all border border-emerald-700/50"
+                            aria-label={`Recibir partidas 3-Way Matching para ${oc.folio}`}
+                            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white text-xs font-semibold transition-all border border-emerald-700/50 focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
                           >
                             <Truck className="w-3.5 h-3.5" />
                             <span>Recibir (3-Way)</span>
@@ -816,9 +831,10 @@ export default function OrdenesCompraPage() {
               </div>
               <button
                 onClick={() => setShowModal(false)}
-                className="text-slate-400 hover:text-white text-xl font-bold p-1 rounded-lg hover:bg-slate-800"
+                aria-label="Cerrar modal de nueva orden"
+                className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-colors"
               >
-                ✕
+                <X className="w-5 h-5" />
               </button>
             </div>
 
@@ -1047,9 +1063,10 @@ export default function OrdenesCompraPage() {
               </div>
               <button
                 onClick={() => setShowRecibirModal(false)}
-                className="text-slate-400 hover:text-white text-xl font-bold p-1 rounded-lg hover:bg-slate-800"
+                aria-label="Cerrar modal de recepción 3-Way"
+                className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-colors"
               >
-                ✕
+                <X className="w-5 h-5" />
               </button>
             </div>
 
