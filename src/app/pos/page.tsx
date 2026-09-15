@@ -749,7 +749,7 @@ export default function PosPage() {
                       <button
                         type="button"
                         onClick={() => setCart(cart.filter((_, i) => i !== idx))}
-                        className="text-slate-400 hover:text-rose-700 p-1.5 rounded-lg hover:bg-rose-50 transition-colors"
+                        className="text-slate-400 hover:text-rose-700 p-1.5 rounded-lg hover:bg-rose-100/70 transition-colors"
                         title="Quitar partida"
                       >
                         <Trash2 className="w-3.5 h-3.5" />

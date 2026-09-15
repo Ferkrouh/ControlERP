@@ -126,62 +126,81 @@ export default function CxCPage() {
     return matchSearch;
   });
 
+  if (loading) {
+    return (
+      <div className="space-y-6 animate-pulse">
+        <div className="h-28 bg-slate-200 rounded-2xl"></div>
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+          <div className="h-24 bg-slate-200 rounded-2xl"></div>
+          <div className="h-24 bg-slate-200 rounded-2xl"></div>
+          <div className="h-24 bg-slate-200 rounded-2xl"></div>
+          <div className="h-24 bg-slate-200 rounded-2xl"></div>
+        </div>
+        <div className="h-96 bg-slate-200 rounded-2xl"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* Header Soberano Ejecutivo */}
+      <div className="bg-slate-900 border border-slate-800 text-white p-6 rounded-2xl shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-            <CreditCard className="w-6 h-6 text-blue-600" />
+          <div className="flex items-center gap-2">
+            <span className="bg-blue-500/20 text-blue-300 border border-blue-400/30 text-xs px-2.5 py-0.5 rounded-full font-semibold flex items-center gap-1.5">
+              <CreditCard className="w-3.5 h-3.5 text-blue-400" /> Cartera y Crédito
+            </span>
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight text-white mt-2 flex items-center gap-2">
             Cuentas por Cobrar & Cobranza
-          </h2>
-          <p className="text-sm text-slate-500 mt-1">
+          </h1>
+          <p className="text-slate-400 text-sm mt-1">
             Control de facturas a crédito, conciliación de pagos y restauración de saldo disponible.
           </p>
         </div>
       </div>
 
       {isReadOnly && (
-        <div className="bg-amber-50 border border-amber-200 text-amber-800 text-xs px-4 py-2.5 rounded-xl flex items-center gap-2 font-medium">
-          <Eye className="w-4 h-4 text-amber-600" />
-          Modo Auditoría: Consulta de cartera y saldos en modo solo lectura.
+        <div className="bg-amber-50 border border-amber-200 text-amber-900 text-xs px-4 py-3 rounded-2xl flex items-center gap-2.5 font-medium">
+          <Eye className="w-4 h-4 text-amber-700 shrink-0" />
+          <span><strong>Modo Auditoría:</strong> Consulta de cartera y saldos en modo solo lectura.</span>
         </div>
       )}
 
-      {/* Tarjetas de Resumen de Cartera */}
+      {/* Tarjetas de Resumen de Cartera (Card Float Principle) */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-          <span className="text-xs font-semibold uppercase text-slate-500">Cartera Pendiente Total</span>
-          <p className="text-xl font-bold font-mono text-slate-900 mt-1">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-md shadow-slate-900/5 hover:shadow-xl hover:-translate-y-0.5 transition-all">
+          <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Cartera Pendiente Total</span>
+          <p className="text-2xl font-bold font-mono text-slate-900 mt-2">
             ${totalPorCobrar.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
           </p>
-          <p className="text-xs text-slate-500 mt-0.5">Suma de saldos pendientes</p>
+          <p className="text-xs text-slate-400 mt-1">Suma de saldos pendientes</p>
         </div>
 
-        <div className="bg-white p-4 rounded-xl border border-rose-200 bg-rose-50/20 shadow-sm">
-          <span className="text-xs font-semibold uppercase text-rose-600 flex items-center gap-1">
+        <div className="bg-white p-5 rounded-2xl border border-rose-200 bg-rose-50/20 shadow-md shadow-slate-900/5 hover:shadow-xl hover:-translate-y-0.5 transition-all">
+          <span className="text-xs font-semibold uppercase tracking-wider text-rose-700 flex items-center gap-1">
             <AlertTriangle className="w-3.5 h-3.5" /> Saldo Vencido (Mora)
           </span>
-          <p className="text-xl font-bold font-mono text-rose-600 mt-1">
+          <p className="text-2xl font-bold font-mono text-rose-600 mt-2">
             ${totalVencido.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
           </p>
-          <p className="text-xs text-rose-500 font-semibold mt-0.5">Requiere cobro urgente</p>
+          <p className="text-xs text-rose-600 font-medium mt-1">Requiere cobro urgente</p>
         </div>
 
-        <div className="bg-white p-4 rounded-xl border border-amber-200 bg-amber-50/20 shadow-sm">
-          <span className="text-xs font-semibold uppercase text-amber-600 flex items-center gap-1">
+        <div className="bg-white p-5 rounded-2xl border border-amber-200 bg-amber-50/20 shadow-md shadow-slate-900/5 hover:shadow-xl hover:-translate-y-0.5 transition-all">
+          <span className="text-xs font-semibold uppercase tracking-wider text-amber-700 flex items-center gap-1">
             <Clock className="w-3.5 h-3.5" /> Por Vencer (&le; 5 días)
           </span>
-          <p className="text-xl font-bold font-mono text-amber-600 mt-1">
+          <p className="text-2xl font-bold font-mono text-amber-700 mt-2">
             ${totalPorVencer.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
           </p>
-          <p className="text-xs text-amber-600 font-medium mt-0.5">Gestión preventiva de cobro</p>
+          <p className="text-xs text-amber-700 font-medium mt-1">Gestión preventiva de cobro</p>
         </div>
 
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-          <span className="text-xs font-semibold uppercase text-slate-500">Documentos Emitidos</span>
-          <p className="text-xl font-bold text-slate-900 mt-1">{cxcList.length} facturas</p>
-          <p className="text-xs text-slate-500 mt-0.5">Con crédito activo</p>
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-md shadow-slate-900/5 hover:shadow-xl hover:-translate-y-0.5 transition-all">
+          <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Documentos Emitidos</span>
+          <p className="text-2xl font-bold font-mono text-slate-900 mt-2">{cxcList.length} <span className="text-sm font-sans font-normal text-slate-500">facturas</span></p>
+          <p className="text-xs text-slate-400 mt-1">Con crédito activo</p>
         </div>
       </div>
 
