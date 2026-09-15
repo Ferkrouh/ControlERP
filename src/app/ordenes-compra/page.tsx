@@ -17,7 +17,10 @@ import {
   Clock,
   Printer,
   Search,
-  PackageCheck
+  PackageCheck,
+  TrendingUp,
+  DollarSign,
+  Filter
 } from 'lucide-react';
 
 interface CartItem {
@@ -78,6 +81,7 @@ export default function OrdenesCompraPage() {
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeTab, setActiveTab] = useState<'TODAS' | 'PENDIENTES' | 'PARCIALES' | 'SURTIDAS'>('TODAS');
 
   useEffect(() => {
     if (user?.tenantId || user?.rol === 'SUPERADMIN') {
@@ -295,23 +299,23 @@ export default function OrdenesCompraPage() {
 
     const itemsHtml = oc.items?.map((it: any, idx: number) => `
       <tr style="background-color: ${idx % 2 === 0 ? '#ffffff' : '#f8fafc'};">
-        <td style="padding: 10px 12px; font-family: ui-monospace, SFMono-Regular, monospace; font-size: 11px; font-weight: 600; color: #1e293b; border-bottom: 1px solid #e2e8f0;">
+        <td style="padding: 10px 12px; font-family: ui-monospace, monospace; font-size: 12px; font-weight: 600; color: #0f172a; border-bottom: 1px solid #e2e8f0;">
           ${it.producto?.sku || 'N/A'}
         </td>
         <td style="padding: 10px 12px; font-size: 12px; color: #0f172a; border-bottom: 1px solid #e2e8f0;">
           <div style="font-weight: 600;">${it.producto?.nombre || 'Artículo de Suministro'}</div>
-          <div style="font-size: 10px; color: #64748b; margin-top: 2px;">Unidad: ${it.producto?.unidadMedida || 'H87 Pieza'}</div>
+          <div style="font-size: 12px; color: #64748b; margin-top: 2px;">Unidad: ${it.producto?.unidadMedida || 'H87 Pieza'}</div>
         </td>
-        <td style="padding: 10px 12px; text-align: center; font-family: ui-monospace, SFMono-Regular, monospace; font-size: 12px; font-weight: 600; color: #0f172a; border-bottom: 1px solid #e2e8f0;">
+        <td style="padding: 10px 12px; text-align: center; font-family: ui-monospace, monospace; font-size: 12px; font-weight: 600; color: #0f172a; border-bottom: 1px solid #e2e8f0;">
           ${it.cantidadSolicitada}
         </td>
-        <td style="padding: 10px 12px; text-align: center; font-family: ui-monospace, SFMono-Regular, monospace; font-size: 12px; color: #64748b; border-bottom: 1px solid #e2e8f0;">
+        <td style="padding: 10px 12px; text-align: center; font-family: ui-monospace, monospace; font-size: 12px; color: #64748b; border-bottom: 1px solid #e2e8f0;">
           ${it.cantidadRecibida || 0}
         </td>
-        <td style="padding: 10px 12px; text-align: right; font-family: ui-monospace, SFMono-Regular, monospace; font-size: 12px; color: #334155; border-bottom: 1px solid #e2e8f0;">
+        <td style="padding: 10px 12px; text-align: right; font-family: ui-monospace, monospace; font-size: 12px; color: #0f172a; border-bottom: 1px solid #e2e8f0;">
           $${Number(it.costoUnitario).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
         </td>
-        <td style="padding: 10px 12px; text-align: right; font-family: ui-monospace, SFMono-Regular, monospace; font-size: 12px; font-weight: 700; color: #0f172a; border-bottom: 1px solid #e2e8f0;">
+        <td style="padding: 10px 12px; text-align: right; font-family: ui-monospace, monospace; font-size: 12px; font-weight: 700; color: #0f172a; border-bottom: 1px solid #e2e8f0;">
           $${Number(it.subtotal).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
         </td>
       </tr>
@@ -327,7 +331,7 @@ export default function OrdenesCompraPage() {
             @page { size: letter; margin: 12mm 15mm; }
             * { box-sizing: border-box; }
             body {
-              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+              font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
               color: #0f172a;
               margin: 0;
               padding: 24px;
@@ -344,12 +348,12 @@ export default function OrdenesCompraPage() {
         </head>
         <body>
           <div class="no-print" style="margin-bottom: 20px; display: flex; justify-content: flex-end; gap: 10px;">
-            <button onclick="window.print()" style="background: ${primaryColor}; color: white; border: none; padding: 8px 18px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 13px;">
+            <button onclick="window.print()" style="background: ${primaryColor}; color: white; border: none; padding: 8px 18px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 14px;">
               🖨️ Imprimir Orden de Compra
             </button>
           </div>
 
-          <div style="height: 4px; background: ${primaryColor}; width: 100%; margin-bottom: 20px; border-radius: 2px;"></div>
+          <div style="height: 4px; background: ${primaryColor}; width: 100%; margin-bottom: 20px; border-radius: 8px;"></div>
 
           <!-- Cabecera de Empresa y Folio -->
           <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px;">
@@ -367,28 +371,28 @@ export default function OrdenesCompraPage() {
                 <h1 style="margin: 0; font-size: 18px; font-weight: 800; color: #0f172a; letter-spacing: -0.02em;">
                   ${tenant?.razonSocial || tenant?.nombreComercial || 'CONTROL ERP'}
                 </h1>
-                <p style="margin: 3px 0 0 0; font-size: 11px; font-weight: 700; color: #475569; font-family: ui-monospace, monospace;">
+                <p style="margin: 3px 0 0 0; font-size: 12px; font-weight: 700; color: #0f172a; font-family: ui-monospace, monospace;">
                   RFC: ${tenant?.identificacionFiscal || 'XAXX010101000'} • Régimen: ${tenant?.regimenFiscal || '601 General de Ley'}
                 </p>
-                <p style="margin: 2px 0 0 0; font-size: 11px; color: #64748b;">
+                <p style="margin: 2px 0 0 0; font-size: 12px; color: #64748b;">
                   Lugar de Operación: C.P. ${tenant?.codigoPostal || '64000'} • Abastecimiento
                 </p>
-                ${tenant?.textoEncabezadoDoc ? `<p style="margin: 4px 0 0 0; font-size: 10px; color: #94a3b8; font-style: italic;">"${tenant.textoEncabezadoDoc}"</p>` : ''}
+                ${tenant?.textoEncabezadoDoc ? `<p style="margin: 4px 0 0 0; font-size: 12px; color: #64748b; font-style: italic;">"${tenant.textoEncabezadoDoc}"</p>` : ''}
               </div>
             </div>
 
             <div style="border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px 18px; background: #f8fafc; min-width: 220px; text-align: right;">
-              <div style="font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: ${primaryColor};">
+              <div style="font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: ${primaryColor};">
                 ORDEN DE COMPRA FORMAL
               </div>
-              <div style="font-family: ui-monospace, SFMono-Regular, monospace; font-size: 18px; font-weight: 900; color: #0f172a; margin: 4px 0;">
+              <div style="font-family: ui-monospace, monospace; font-size: 18px; font-weight: 900; color: #0f172a; margin: 4px 0;">
                 ${oc.folio}
               </div>
-              <div style="font-size: 11px; color: #64748b;">
+              <div style="font-size: 12px; color: #64748b;">
                 Fecha Emisión: <strong>${new Date(oc.fecha).toLocaleDateString('es-MX')}</strong>
               </div>
               <div style="margin-top: 5px;">
-                <span style="background: #e0f2fe; color: #0369a1; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 12px; border: 1px solid #bae6fd;">
+                <span style="background: #eff6ff; color: #1d4ed8; font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 12px; border: 1px solid #e2e8f0;">
                   ESTADO: ${oc.estado}
                 </span>
               </div>
@@ -398,31 +402,31 @@ export default function OrdenesCompraPage() {
           <!-- Proveedor y Almacén de Recepción -->
           <div style="display: grid; grid-template-columns: 3fr 2fr; gap: 16px; margin-bottom: 20px;">
             <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; background: #ffffff;">
-              <div style="font-size: 10px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px;">
+              <div style="font-size: 12px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px;">
                 PROVEEDOR ADJUDICADO
               </div>
-              <div style="font-size: 13px; font-weight: 800; color: #0f172a;">
+              <div style="font-size: 14px; font-weight: 800; color: #0f172a;">
                 ${oc.proveedor?.razonSocial || 'Proveedor Registrado'}
               </div>
-              <div style="font-size: 11px; font-family: ui-monospace, monospace; color: #334155; margin-top: 2px;">
+              <div style="font-size: 12px; font-family: ui-monospace, monospace; color: #0f172a; margin-top: 2px;">
                 <strong>RFC:</strong> ${oc.proveedor?.rfc || 'XAXX010101000'}
               </div>
-              <div style="font-size: 11px; color: #64748b; margin-top: 2px;">
+              <div style="font-size: 12px; color: #64748b; margin-top: 2px;">
                 <strong>Teléfono:</strong> ${oc.proveedor?.telefono || 'N/A'} • <strong>Email:</strong> ${oc.proveedor?.email || 'N/A'}
               </div>
             </div>
 
             <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; background: #ffffff;">
-              <div style="font-size: 10px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px;">
+              <div style="font-size: 12px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px;">
                 PUNTO DE ENTREGA & ALMACÉN
               </div>
-              <div style="font-size: 12px; font-weight: 700; color: #0f172a;">
+              <div style="font-size: 14px; font-weight: 700; color: #0f172a;">
                 ${oc.almacenDestino?.nombre || 'Almacén Destino'}
               </div>
-              <div style="font-size: 11px; color: #334155; margin-top: 2px;">
+              <div style="font-size: 12px; color: #0f172a; margin-top: 2px;">
                 <strong>Ubicación:</strong> ${oc.almacenDestino?.ubicacion || 'Principal'}
               </div>
-              <div style="font-size: 11px; color: #334155; margin-top: 2px;">
+              <div style="font-size: 12px; color: #0f172a; margin-top: 2px;">
                 <strong>Fecha Esperada:</strong> ${oc.fechaEsperada ? new Date(oc.fechaEsperada).toLocaleDateString('es-MX') : 'Inmediata'}
               </div>
             </div>
@@ -432,12 +436,12 @@ export default function OrdenesCompraPage() {
           <table style="border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; margin-bottom: 20px;">
             <thead>
               <tr style="background: #0f172a; color: #ffffff;">
-                <th style="padding: 10px 12px; text-align: left; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; width: 14%;">SKU</th>
-                <th style="padding: 10px 12px; text-align: left; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">Descripción</th>
-                <th style="padding: 10px 12px; text-align: center; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; width: 12%;">Solicitada</th>
-                <th style="padding: 10px 12px; text-align: center; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; width: 12%;">Recibida</th>
-                <th style="padding: 10px 12px; text-align: right; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; width: 15%;">Costo Unit.</th>
-                <th style="padding: 10px 12px; text-align: right; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; width: 17%;">Subtotal</th>
+                <th style="padding: 10px 12px; text-align: left; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; width: 14%;">SKU</th>
+                <th style="padding: 10px 12px; text-align: left; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">Descripción</th>
+                <th style="padding: 10px 12px; text-align: center; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; width: 12%;">Solicitada</th>
+                <th style="padding: 10px 12px; text-align: center; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; width: 12%;">Recibida</th>
+                <th style="padding: 10px 12px; text-align: right; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; width: 15%;">Costo Unit.</th>
+                <th style="padding: 10px 12px; text-align: right; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; width: 17%;">Subtotal</th>
               </tr>
             </thead>
             <tbody>
@@ -448,14 +452,14 @@ export default function OrdenesCompraPage() {
           <!-- Totales y Resumen Financiero -->
           <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; margin-bottom: 24px;">
             <div style="flex: 1; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; background: #f8fafc;">
-              <div style="font-size: 10px; font-weight: 800; color: #64748b; text-transform: uppercase;">
+              <div style="font-size: 12px; font-weight: 800; color: #64748b; text-transform: uppercase;">
                 Importe Total con Letra
               </div>
-              <div style="font-size: 11px; font-weight: 700; color: #0f172a; margin-top: 4px;">
+              <div style="font-size: 14px; font-weight: 700; color: #0f172a; margin-top: 4px;">
                 ${Number(oc.total).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })} MXN
               </div>
               ${oc.observaciones ? `
-                <div style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed #cbd5e1; font-size: 11px; color: #475569;">
+                <div style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed #cbd5e1; font-size: 12px; color: #0f172a;">
                   <strong>Notas / Instrucciones de Entrega:</strong> ${oc.observaciones}
                 </div>
               ` : ''}
@@ -464,19 +468,19 @@ export default function OrdenesCompraPage() {
             <div style="width: 280px; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; background: #ffffff;">
               <table style="width: 100%;">
                 <tr>
-                  <td style="padding: 8px 14px; font-size: 12px; color: #475569; border-bottom: 1px solid #f1f5f9;">Subtotal:</td>
+                  <td style="padding: 8px 14px; font-size: 12px; color: #0f172a; border-bottom: 1px solid #f1f5f9;">Subtotal:</td>
                   <td style="padding: 8px 14px; text-align: right; font-family: ui-monospace, monospace; font-size: 12px; font-weight: 600; color: #0f172a; border-bottom: 1px solid #f1f5f9;">
                     $${Number(oc.subtotal).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
                   </td>
                 </tr>
                 <tr>
-                  <td style="padding: 8px 14px; font-size: 12px; color: #475569; border-bottom: 1px solid #f1f5f9;">IVA Trasladado (16%):</td>
+                  <td style="padding: 8px 14px; font-size: 12px; color: #0f172a; border-bottom: 1px solid #f1f5f9;">IVA Trasladado (16%):</td>
                   <td style="padding: 8px 14px; text-align: right; font-family: ui-monospace, monospace; font-size: 12px; font-weight: 600; color: #0f172a; border-bottom: 1px solid #f1f5f9;">
                     $${Number(oc.iva).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
                   </td>
                 </tr>
                 <tr style="background: #f8fafc;">
-                  <td style="padding: 10px 14px; font-size: 13px; font-weight: 800; color: #0f172a;">TOTAL COMPRA:</td>
+                  <td style="padding: 10px 14px; font-size: 14px; font-weight: 800; color: #0f172a;">TOTAL COMPRA:</td>
                   <td style="padding: 10px 14px; text-align: right; font-family: ui-monospace, monospace; font-size: 14px; font-weight: 900; color: ${primaryColor};">
                     $${Number(oc.total).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN
                   </td>
@@ -486,7 +490,7 @@ export default function OrdenesCompraPage() {
           </div>
 
           <!-- Pie de Página y Auditoría -->
-          <div style="border-top: 1px solid #e2e8f0; padding-top: 12px; display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: #94a3b8;">
+          <div style="border-top: 1px solid #e2e8f0; padding-top: 12px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #64748b;">
             <div>
               Orden emitida por <strong>ControlERP SaaS</strong> • Folio: <span style="font-family: ui-monospace, monospace;">${oc.folio}</span>
             </div>
@@ -506,7 +510,20 @@ export default function OrdenesCompraPage() {
     printWindow.document.close();
   };
 
+  // Métricas y KPIs de compras
+  const kpiPendientes = ordenes.filter(o => o.estado === 'AUTORIZADA');
+  const kpiParciales = ordenes.filter(o => o.estado === 'RECIBIDA_PARCIAL');
+  const kpiSurtidas = ordenes.filter(o => o.estado === 'RECIBIDA_TOTAL');
+  const totalMontoPendiente = kpiPendientes.reduce((acc, o) => acc + Number(o.total || 0), 0);
+  const totalMontoCompras = ordenes.reduce((acc, o) => acc + Number(o.total || 0), 0);
+
   const filteredOrdenes = ordenes.filter((o) => {
+    // Filtro por pestaña de estado
+    if (activeTab === 'PENDIENTES' && o.estado !== 'AUTORIZADA') return false;
+    if (activeTab === 'PARCIALES' && o.estado !== 'RECIBIDA_PARCIAL') return false;
+    if (activeTab === 'SURTIDAS' && o.estado !== 'RECIBIDA_TOTAL') return false;
+
+    // Filtro por texto
     const term = searchTerm.toLowerCase();
     return (
       o.folio.toLowerCase().includes(term) ||
@@ -593,10 +610,108 @@ export default function OrdenesCompraPage() {
         </div>
       )}
 
-      {/* FILTROS Y BUSQUEDA */}
-      <div className="flex flex-col sm:flex-row gap-4 justify-between items-center bg-slate-900/40 p-4 rounded-xl border border-slate-800">
-        <div className="relative w-full sm:w-80">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+      {/* TARJETAS KPI (THE FINTECH LEDGER) */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-slate-900/60 p-5 rounded-2xl border border-slate-800/80 shadow-md shadow-slate-950/40 hover:shadow-xl hover:-translate-y-0.5 transition-all">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Por Recibir</span>
+            <span className="p-2 rounded-xl bg-blue-950/70 text-blue-400 border border-blue-800/60">
+              <PackageCheck className="w-4 h-4" />
+            </span>
+          </div>
+          <div className="mt-3 flex items-baseline gap-2">
+            <span className="text-2xl font-black text-white font-mono">{kpiPendientes.length}</span>
+            <span className="text-xs text-slate-400">órdenes autorizadas</span>
+          </div>
+          <div className="mt-2 text-xs text-blue-400 font-mono font-semibold">
+            ${totalMontoPendiente.toLocaleString('es-MX', { minimumFractionDigits: 2 })} en tránsito
+          </div>
+        </div>
+
+        <div className="bg-slate-900/60 p-5 rounded-2xl border border-slate-800/80 shadow-md shadow-slate-950/40 hover:shadow-xl hover:-translate-y-0.5 transition-all">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Entregas Parciales</span>
+            <span className="p-2 rounded-xl bg-amber-950/70 text-amber-400 border border-amber-800/60">
+              <Clock className="w-4 h-4" />
+            </span>
+          </div>
+          <div className="mt-3 flex items-baseline gap-2">
+            <span className="text-2xl font-black text-white font-mono">{kpiParciales.length}</span>
+            <span className="text-xs text-slate-400">con saldo pendiente</span>
+          </div>
+          <div className="mt-2 text-xs text-amber-400">
+            Requieren seguimiento de remisión
+          </div>
+        </div>
+
+        <div className="bg-slate-900/60 p-5 rounded-2xl border border-slate-800/80 shadow-md shadow-slate-950/40 hover:shadow-xl hover:-translate-y-0.5 transition-all">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Total Compras Registradas</span>
+            <span className="p-2 rounded-xl bg-emerald-950/70 text-emerald-400 border border-emerald-800/60">
+              <CheckCircle2 className="w-4 h-4" />
+            </span>
+          </div>
+          <div className="mt-3 flex items-baseline gap-2">
+            <span className="text-2xl font-black text-white font-mono">{ordenes.length}</span>
+            <span className="text-xs text-slate-400">({kpiSurtidas.length} surtidas 100%)</span>
+          </div>
+          <div className="mt-2 text-xs text-emerald-400 font-mono font-semibold">
+            ${totalMontoCompras.toLocaleString('es-MX', { minimumFractionDigits: 2 })} total histórico
+          </div>
+        </div>
+      </div>
+
+      {/* PESTAÑAS DE ESTADO Y BUSCADOR */}
+      <div className="flex flex-col md:flex-row gap-4 justify-between items-stretch md:items-center bg-slate-900/40 p-4 rounded-xl border border-slate-800">
+        <div className="flex items-center gap-1.5 p-1 bg-slate-950 rounded-xl border border-slate-800/80 overflow-x-auto">
+          <button
+            type="button"
+            onClick={() => setActiveTab('TODAS')}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+              activeTab === 'TODAS'
+                ? 'bg-blue-600 text-white shadow-sm'
+                : 'text-slate-400 hover:text-white hover:bg-slate-900'
+            }`}
+          >
+            Todas ({ordenes.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('PENDIENTES')}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+              activeTab === 'PENDIENTES'
+                ? 'bg-blue-600 text-white shadow-sm'
+                : 'text-slate-400 hover:text-white hover:bg-slate-900'
+            }`}
+          >
+            Por Recibir ({kpiPendientes.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('PARCIALES')}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+              activeTab === 'PARCIALES'
+                ? 'bg-amber-600 text-white shadow-sm'
+                : 'text-slate-400 hover:text-white hover:bg-slate-900'
+            }`}
+          >
+            Parciales ({kpiParciales.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('SURTIDAS')}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+              activeTab === 'SURTIDAS'
+                ? 'bg-emerald-600 text-white shadow-sm'
+                : 'text-slate-400 hover:text-white hover:bg-slate-900'
+            }`}
+          >
+            Surtidas ({kpiSurtidas.length})
+          </button>
+        </div>
+
+        <div className="relative w-full md:w-80">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none" />
           <input
             type="text"
             placeholder="Buscar por folio, proveedor o almacén..."
@@ -604,9 +719,6 @@ export default function OrdenesCompraPage() {
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-9 pr-4 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500 font-mono"
           />
-        </div>
-        <div className="text-xs text-slate-400 flex items-center gap-4">
-          <span>Total órdenes: <strong className="text-white font-mono">{filteredOrdenes.length}</strong></span>
         </div>
       </div>
 
