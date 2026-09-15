@@ -422,7 +422,7 @@ export default function ClientesPage() {
                   Cartera de Clientes & Políticas de Crédito
                 </h1>
                 <p className="text-sm text-slate-400 mt-0.5">
-                  Control institucional de cupos crediticios, saldos en calle, plazos de pago y evaluación de riesgo CxC.
+                  Control institucional de cupos crediticios, saldos en calle, plazos de pago y evaluación de riesgo de cobranza.
                 </p>
               </div>
             </div>

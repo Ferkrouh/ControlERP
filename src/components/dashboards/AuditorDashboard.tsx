@@ -58,7 +58,7 @@ export default function AuditorDashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase text-slate-500">Cartera CxC Total</span>
+            <span className="text-xs font-semibold uppercase text-slate-500">Cartera de Clientes Total</span>
             <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
               <FileText className="w-5 h-5" />
             </div>
@@ -69,7 +69,7 @@ export default function AuditorDashboard() {
 
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase text-slate-500">Pasivo CxP Proveedores</span>
+            <span className="text-xs font-semibold uppercase text-slate-500">Pasivos con Proveedores</span>
             <div className="p-2 bg-purple-50 text-purple-600 rounded-lg">
               <Scale className="w-5 h-5" />
             </div>
@@ -105,7 +105,7 @@ export default function AuditorDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-4">
           <h3 className="font-bold text-slate-900 text-base flex items-center justify-between">
-            <span>Segmentación de Antigüedad de Saldos (CxC)</span>
+            <span>Segmentación de Antigüedad de Saldos</span>
             <span className="text-xs font-normal text-slate-500">Corte mensual</span>
           </h3>
 

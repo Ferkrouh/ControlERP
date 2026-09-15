@@ -10,10 +10,15 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const auth = await requireAuth(req, ['SUPERADMIN']);
+    const auth = await requireAuth(req, ['SUPERADMIN', 'ADMIN']);
     if (auth.errorResponse) return auth.errorResponse;
 
     const { id } = await params;
+
+    // Si es ADMIN, solo puede consultar su propio tenant
+    if (auth.user.rol === 'ADMIN' && auth.user.tenantId !== id) {
+      return NextResponse.json({ error: 'Acceso denegado a este negocio' }, { status: 403 });
+    }
 
     const tenant = await prisma.tenant.findUnique({
       where: { id },
@@ -59,35 +64,53 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const auth = await requireAuth(req, ['SUPERADMIN']);
+    const auth = await requireAuth(req, ['SUPERADMIN', 'ADMIN']);
     if (auth.errorResponse) return auth.errorResponse;
 
     const { id } = await params;
+
+    // Si es ADMIN, solo puede modificar su propio tenant
+    if (auth.user.rol === 'ADMIN' && auth.user.tenantId !== id) {
+      return NextResponse.json({ error: 'Acceso denegado a este negocio' }, { status: 403 });
+    }
+
     const body = await req.json();
 
     // Sanitización y parseo de tipos específicos
     const dataToUpdate: any = { ...body };
 
-    if (dataToUpdate.fechaVencimientoPlan !== undefined) {
-      dataToUpdate.fechaVencimientoPlan = dataToUpdate.fechaVencimientoPlan 
-        ? new Date(dataToUpdate.fechaVencimientoPlan) 
-        : null;
-    }
+    // Si el usuario es ADMIN (no SUPERADMIN), proteger variables críticas del plan SaaS
+    if (auth.user.rol === 'ADMIN') {
+      delete dataToUpdate.plan;
+      delete dataToUpdate.estadoSuscripcion;
+      delete dataToUpdate.fechaInicioPlan;
+      delete dataToUpdate.fechaVencimientoPlan;
+      delete dataToUpdate.limiteUsuarios;
+      delete dataToUpdate.limiteAlmacenes;
+      delete dataToUpdate.diasGraciaSuscripcion;
+      delete dataToUpdate.modulosActivos;
+    } else {
+      if (dataToUpdate.fechaVencimientoPlan !== undefined) {
+        dataToUpdate.fechaVencimientoPlan = dataToUpdate.fechaVencimientoPlan 
+          ? new Date(dataToUpdate.fechaVencimientoPlan) 
+          : null;
+      }
 
-    if (dataToUpdate.fechaInicioPlan !== undefined) {
-      dataToUpdate.fechaInicioPlan = new Date(dataToUpdate.fechaInicioPlan);
-    }
+      if (dataToUpdate.fechaInicioPlan !== undefined) {
+        dataToUpdate.fechaInicioPlan = new Date(dataToUpdate.fechaInicioPlan);
+      }
 
-    if (dataToUpdate.limiteUsuarios !== undefined) {
-      dataToUpdate.limiteUsuarios = parseInt(dataToUpdate.limiteUsuarios);
-    }
+      if (dataToUpdate.limiteUsuarios !== undefined) {
+        dataToUpdate.limiteUsuarios = parseInt(dataToUpdate.limiteUsuarios);
+      }
 
-    if (dataToUpdate.limiteAlmacenes !== undefined) {
-      dataToUpdate.limiteAlmacenes = parseInt(dataToUpdate.limiteAlmacenes);
-    }
+      if (dataToUpdate.limiteAlmacenes !== undefined) {
+        dataToUpdate.limiteAlmacenes = parseInt(dataToUpdate.limiteAlmacenes);
+      }
 
-    if (dataToUpdate.diasGraciaSuscripcion !== undefined) {
-      dataToUpdate.diasGraciaSuscripcion = parseInt(dataToUpdate.diasGraciaSuscripcion);
+      if (dataToUpdate.diasGraciaSuscripcion !== undefined) {
+        dataToUpdate.diasGraciaSuscripcion = parseInt(dataToUpdate.diasGraciaSuscripcion);
+      }
     }
 
     if (dataToUpdate.diasGraciaCredito !== undefined) {

@@ -51,11 +51,11 @@ export default function ReportesPage() {
     const csvContent = `data:text/csv;charset=utf-8,Indicador Financiero / Contable,Monto MXN,Notas
 Total Ventas Emitidas,${data.totalVendido},${data.ventasCount} operaciones
 Total Compras a Proveedores,${data.totalComprado},${data.comprasCount} recepciones
-Cobranza Efectiva (CxC),${data.cobranzaMes},Abonos recaudados
-Liquidaciones a Proveedores (CxP),${data.pagosProveedoresMes},Egresos liquidados
-Cartera Pendiente (CxC),${data.totalPorCobrar},Suma de saldos de clientes
+Cobranza Efectiva de Clientes,${data.cobranzaMes},Abonos recaudados
+Liquidaciones a Proveedores,${data.pagosProveedoresMes},Egresos liquidados
+Cartera Pendiente por Cobrar,${data.totalPorCobrar},Suma de saldos de clientes
 Cartera Vencida (En Mora),${data.totalVencido},Riesgo de cartera
-Pasivo a Proveedores (CxP),${data.totalPorPagar},Suma de facturas por pagar
+Pasivo Pendiente a Proveedores,${data.totalPorPagar},Suma de facturas por pagar
 Valuacion Total de Inventario,${data.valuacionTotal},Costo Promedio Ponderado CFF Art. 28
 `;
     const encodedUri = encodeURI(csvContent);

@@ -107,7 +107,7 @@ export default function CxPPage() {
         <div>
           <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
             <Receipt className="w-6 h-6 text-purple-600" />
-            Cuentas por Pagar (CxP) a Proveedores
+            Cuentas por Pagar a Proveedores
           </h2>
           <p className="text-sm text-slate-500 mt-1">
             Programación y comprobación de egresos, facturas recibidas y calendario de vencimientos.
@@ -122,7 +122,7 @@ export default function CxPPage() {
         </div>
       )}
 
-      {/* Tarjetas de Resumen de Cartera CxP */}
+      {/* Tarjetas de Resumen de Cartera de Proveedores */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
           <span className="text-xs font-semibold uppercase text-slate-500">Pasivo Total Pendiente</span>

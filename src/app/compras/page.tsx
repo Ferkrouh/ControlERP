@@ -206,7 +206,7 @@ export default function ComprasPage() {
             Recepción de Compras & Proveedores
           </h2>
           <p className="text-sm text-slate-500 mt-1">
-            Ingreso físico de mercancía al almacén con recálculo de costo promedio y afectación de cuentas por pagar (CxP).
+            Ingreso físico de mercancía al almacén con recálculo de costo promedio y afectación de cuentas por pagar a proveedores.
           </p>
         </div>
 

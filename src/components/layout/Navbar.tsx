@@ -81,10 +81,16 @@ export default function Navbar() {
       {/* Brand & Active Tenant */}
       <div className="flex items-center gap-3">
         <div 
-          className="w-9 h-9 rounded-lg flex items-center justify-center font-bold text-white shadow-sm"
-          style={{ backgroundColor: isSuperadmin ? '#7c3aed' : (tenant?.colorPrimario || '#2563eb') }}
+          className="w-10 h-10 rounded-lg flex items-center justify-center font-bold text-white shadow-sm overflow-hidden bg-white border border-slate-200"
+          style={{ backgroundColor: isSuperadmin ? '#7c3aed' : (tenant?.logoUrl ? '#ffffff' : (tenant?.colorPrimario || '#2563eb')) }}
         >
-          {isSuperadmin ? 'SA' : (tenant?.nombreComercial ? tenant.nombreComercial.charAt(0) : 'ERP')}
+          {isSuperadmin ? (
+            <span className="text-white font-bold text-sm">SA</span>
+          ) : tenant?.logoUrl ? (
+            <img src={tenant.logoUrl} alt="Logo" className="w-full h-full object-contain p-0.5" />
+          ) : (
+            <span className="text-white font-bold text-sm">{tenant?.nombreComercial ? tenant.nombreComercial.charAt(0) : 'ERP'}</span>
+          )}
         </div>
         <div>
           <div className="flex items-center gap-2">

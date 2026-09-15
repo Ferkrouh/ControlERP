@@ -443,38 +443,38 @@ export default function PosPage() {
 
   return (
     <div className="space-y-4 pb-20 lg:pb-4">
-      {/* Barra de Estado POS & Control de Caja (The Fintech Ledger) */}
-      <div className="bg-slate-900 text-white p-4 sm:p-5 rounded-3xl border border-slate-800 shadow-xl relative overflow-hidden">
+      {/* Barra de Estado & Control de Caja (The Fintech Ledger) */}
+      <div className="bg-slate-950 text-white p-5 rounded-3xl border border-slate-800/80 shadow-lg shadow-slate-950/20 relative overflow-hidden">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-blue-600/30 border border-blue-500/30 flex items-center justify-center text-blue-400 shrink-0">
+          <div className="flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-2xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400 shrink-0 shadow-inner">
               <Zap className="w-5 h-5" />
             </div>
             <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-lg sm:text-xl font-bold tracking-tight text-white">
-                  Punto de Venta Mostrador (POS)
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white">
+                  Punto de Venta Mostrador
                 </h1>
                 {turnoActivo ? (
-                  <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-bold px-2.5 py-0.5 rounded-full inline-flex items-center gap-1.5">
+                  <span className="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-xs font-bold px-3 py-1 rounded-full inline-flex items-center gap-1.5 shadow-xs">
                     <Unlock className="w-3.5 h-3.5" /> Caja Abierta
                   </span>
                 ) : (
-                  <span className="bg-rose-500/20 text-rose-400 border border-rose-500/30 text-xs font-bold px-2.5 py-0.5 rounded-full inline-flex items-center gap-1.5">
+                  <span className="bg-rose-500/15 text-rose-400 border border-rose-500/30 text-xs font-bold px-3 py-1 rounded-full inline-flex items-center gap-1.5 shadow-xs">
                     <Lock className="w-3.5 h-3.5" /> Caja Cerrada
                   </span>
                 )}
               </div>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Despacho rápido con escáner de código de barras, calculadora de cambio y ticket térmico.
+              <p className="text-xs text-slate-400 mt-1">
+                Despacho rápido con lector de código de barras, calculadora de cambio y ticket térmico.
               </p>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-3">
             {/* Selector de Almacén */}
-            <div className="flex items-center gap-2 bg-slate-800/90 px-3 py-1.5 rounded-xl border border-slate-700 text-xs text-slate-200">
-              <Building2 className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+            <div className="flex items-center gap-2 bg-slate-900 px-3.5 py-2 rounded-xl border border-slate-800 text-xs text-slate-200 shadow-inner">
+              <Building2 className="w-4 h-4 text-blue-400 shrink-0" />
               <select
                 value={almacenId}
                 onChange={(e) => {
@@ -482,10 +482,10 @@ export default function PosPage() {
                   checkTurnoCaja(e.target.value);
                   setCart([]);
                 }}
-                className="bg-transparent text-white font-semibold outline-none cursor-pointer"
+                className="bg-transparent text-white font-semibold outline-none cursor-pointer focus:ring-0"
               >
                 {almacenes.map((a) => (
-                  <option key={a.id} value={a.id} className="bg-slate-900 text-white">
+                  <option key={a.id} value={a.id} className="bg-slate-950 text-white">
                     {a.nombre}
                   </option>
                 ))}
@@ -499,14 +499,14 @@ export default function PosPage() {
                   setMontoCierreEfectivo(turnoActivo.montoApertura + turnoActivo.totalEfectivo);
                   setShowCierreModal(true);
                 }}
-                className="bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition-all inline-flex items-center gap-1.5 shadow-sm active:scale-95"
+                className="bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs px-4 py-2 rounded-xl transition-all inline-flex items-center gap-1.5 shadow-md shadow-rose-950/40 active:scale-95"
               >
                 <Lock className="w-3.5 h-3.5" /> Corte Z / Cerrar Caja
               </button>
             ) : (
               <button
                 onClick={() => setShowAperturaModal(true)}
-                className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition-all inline-flex items-center gap-1.5 shadow-sm active:scale-95"
+                className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-4 py-2 rounded-xl transition-all inline-flex items-center gap-1.5 shadow-md shadow-emerald-950/40 active:scale-95"
               >
                 <Unlock className="w-3.5 h-3.5" /> Abrir Caja
               </button>
@@ -516,22 +516,22 @@ export default function PosPage() {
 
         {/* Resumen del Turno Activo */}
         {turnoActivo && (
-          <div className="mt-3 pt-3 border-t border-slate-800 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-            <div>
-              <span className="text-slate-400 block font-medium">Cajero en Turno:</span>
-              <span className="font-bold text-white truncate block">{turnoActivo.usuarioNombre || user?.nombre}</span>
+          <div className="mt-4 pt-4 border-t border-slate-800/80 grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
+            <div className="bg-slate-900/50 p-2.5 rounded-xl border border-slate-800/50">
+              <span className="text-slate-400 block font-medium text-[11px] uppercase tracking-wider">Cajero en Turno</span>
+              <span className="font-bold text-white truncate block mt-0.5">{turnoActivo.usuarioNombre || user?.nombre}</span>
             </div>
-            <div>
-              <span className="text-slate-400 block font-medium">Fondo de Apertura:</span>
-              <span className="font-bold font-mono text-slate-200">${turnoActivo.montoApertura?.toFixed(2)}</span>
+            <div className="bg-slate-900/50 p-2.5 rounded-xl border border-slate-800/50">
+              <span className="text-slate-400 block font-medium text-[11px] uppercase tracking-wider">Fondo de Apertura</span>
+              <span className="font-bold font-mono text-slate-200 block mt-0.5">${turnoActivo.montoApertura?.toFixed(2)} MXN</span>
             </div>
-            <div>
-              <span className="text-slate-400 block font-medium">Ventas Efectivo:</span>
-              <span className="font-bold font-mono text-emerald-400">+${turnoActivo.totalEfectivo?.toFixed(2)}</span>
+            <div className="bg-slate-900/50 p-2.5 rounded-xl border border-slate-800/50">
+              <span className="text-slate-400 block font-medium text-[11px] uppercase tracking-wider">Ventas en Efectivo</span>
+              <span className="font-bold font-mono text-emerald-400 block mt-0.5">+${turnoActivo.totalEfectivo?.toFixed(2)} MXN</span>
             </div>
-            <div>
-              <span className="text-slate-400 block font-medium">Total Acumulado:</span>
-              <span className="font-bold font-mono text-blue-400">${((turnoActivo.montoApertura || 0) + (turnoActivo.totalEfectivo || 0)).toFixed(2)}</span>
+            <div className="bg-slate-900/50 p-2.5 rounded-xl border border-slate-800/50">
+              <span className="text-slate-400 block font-medium text-[11px] uppercase tracking-wider">Total en Caja</span>
+              <span className="font-bold font-mono text-blue-400 block mt-0.5">${((turnoActivo.montoApertura || 0) + (turnoActivo.totalEfectivo || 0)).toFixed(2)} MXN</span>
             </div>
           </div>
         )}
@@ -556,34 +556,34 @@ export default function PosPage() {
           
           {/* Barra de Búsqueda y Escáner */}
           <form onSubmit={handleBarcodeSubmit} className="relative flex items-center">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               ref={barcodeInputRef}
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Escanear código de barras o teclear SKU / Nombre..."
-              className="w-full bg-white border border-slate-200 pl-10 pr-24 py-2.5 rounded-2xl text-xs sm:text-sm font-semibold text-slate-800 placeholder-slate-400 shadow-sm focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition-all"
+              placeholder="Escanear código de barras o buscar por SKU / Nombre..."
+              className="w-full bg-white border border-slate-200 pl-10 pr-28 py-3 rounded-2xl text-xs sm:text-sm font-semibold text-slate-800 placeholder-slate-400 shadow-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
             />
             <button
               type="submit"
-              className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors"
+              className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all active:scale-95"
             >
-              <Barcode className="w-4 h-4" />
+              <Barcode className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Escanear</span>
             </button>
           </form>
 
-          {/* Filtro por Categorías (Touch Horizontal Scroll) */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+          {/* Filtro por Categorías (Horizontal Scroll Táctil) */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
             {categories.map((cat) => (
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all select-none ${
                   selectedCategory === cat
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                    ? 'bg-blue-600 text-white shadow-sm shadow-blue-600/20'
+                    : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200 hover:border-slate-300'
                 }`}
               >
                 {cat}
@@ -592,11 +592,11 @@ export default function PosPage() {
           </div>
 
           {/* Grid de Artículos Táctil */}
-          <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-md shadow-slate-900/5 min-h-[460px] max-h-[640px] overflow-y-auto">
+          <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200 shadow-md shadow-slate-900/5 min-h-[460px] max-h-[640px] overflow-y-auto">
             {loading ? (
               <div className="p-12 text-center text-slate-400">
                 <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-blue-600 border-t-transparent mb-2"></div>
-                <p className="text-xs font-medium">Cargando catálogo para despacho...</p>
+                <p className="text-xs font-medium">Cargando inventario de mostrador...</p>
               </div>
             ) : filteredProducts.length === 0 ? (
               <div className="p-12 text-center text-slate-400">
@@ -616,37 +616,40 @@ export default function PosPage() {
                       type="button"
                       disabled={sinStock}
                       onClick={() => handleAddProduct(p)}
-                      className={`p-3.5 rounded-2xl text-left border transition-all flex flex-col justify-between group select-none min-h-[120px] ${
+                      className={`p-3.5 rounded-2xl text-left border transition-all flex flex-col justify-between group select-none min-h-[135px] ${
                         sinStock
-                          ? 'bg-slate-50 border-slate-200 opacity-50 cursor-not-allowed'
-                          : 'bg-white hover:border-blue-400 hover:shadow-md border-slate-200 active:scale-95'
+                          ? 'bg-slate-50 border-slate-200 opacity-40 cursor-not-allowed'
+                          : 'bg-white hover:border-blue-400 hover:shadow-lg hover:shadow-blue-900/5 border-slate-200 active:scale-95'
                       }`}
                     >
                       <div>
                         <div className="flex items-center justify-between gap-1">
-                          <span className="text-xs font-mono font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded-md">
+                          <span className="text-[11px] font-mono font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
                             {p.sku}
                           </span>
                           {stock <= 5 ? (
-                            <span className="text-xs font-bold px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800">
+                            <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-200 font-mono">
                               {stock} {p.unidadMedida}
                             </span>
                           ) : (
-                            <span className="text-xs font-bold px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600">
+                            <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200 font-mono">
                               {stock} {p.unidadMedida}
                             </span>
                           )}
                         </div>
-                        <p className="text-xs font-bold text-slate-800 line-clamp-2 mt-2 leading-snug group-hover:text-blue-600 transition-colors">
+                        <p className="text-xs font-bold text-slate-900 line-clamp-2 mt-2 leading-snug group-hover:text-blue-600 transition-colors">
                           {p.nombre}
                         </p>
                       </div>
 
-                      <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between">
-                        <span className="font-mono text-sm font-bold text-slate-900">
-                          ${p.precioVenta.toFixed(2)}
-                        </span>
-                        <div className="w-6 h-6 rounded-lg bg-slate-100 group-hover:bg-blue-600 group-hover:text-white flex items-center justify-center transition-colors">
+                      <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between">
+                        <div>
+                          <span className="font-mono text-sm font-black text-slate-900">
+                            ${p.precioVenta.toFixed(2)}
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-medium ml-1">MXN</span>
+                        </div>
+                        <div className="w-7 h-7 rounded-xl bg-slate-100 group-hover:bg-blue-600 group-hover:text-white flex items-center justify-center transition-all shadow-xs">
                           <Plus className="w-3.5 h-3.5" />
                         </div>
                       </div>
@@ -687,12 +690,12 @@ export default function PosPage() {
             </div>
 
             {/* Selector de Cliente */}
-            <div className="mt-3">
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Cliente de Venta:</label>
+            <div className="mt-3.5">
+              <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wider">Cliente de Mostrador</label>
               <select
                 value={clienteId}
                 onChange={(e) => setClienteId(e.target.value)}
-                className="w-full text-xs font-semibold text-slate-800 bg-slate-50 border border-slate-200 rounded-xl p-2 outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full text-xs font-semibold text-slate-900 bg-slate-50 border border-slate-200 rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer"
               >
                 {clientes.map((c) => (
                   <option key={c.id} value={c.id}>
@@ -703,48 +706,51 @@ export default function PosPage() {
             </div>
 
             {/* Lista de Artículos en Carrito */}
-            <div className="h-[200px] sm:h-[230px] overflow-y-auto divide-y divide-slate-100 py-1 mt-2">
+            <div className="h-[210px] sm:h-[240px] overflow-y-auto divide-y divide-slate-100 py-1 mt-2.5">
               {cart.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-slate-400 text-xs">
-                  <Barcode className="w-8 h-8 text-slate-300 mb-1.5" />
-                  <p className="font-medium">El carrito está vacío.</p>
-                  <p className="text-slate-400 mt-0.5">Escanea o toca productos para agregarlos.</p>
+                <div className="h-full flex flex-col items-center justify-center text-slate-400 text-xs p-4">
+                  <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mb-2 text-slate-400">
+                    <Barcode className="w-6 h-6" />
+                  </div>
+                  <p className="font-bold text-slate-700">El carrito está vacío</p>
+                  <p className="text-slate-400 mt-0.5 text-center">Escanea o haz clic en los artículos del catálogo para agregarlos.</p>
                 </div>
               ) : (
                 cart.map((item, idx) => (
-                  <div key={idx} className="py-2.5 flex items-center justify-between text-xs gap-2">
+                  <div key={idx} className="py-2.5 flex items-center justify-between text-xs gap-2 hover:bg-slate-50/50 px-1 rounded-lg transition-colors">
                     <div className="truncate pr-2 min-w-0">
-                      <p className="font-bold text-slate-800 truncate">{item.nombre}</p>
-                      <p className="text-xs text-slate-500 font-mono font-medium">${item.precioUnitario.toFixed(2)} c/u</p>
+                      <p className="font-bold text-slate-900 truncate">{item.nombre}</p>
+                      <p className="text-[11px] text-slate-500 font-mono font-semibold">${item.precioUnitario.toFixed(2)} c/u</p>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-2.5 shrink-0">
                       <div className="flex items-center bg-slate-100 rounded-xl border border-slate-200 p-0.5">
                         <button
                           type="button"
                           onClick={() => handleUpdateQty(idx, -1)}
-                          className="w-7 h-7 flex items-center justify-center text-slate-600 hover:text-black font-bold rounded-lg hover:bg-white"
+                          className="w-7 h-7 flex items-center justify-center text-slate-700 hover:text-black font-bold rounded-lg hover:bg-white transition-colors"
                         >
                           <Minus className="w-3 h-3" />
                         </button>
-                        <span className="px-2 font-bold font-mono text-slate-900">{item.cantidad}</span>
+                        <span className="px-2.5 font-black font-mono text-slate-900">{item.cantidad}</span>
                         <button
                           type="button"
                           onClick={() => handleUpdateQty(idx, 1)}
-                          className="w-7 h-7 flex items-center justify-center text-slate-600 hover:text-black font-bold rounded-lg hover:bg-white"
+                          className="w-7 h-7 flex items-center justify-center text-slate-700 hover:text-black font-bold rounded-lg hover:bg-white transition-colors"
                         >
                           <Plus className="w-3 h-3" />
                         </button>
                       </div>
 
-                      <span className="font-mono font-bold text-slate-900 w-16 text-right">
+                      <span className="font-mono font-black text-slate-900 w-20 text-right text-xs sm:text-sm">
                         ${item.subtotal.toFixed(2)}
                       </span>
 
                       <button
                         type="button"
                         onClick={() => setCart(cart.filter((_, i) => i !== idx))}
-                        className="text-slate-400 hover:text-rose-600 p-1 rounded-lg"
+                        className="text-slate-400 hover:text-rose-700 p-1.5 rounded-lg hover:bg-rose-50 transition-colors"
+                        title="Quitar partida"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -757,145 +763,108 @@ export default function PosPage() {
 
           {/* Zona de Totales y Cobro */}
           <div className="pt-3 border-t border-slate-100 space-y-3">
-            <div className="bg-slate-50 p-3.5 rounded-2xl space-y-1.5 text-xs">
-              <div className="flex justify-between text-slate-500 font-medium">
-                <span>Subtotal:</span>
-                <span className="font-mono font-bold text-slate-700">${subtotal.toFixed(2)}</span>
+            <div className="bg-slate-900 text-white p-4 rounded-2xl space-y-2 text-xs shadow-inner">
+              <div className="flex justify-between text-slate-400 font-medium">
+                <span>Subtotal Neto:</span>
+                <span className="font-mono font-bold text-slate-200">${subtotal.toFixed(2)} MXN</span>
               </div>
-              <div className="flex justify-between text-slate-500 font-medium">
+              <div className="flex justify-between text-slate-400 font-medium">
                 <span>IVA Trasladado (16%):</span>
-                <span className="font-mono font-bold text-slate-700">${impuestos.toFixed(2)}</span>
+                <span className="font-mono font-bold text-slate-200">${impuestos.toFixed(2)} MXN</span>
               </div>
-              <div className="flex justify-between text-slate-900 text-base font-bold pt-1.5 border-t border-slate-200">
-                <span>Total a Pagar:</span>
-                <span className="font-mono text-blue-600 text-lg">${total.toFixed(2)} MXN</span>
+              <div className="flex justify-between text-white text-base font-black pt-2 border-t border-slate-800 items-baseline">
+                <span>TOTAL A COBRAR:</span>
+                <span className="font-mono text-xl sm:text-2xl font-black text-emerald-400">${total.toFixed(2)} <span className="text-xs font-normal text-slate-400">MXN</span></span>
               </div>
             </div>
 
             {/* Selector de Método de Pago */}
             <div className="grid grid-cols-3 gap-2">
-              {tipoPago === 'EFECTIVO' ? (
-                <button
-                  type="button"
-                  className="py-2.5 rounded-xl text-xs font-bold bg-emerald-600 text-white shadow-sm flex items-center justify-center gap-1.5"
-                >
-                  <Banknote className="w-4 h-4" /> Efectivo
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setTipoPago('EFECTIVO')}
-                  className="py-2.5 rounded-xl text-xs font-bold bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 flex items-center justify-center gap-1.5 transition-colors"
-                >
-                  <Banknote className="w-4 h-4 text-slate-500" /> Efectivo
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => setTipoPago('EFECTIVO')}
+                className={`py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                  tipoPago === 'EFECTIVO'
+                    ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30'
+                    : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                <Banknote className="w-4 h-4" /> Efectivo
+              </button>
 
-              {tipoPago === 'TARJETA' ? (
-                <button
-                  type="button"
-                  className="py-2.5 rounded-xl text-xs font-bold bg-purple-600 text-white shadow-sm flex items-center justify-center gap-1.5"
-                >
-                  <CreditCard className="w-4 h-4" /> Tarjeta
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setTipoPago('TARJETA');
-                    setPagoCon(total);
-                  }}
-                  className="py-2.5 rounded-xl text-xs font-bold bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 flex items-center justify-center gap-1.5 transition-colors"
-                >
-                  <CreditCard className="w-4 h-4 text-slate-500" /> Tarjeta
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => {
+                  setTipoPago('TARJETA');
+                  setPagoCon(total);
+                }}
+                className={`py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                  tipoPago === 'TARJETA'
+                    ? 'bg-purple-600 text-white shadow-md shadow-purple-600/30'
+                    : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                <CreditCard className="w-4 h-4" /> Tarjeta
+              </button>
 
-              {tipoPago === 'TRANSFERENCIA' ? (
-                <button
-                  type="button"
-                  className="py-2.5 rounded-xl text-xs font-bold bg-blue-600 text-white shadow-sm flex items-center justify-center gap-1.5"
-                >
-                  <Zap className="w-4 h-4" /> Transfer
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setTipoPago('TRANSFERENCIA');
-                    setPagoCon(total);
-                  }}
-                  className="py-2.5 rounded-xl text-xs font-bold bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 flex items-center justify-center gap-1.5 transition-colors"
-                >
-                  <Zap className="w-4 h-4 text-slate-500" /> Transfer
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => {
+                  setTipoPago('TRANSFERENCIA');
+                  setPagoCon(total);
+                }}
+                className={`py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                  tipoPago === 'TRANSFERENCIA'
+                    ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
+                    : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                <Zap className="w-4 h-4" /> Transfer
+              </button>
             </div>
 
             {/* Calculadora de Denominaciones Rápidas para Efectivo */}
             {tipoPago === 'EFECTIVO' && (
-              <div className="space-y-2 text-xs">
-                <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
+              <div className="space-y-2.5 text-xs bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
                   <button
                     type="button"
                     onClick={() => handleQuickCash(total)}
-                    className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-mono font-bold text-xs shrink-0"
+                    className="px-3 py-1.5 rounded-xl bg-white border border-slate-200 hover:border-slate-300 text-slate-800 font-mono font-bold text-xs shrink-0 shadow-xs active:scale-95"
                   >
                     Exacto
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => handleQuickCash(50)}
-                    className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-mono font-bold text-xs shrink-0"
-                  >
-                    $50
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleQuickCash(100)}
-                    className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-mono font-bold text-xs shrink-0"
-                  >
-                    $100
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleQuickCash(200)}
-                    className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-mono font-bold text-xs shrink-0"
-                  >
-                    $200
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleQuickCash(500)}
-                    className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-mono font-bold text-xs shrink-0"
-                  >
-                    $500
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleQuickCash(1000)}
-                    className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-mono font-bold text-xs shrink-0"
-                  >
-                    $1,000
-                  </button>
+                  {[50, 100, 200, 500, 1000].map((den) => (
+                    <button
+                      key={den}
+                      type="button"
+                      onClick={() => handleQuickCash(den)}
+                      className="px-3 py-1.5 rounded-xl bg-white border border-slate-200 hover:border-slate-300 text-slate-800 font-mono font-bold text-xs shrink-0 shadow-xs active:scale-95"
+                    >
+                      ${den.toLocaleString()}
+                    </button>
+                  ))}
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 pt-1">
                   <div className="flex-1">
-                    <label className="block text-xs font-bold text-slate-600 mb-1">Recibido ($ MXN)</label>
-                    <input
-                      type="number"
-                      step="0.5"
-                      value={pagoCon || ''}
-                      onChange={(e) => setPagoCon(Number(e.target.value))}
-                      placeholder="Monto entregado"
-                      className="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl font-mono font-bold text-slate-900 text-sm outline-none focus:ring-2 focus:ring-emerald-500"
-                    />
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1 uppercase tracking-wider">Recibido en Efectivo</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 font-mono font-bold text-slate-400 text-sm">$</span>
+                      <input
+                        type="number"
+                        step="0.5"
+                        value={pagoCon || ''}
+                        onChange={(e) => setPagoCon(Number(e.target.value))}
+                        placeholder="0.00"
+                        className="w-full bg-white border border-slate-300 pl-7 pr-3 py-2 rounded-xl font-mono font-black text-slate-900 text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all"
+                      />
+                    </div>
                   </div>
                   <div className="flex-1 text-right">
-                    <span className="block text-xs font-bold text-slate-600 mb-1">Cambio a Entregar:</span>
-                    <span className={`font-mono text-lg font-bold ${cambio > 0 ? 'text-emerald-600' : 'text-slate-400'}`}>
-                      ${cambio.toFixed(2)}
+                    <span className="block text-[11px] font-bold text-slate-700 mb-1 uppercase tracking-wider">Cambio a Entregar:</span>
+                    <span className={`font-mono text-xl font-black block ${cambio > 0 ? 'text-emerald-600' : 'text-slate-400'}`}>
+                      ${cambio.toFixed(2)} <span className="text-xs font-normal">MXN</span>
                     </span>
                   </div>
                 </div>
@@ -907,13 +876,13 @@ export default function PosPage() {
               type="button"
               disabled={processingSale || cart.length === 0}
               onClick={handleCheckout}
-              className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-2xl shadow-lg shadow-emerald-600/30 disabled:opacity-50 transition-all active:scale-95 flex items-center justify-center gap-2 text-sm"
+              className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-2xl shadow-lg shadow-emerald-600/25 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 flex items-center justify-center gap-2 text-sm select-none"
             >
               {processingSale ? (
-                'Procesando despacho...'
+                'Procesando despacho en caja...'
               ) : (
                 <>
-                  <Printer className="w-4 h-4" /> Cobrar & Imprimir Ticket (${total.toFixed(2)})
+                  <Printer className="w-4 h-4" /> Cobrar & Imprimir Ticket (${total.toFixed(2)} MXN)
                 </>
               )}
             </button>
@@ -1055,7 +1024,7 @@ export default function PosPage() {
                 <div className="p-1.5 bg-emerald-500/20 text-emerald-400 rounded-xl">
                   <Unlock className="w-5 h-5" />
                 </div>
-                <h3 className="font-bold text-sm">Apertura de Turno de Caja (POS)</h3>
+                <h3 className="font-bold text-sm">Apertura de Turno de Caja</h3>
               </div>
               <button onClick={() => setShowAperturaModal(false)} className="text-slate-400 hover:text-white text-xs font-bold">✕</button>
             </div>

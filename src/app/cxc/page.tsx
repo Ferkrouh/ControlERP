@@ -133,7 +133,7 @@ export default function CxCPage() {
         <div>
           <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
             <CreditCard className="w-6 h-6 text-blue-600" />
-            Cuentas por Cobrar (CxC) & Cobranza
+            Cuentas por Cobrar & Cobranza
           </h2>
           <p className="text-sm text-slate-500 mt-1">
             Control de facturas a crédito, conciliación de pagos y restauración de saldo disponible.

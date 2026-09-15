@@ -204,7 +204,7 @@ export default function ManufacturaPage() {
         <div>
           <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2.5">
             <Factory className="w-7 h-7 text-indigo-600" />
-            Manufactura y MRP (Producción)
+            Manufactura y Producción
           </h1>
           <p className="text-sm text-slate-500 mt-1">
             Listas de Materiales (BOM), transformación de materias primas y costeo en tiempo real.

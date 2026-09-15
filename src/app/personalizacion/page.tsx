@@ -16,7 +16,7 @@ import {
 export default function PersonalizacionPage() {
   const { user, updateTenantConfig } = useAuth();
   const tenant = user?.tenant;
-
+  const [logoUrl, setLogoUrl] = useState(tenant?.logoUrl || '');
   const [nombreComercial, setNombreComercial] = useState(tenant?.nombreComercial || '');
   const [razonSocial, setRazonSocial] = useState(tenant?.razonSocial || '');
   const [identificacionFiscal, setIdentificacionFiscal] = useState(tenant?.identificacionFiscal || '');
@@ -53,6 +53,22 @@ export default function PersonalizacionPage() {
     );
   }
 
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      alert('La imagen es demasiado grande. Seleccione una imagen menor a 2MB.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setLogoUrl(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!tenant) return;
@@ -63,6 +79,7 @@ export default function PersonalizacionPage() {
 
     try {
       const updates = {
+        logoUrl,
         nombreComercial,
         razonSocial,
         identificacionFiscal,
@@ -138,6 +155,46 @@ export default function PersonalizacionPage() {
           <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
             <Palette className="w-5 h-5 text-blue-600" />
             <h3 className="font-bold text-slate-900 text-base">Identidad de Marca & Tema Visual</h3>
+          </div>
+
+          {/* Selector y Preview de Logotipo */}
+          <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-20 h-20 rounded-xl border-2 border-dashed border-slate-300 bg-white flex items-center justify-center overflow-hidden shadow-xs shrink-0">
+                {logoUrl ? (
+                  <img src={logoUrl} alt="Logotipo Negocio" className="w-full h-full object-contain p-1" />
+                ) : (
+                  <Building className="w-8 h-8 text-slate-300" />
+                )}
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-slate-900">Logotipo Oficial de la Empresa</h4>
+                <p className="text-xs text-slate-500 mt-0.5 max-w-sm">
+                  Se imprimirá automáticamente en facturas SAT, cotizaciones, remisiones, tickets y estados de cuenta. PNG o JPG (máx. 2MB).
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <label className="cursor-pointer px-4 py-2 bg-white hover:bg-slate-100 text-slate-700 text-xs font-semibold rounded-lg border border-slate-300 shadow-xs transition-all">
+                <span>Subir Imagen</span>
+                <input
+                  type="file"
+                  accept="image/png, image/jpeg, image/webp"
+                  onChange={handleLogoUpload}
+                  className="hidden"
+                />
+              </label>
+              {logoUrl && (
+                <button
+                  type="button"
+                  onClick={() => setLogoUrl('')}
+                  className="px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 rounded-lg transition-colors border border-rose-200"
+                >
+                  Quitar
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

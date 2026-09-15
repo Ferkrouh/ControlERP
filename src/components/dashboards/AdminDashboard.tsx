@@ -84,10 +84,10 @@ export default function AdminDashboard() {
 
       {/* Tarjetas de Indicadores Clave (KPIs) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* CxC - Cuentas por Cobrar */}
+        {/* Cuentas por Cobrar */}
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase text-slate-500">Por Cobrar (CxC)</span>
+            <span className="text-xs font-semibold uppercase text-slate-500">Cuentas por Cobrar</span>
             <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
               <CreditCard className="w-5 h-5" />
             </div>
@@ -101,10 +101,10 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* CxP - Cuentas por Pagar */}
+        {/* Cuentas por Pagar */}
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase text-slate-500">Por Pagar (CxP)</span>
+            <span className="text-xs font-semibold uppercase text-slate-500">Cuentas por Pagar</span>
             <div className="p-2 bg-purple-50 text-purple-600 rounded-lg">
               <Receipt className="w-5 h-5" />
             </div>
