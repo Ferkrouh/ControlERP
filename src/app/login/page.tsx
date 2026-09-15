@@ -112,10 +112,10 @@ export default function LoginPage() {
 
         {/* Cuentas de Acceso Rápido / Demo */}
         <div className="pt-4 border-t border-slate-800">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 text-center mb-2.5">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 text-center mb-2.5">
             Acceso Rápido de Prueba (Demo)
           </p>
-          <div className="grid grid-cols-2 gap-1.5 text-[11px]">
+          <div className="grid grid-cols-2 gap-1.5 text-xs">
             <button
               type="button"
               onClick={() => handleQuickLogin('admin@distribuidora.com')}

@@ -137,7 +137,7 @@ export default function AlmacenistaDashboard() {
               </div>
             </div>
 
-            <p className="text-[11px] text-blue-600 font-medium">
+            <p className="text-xs text-blue-600 font-medium">
               ℹ️ Ya hay un traspaso de 5 piezas en tránsito desde CEDIS Monterrey para cubrir este faltante.
             </p>
           </div>

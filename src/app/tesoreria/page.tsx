@@ -246,7 +246,7 @@ export default function TesoreriaPage() {
             <h2 className="text-2xl font-mono font-black text-emerald-400">
               ${saldoTotalGlobal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
             </h2>
-            <span className="text-[11px] text-slate-500 mt-1 block">
+            <span className="text-xs text-slate-500 mt-1 block">
               En {cuentas.length} cuentas bancarias activas
             </span>
           </div>
@@ -264,10 +264,10 @@ export default function TesoreriaPage() {
             }`}
           >
             <div className="flex justify-between items-start">
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${getBancoBadge(c.banco)}`}>
+              <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${getBancoBadge(c.banco)}`}>
                 {c.banco}
               </span>
-              <span className="text-[11px] font-mono text-slate-500">
+              <span className="text-xs font-mono text-slate-500">
                 {c.numeroCuenta ? `•••${c.numeroCuenta.slice(-4)}` : 'Cuenta'}
               </span>
             </div>
@@ -344,16 +344,16 @@ export default function TesoreriaPage() {
                     </td>
                     <td className="p-3">
                       <span className="font-bold text-white block">{m.cuentaBancaria?.nombreCuenta}</span>
-                      <span className="text-[10px] text-slate-500 font-mono">{m.cuentaBancaria?.banco}</span>
+                      <span className="text-xs text-slate-500 font-mono">{m.cuentaBancaria?.banco}</span>
                     </td>
                     <td className="p-3">
                       <span className="font-medium text-slate-200 block">{m.concepto}</span>
                       {m.referencia && (
-                        <span className="text-[10px] font-mono text-slate-400">Ref: {m.referencia}</span>
+                        <span className="text-xs font-mono text-slate-400">Ref: {m.referencia}</span>
                       )}
                     </td>
                     <td className="p-3">
-                      <span className="inline-block px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-800 text-slate-300">
+                      <span className="inline-block px-2 py-0.5 rounded text-xs font-semibold bg-slate-800 text-slate-300">
                         {m.categoria}
                       </span>
                     </td>
@@ -374,7 +374,7 @@ export default function TesoreriaPage() {
                     <td className="p-3 text-center">
                       <button
                         onClick={() => handleToggleConciliado(m.id, m.conciliado)}
-                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold transition-all ${
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold transition-all ${
                           m.conciliado
                             ? 'bg-emerald-950 text-emerald-300 border border-emerald-800 hover:bg-emerald-900'
                             : 'bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700'

@@ -22,7 +22,7 @@ export default function AuditorDashboard() {
   return (
     <div className="space-y-6">
       {/* Header Auditor con Banner de Solo Lectura */}
-      <div className="bg-gradient-to-r from-slate-900 to-slate-800 text-white p-6 rounded-2xl shadow-md flex flex-col md:flex-row md:items-center justify-between gap-4 border-l-4 border-amber-500">
+      <div className="bg-gradient-to-r from-slate-900 to-slate-800 text-white p-6 rounded-2xl shadow-md flex flex-col md:flex-row md:items-center justify-between gap-4 border border-amber-500/30">
         <div>
           <div className="flex items-center gap-2">
             <span className="bg-amber-500/20 text-amber-300 border border-amber-400/30 text-xs px-2.5 py-0.5 rounded-full font-semibold flex items-center gap-1">
@@ -167,7 +167,7 @@ export default function AuditorDashboard() {
               <div>
                 <p className="font-semibold text-slate-800">Traspaso Despachado: Folio TRASP-2026-001</p>
                 <p className="text-slate-500 mt-0.5">5 unidades Compresor 50L transferidas de Central a GDL.</p>
-                <span className="text-[10px] text-slate-400 mt-1 block">Usuario: Almacenista Central</span>
+                <span className="text-xs text-slate-400 mt-1 block">Usuario: Almacenista Central</span>
               </div>
             </div>
 
@@ -176,7 +176,7 @@ export default function AuditorDashboard() {
               <div>
                 <p className="font-semibold text-slate-800">Bloqueo Automático de Crédito Activado</p>
                 <p className="text-slate-500 mt-0.5">Cliente Comercializadora San Pedro alcanzó el 100% de su límite.</p>
-                <span className="text-[10px] text-slate-400 mt-1 block">Motor de Validación de Crédito</span>
+                <span className="text-xs text-slate-400 mt-1 block">Motor de Validación de Crédito</span>
               </div>
             </div>
           </div>

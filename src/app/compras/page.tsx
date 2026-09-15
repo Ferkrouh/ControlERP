@@ -246,7 +246,7 @@ export default function ComprasPage() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50 text-slate-600 uppercase text-[11px] font-semibold border-b border-slate-200">
+              <thead className="bg-slate-50 text-slate-600 uppercase text-xs font-semibold border-b border-slate-200">
                 <tr>
                   <th className="py-3 px-4">Folio Compra</th>
                   <th className="py-3 px-4">Factura Proveedor</th>
@@ -276,11 +276,11 @@ export default function ComprasPage() {
                     </td>
                     <td className="py-3 px-4 text-center">
                       {c.tipoPago === 'CREDITO' ? (
-                        <span className="bg-purple-100 text-purple-800 text-[10px] font-bold px-2.5 py-0.5 rounded-full">
+                        <span className="bg-purple-100 text-purple-800 text-xs font-bold px-2.5 py-0.5 rounded-full">
                           CRÉDITO (CxP)
                         </span>
                       ) : (
-                        <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2.5 py-0.5 rounded-full">
+                        <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-2.5 py-0.5 rounded-full">
                           CONTADO
                         </span>
                       )}
@@ -443,7 +443,7 @@ export default function ComprasPage() {
                         <tr key={idx} className="hover:bg-slate-50">
                           <td className="py-2 px-3">
                             <p className="font-semibold text-slate-900">{it.nombre}</p>
-                            <p className="text-[10px] font-mono text-slate-400">{it.sku}</p>
+                            <p className="text-xs font-mono text-slate-400">{it.sku}</p>
                           </td>
                           <td className="py-2 px-3 text-center font-bold">{it.cantidad} {it.unidadMedida}</td>
                           <td className="py-2 px-3 text-right">${it.costoUnitario.toFixed(2)}</td>

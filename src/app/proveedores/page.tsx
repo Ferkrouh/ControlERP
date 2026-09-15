@@ -128,7 +128,7 @@ export default function ProveedoresPage() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50 text-slate-600 uppercase text-[11px] font-semibold border-b border-slate-200">
+              <thead className="bg-slate-50 text-slate-600 uppercase text-xs font-semibold border-b border-slate-200">
                 <tr>
                   <th className="py-3 px-4">Código & Proveedor</th>
                   <th className="py-3 px-4">RFC</th>
@@ -143,7 +143,7 @@ export default function ProveedoresPage() {
                   <tr key={prv.id} className="hover:bg-slate-50/70 transition-colors">
                     <td className="py-3 px-4">
                       <p className="font-semibold text-slate-900">{prv.razonSocial}</p>
-                      <span className="text-[11px] font-mono text-slate-400">{prv.codigo}</span>
+                      <span className="text-xs font-mono text-slate-400">{prv.codigo}</span>
                     </td>
                     <td className="py-3 px-4 font-mono text-xs text-slate-600">
                       {prv.rfc || 'Sin RFC'}

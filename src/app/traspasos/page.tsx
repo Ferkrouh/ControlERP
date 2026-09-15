@@ -11,6 +11,7 @@ import {
   Boxes, 
   ArrowRight,
   ClipboardCheck,
+  FileDown,
   AlertCircle
 } from 'lucide-react';
 
@@ -230,7 +231,7 @@ export default function TraspasosPage() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50 text-slate-600 uppercase text-[11px] font-semibold border-b border-slate-200">
+              <thead className="bg-slate-50 text-slate-600 uppercase text-xs font-semibold border-b border-slate-200">
                 <tr>
                   <th className="py-3 px-4">Folio</th>
                   <th className="py-3 px-4">Ruta (Origen ➡️ Destino)</th>
@@ -254,21 +255,21 @@ export default function TraspasosPage() {
                         <span className="text-blue-700">{trasp.almacenDestinoNombre}</span>
                       </div>
                       {trasp.observaciones && (
-                        <p className="text-[11px] text-slate-400 mt-0.5">{trasp.observaciones}</p>
+                        <p className="text-xs text-slate-400 mt-0.5">{trasp.observaciones}</p>
                       )}
                       {trasp.requiereCartaPorte && (
                         <div className="mt-1 flex items-center gap-1.5">
                           {trasp.estadoCartaPorte === 'TIMBRADA' ? (
-                            <span className="inline-flex items-center gap-1 bg-purple-100 text-purple-800 text-[9px] font-mono font-bold px-2 py-0.5 rounded-full" title={trasp.uuidCartaPorte}>
+                            <span className="inline-flex items-center gap-1 bg-purple-100 text-purple-800 text-xs font-mono font-bold px-2 py-0.5 rounded-full" title={trasp.uuidCartaPorte}>
                               <CheckCircle2 className="w-3 h-3 text-purple-600" /> Carta Porte 3.1 SAT
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-600 text-[9px] font-mono px-2 py-0.5 rounded-full">
+                            <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-600 text-xs font-mono px-2 py-0.5 rounded-full">
                               Carta Porte: {trasp.estadoCartaPorte}
                             </span>
                           )}
                           {trasp.vehiculoPlacas && (
-                            <span className="text-[9px] font-mono text-slate-500">Placas: {trasp.vehiculoPlacas}</span>
+                            <span className="text-xs font-mono text-slate-500">Placas: {trasp.vehiculoPlacas}</span>
                           )}
                         </div>
                       )}
@@ -291,52 +292,64 @@ export default function TraspasosPage() {
 
                     <td className="py-3 px-4 text-center">
                       {trasp.estado === 'SOLICITADO' && (
-                        <span className="bg-blue-100 text-blue-800 text-[10px] font-bold px-2.5 py-0.5 rounded-full inline-flex items-center gap-1">
+                        <span className="bg-blue-100 text-blue-800 text-xs font-bold px-2.5 py-0.5 rounded-full inline-flex items-center gap-1">
                           <Clock className="w-3 h-3" /> Solicitado
                         </span>
                       )}
                       {trasp.estado === 'DESPACHADO' && (
-                        <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2.5 py-0.5 rounded-full inline-flex items-center gap-1">
+                        <span className="bg-amber-100 text-amber-800 text-xs font-bold px-2.5 py-0.5 rounded-full inline-flex items-center gap-1">
                           <Truck className="w-3 h-3" /> En Tránsito
                         </span>
                       )}
                       {trasp.estado === 'RECIBIDO' && (
-                        <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2.5 py-0.5 rounded-full inline-flex items-center gap-1">
+                        <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-2.5 py-0.5 rounded-full inline-flex items-center gap-1">
                           <CheckCircle2 className="w-3 h-3" /> Recibido
                         </span>
                       )}
                     </td>
 
                     <td className="py-3 px-4 text-center">
-                      {trasp.estado === 'SOLICITADO' && (
-                        <button
-                          onClick={() => handleDespachar(trasp.id)}
-                          disabled={processingAction}
-                          className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold px-3 py-1 rounded-lg shadow-sm"
+                      <div className="flex items-center justify-center gap-1.5">
+                        <a
+                          href={`/api/traspasos/${trasp.id}/pdf`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-1.5 rounded-lg text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors inline-flex items-center gap-1 text-xs font-semibold"
+                          title="Guía de Traslado / Carta Porte 3.1 PDF"
                         >
-                          Despachar Envío
-                        </button>
-                      )}
+                          <FileDown className="w-3.5 h-3.5" /> PDF
+                        </a>
 
-                      {trasp.estado === 'DESPACHADO' && (
-                        <button
-                          onClick={() => {
-                            setSelectedRecepcion(trasp);
-                            const mapInit: Record<string, number> = {};
-                            trasp.items.forEach((it: any) => {
-                              mapInit[it.id] = it.cantidadEnviada;
-                            });
-                            setCantidadesRecibidas(mapInit);
-                          }}
-                          className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-1 rounded-lg shadow-sm"
-                        >
-                          Confirmar Recepción
-                        </button>
-                      )}
+                        {trasp.estado === 'SOLICITADO' && (
+                          <button
+                            onClick={() => handleDespachar(trasp.id)}
+                            disabled={processingAction}
+                            className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold px-3 py-1 rounded-lg shadow-sm"
+                          >
+                            Despachar Envío
+                          </button>
+                        )}
 
-                      {trasp.estado === 'RECIBIDO' && (
-                        <span className="text-xs text-slate-400 font-medium">Finalizado</span>
-                      )}
+                        {trasp.estado === 'DESPACHADO' && (
+                          <button
+                            onClick={() => {
+                              setSelectedRecepcion(trasp);
+                              const mapInit: Record<string, number> = {};
+                              trasp.items.forEach((it: any) => {
+                                mapInit[it.id] = it.cantidadEnviada;
+                              });
+                              setCantidadesRecibidas(mapInit);
+                            }}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-1 rounded-lg shadow-sm"
+                          >
+                            Confirmar Recepción
+                          </button>
+                        )}
+
+                        {trasp.estado === 'RECIBIDO' && (
+                          <span className="text-xs text-slate-400 font-medium">Finalizado</span>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -432,14 +445,14 @@ export default function TraspasosPage() {
                   />
                   <div>
                     <span className="text-xs font-bold text-slate-900 block">¿Requiere Carta Porte 3.1? (Tránsito Carretero Federal)</span>
-                    <span className="text-[11px] text-slate-500 block">Emite CFDI de Traslado con complemento para amparar el transporte ante la Guardia Nacional / SAT.</span>
+                    <span className="text-xs text-slate-500 block">Emite CFDI de Traslado con complemento para amparar el transporte ante la Guardia Nacional / SAT.</span>
                   </div>
                 </label>
 
                 {requiereCartaPorte && (
                   <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200 text-xs">
                     <div>
-                      <label className="block text-[11px] text-slate-600 mb-0.5">Distancia Recorrida (Km)</label>
+                      <label className="block text-xs text-slate-600 mb-0.5">Distancia Recorrida (Km)</label>
                       <input
                         type="number"
                         min="1"
@@ -449,7 +462,7 @@ export default function TraspasosPage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-[11px] text-slate-600 mb-0.5">Placas Vehículo</label>
+                      <label className="block text-xs text-slate-600 mb-0.5">Placas Vehículo</label>
                       <input
                         type="text"
                         placeholder="ej. P-991-NL"
@@ -459,7 +472,7 @@ export default function TraspasosPage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-[11px] text-slate-600 mb-0.5">Nombre del Chofer / Operador</label>
+                      <label className="block text-xs text-slate-600 mb-0.5">Nombre del Chofer / Operador</label>
                       <input
                         type="text"
                         placeholder="Nombre completo"
@@ -469,7 +482,7 @@ export default function TraspasosPage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-[11px] text-slate-600 mb-0.5">RFC Chofer</label>
+                      <label className="block text-xs text-slate-600 mb-0.5">RFC Chofer</label>
                       <input
                         type="text"
                         placeholder="RFC a 13 posiciones"

@@ -24,6 +24,19 @@ export interface TenantInfo {
   moduloTraspasos: boolean;
   moduloReportes: boolean;
   moduloFacturacionSAT: boolean;
+  moduloTesoreria?: boolean;
+  moduloManufactura?: boolean;
+  moduloCrm?: boolean;
+  moduloContabilidad?: boolean;
+  moduloNomina?: boolean;
+  planSuscripcion?: string;
+  fechaInicioPlan?: string | Date;
+  fechaVencimientoPlan?: string | Date | null;
+  diasGraciaSuscripcion?: number;
+  bloqueadoPorSuscripcion?: boolean;
+  limiteUsuarios?: number;
+  limiteAlmacenes?: number;
+  notasSuperadmin?: string | null;
 }
 
 export interface UserSession {

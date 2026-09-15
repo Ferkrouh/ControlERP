@@ -262,11 +262,11 @@ export default function CotizacionesPage() {
           <style>
             body { font-family: system-ui, sans-serif; color: #0f172a; margin: 40px; }
             .header { display: flex; justify-content: space-between; border-bottom: 2px solid #0f172a; padding-bottom: 16px; margin-bottom: 20px; }
-            table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 13px; }
-            th { background: #f8fafc; text-align: left; padding: 8px; border-bottom: 2px solid #cbd5e1; font-size: 11px; text-transform: uppercase; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; }
+            th { background: #f8fafc; text-align: left; padding: 8px; border-bottom: 2px solid #cbd5e1; font-size: 12px; text-transform: uppercase; }
             .totals { margin-top: 20px; display: flex; justify-content: flex-end; }
             .totals table { width: 280px; }
-            .footer { margin-top: 40px; text-align: center; font-size: 11px; color: #64748b; border-top: 1px dashed #cbd5e1; padding-top: 16px; }
+            .footer { margin-top: 40px; text-align: center; font-size: 12px; color: #64748b; border-top: 1px dashed #cbd5e1; padding-top: 16px; }
             @media print { body { margin: 0; } }
           </style>
         </head>
@@ -279,11 +279,11 @@ export default function CotizacionesPage() {
             <div style="text-align: right;">
               <h3 style="margin: 0; font-family: monospace; color: #2563eb;">${cot.folio}</h3>
               <p style="margin: 4px 0 0 0; font-size: 12px;">Emisión: ${new Date(cot.fecha).toLocaleDateString('es-MX')}</p>
-              <p style="margin: 2px 0 0 0; font-size: 12px; color: #dc2626; font-weight: bold;">Vence: ${new Date(cot.fechaVencimiento).toLocaleDateString('es-MX')} (${cot.vigenciaDias} días)</p>
+              <p style="margin: 2px 0 0 0; font-size: 12px; color: #ef4444; font-weight: bold;">Vence: ${new Date(cot.fechaVencimiento).toLocaleDateString('es-MX')} (${cot.vigenciaDias} días)</p>
             </div>
           </div>
 
-          <div style="background: #f8fafc; padding: 12px 16px; border-radius: 8px; font-size: 13px; margin-bottom: 20px;">
+          <div style="background: #f8fafc; padding: 12px 16px; border-radius: 8px; font-size: 14px; margin-bottom: 20px;">
             <p style="margin: 0;"><strong>Cliente:</strong> ${cot.cliente?.razonSocial}</p>
             <p style="margin: 4px 0 0 0; font-size: 12px; color: #64748b;"><strong>RFC:</strong> ${cot.cliente?.rfc || 'XAXX010101000'} | <strong>Código:</strong> ${cot.cliente?.codigo}</p>
             ${cot.observaciones ? `<p style="margin: 6px 0 0 0; font-size: 12px;"><strong>Notas:</strong> ${cot.observaciones}</p>` : ''}
@@ -314,7 +314,7 @@ export default function CotizacionesPage() {
                 <td style="padding: 4px 0;">IVA (16%):</td>
                 <td style="text-align: right; font-family: monospace; font-weight: bold;">$${cot.impuestos.toFixed(2)}</td>
               </tr>
-              <tr style="border-top: 2px solid #0f172a; font-size: 15px;">
+              <tr style="border-top: 2px solid #0f172a; font-size: 14px;">
                 <td style="padding: 8px 0; font-weight: bold;">Total Cotizado:</td>
                 <td style="text-align: right; font-family: monospace; font-weight: bold; color: #2563eb;">$${cot.total.toFixed(2)} MXN</td>
               </tr>
@@ -385,7 +385,7 @@ export default function CotizacionesPage() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50 text-slate-600 uppercase text-[11px] font-semibold border-b border-slate-200">
+              <thead className="bg-slate-50 text-slate-600 uppercase text-xs font-semibold border-b border-slate-200">
                 <tr>
                   <th className="py-3 px-4">Folio</th>
                   <th className="py-3 px-4">Cliente</th>
@@ -417,15 +417,15 @@ export default function CotizacionesPage() {
                       </td>
                       <td className="py-3 px-4 text-center">
                         {c.estado === 'CONVERTIDA' ? (
-                          <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2.5 py-0.5 rounded-full">
+                          <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-2.5 py-0.5 rounded-full">
                             CONVERTIDA A VENTA
                           </span>
                         ) : isExpired ? (
-                          <span className="bg-rose-100 text-rose-800 text-[10px] font-bold px-2.5 py-0.5 rounded-full">
+                          <span className="bg-rose-100 text-rose-800 text-xs font-bold px-2.5 py-0.5 rounded-full">
                             EXPIRADA
                           </span>
                         ) : (
-                          <span className="bg-blue-100 text-blue-800 text-[10px] font-bold px-2.5 py-0.5 rounded-full">
+                          <span className="bg-blue-100 text-blue-800 text-xs font-bold px-2.5 py-0.5 rounded-full">
                             VIGENTE
                           </span>
                         )}
@@ -444,7 +444,7 @@ export default function CotizacionesPage() {
                           {/* Ver Detalle */}
                           <button
                             onClick={() => setViewCot(c)}
-                            className="p-1.5 rounded-lg text-slate-600 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                            className="p-1.5 rounded-lg text-slate-600 hover:text-blue-600 hover:bg-slate-100 transition-colors"
                             title="Ver detalles"
                           >
                             <Eye className="w-4 h-4" />
@@ -453,7 +453,7 @@ export default function CotizacionesPage() {
                           {/* Imprimir Presupuesto */}
                           <button
                             onClick={() => handlePrintCotizacion(c)}
-                            className="p-1.5 rounded-lg text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
+                            className="p-1.5 rounded-lg text-slate-600 hover:text-emerald-600 hover:bg-slate-100 transition-colors"
                             title="Imprimir presupuesto comercial"
                           >
                             <Printer className="w-4 h-4 text-emerald-600" />
@@ -568,7 +568,7 @@ export default function CotizacionesPage() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end bg-slate-50 p-3 rounded-xl border border-slate-200">
                   <div className="sm:col-span-6">
-                    <label className="block text-[11px] font-bold text-slate-600 mb-1">Artículo</label>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">Artículo</label>
                     <select
                       value={selectedProdId}
                       onChange={(e) => handleProductSelectChange(e.target.value)}
@@ -583,7 +583,7 @@ export default function CotizacionesPage() {
                   </div>
 
                   <div className="sm:col-span-2">
-                    <label className="block text-[11px] font-bold text-slate-600 mb-1">Cantidad</label>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">Cantidad</label>
                     <input
                       type="number"
                       min="1"
@@ -594,7 +594,7 @@ export default function CotizacionesPage() {
                   </div>
 
                   <div className="sm:col-span-2">
-                    <label className="block text-[11px] font-bold text-slate-600 mb-1">Precio Unit.</label>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">Precio Unit.</label>
                     <input
                       type="number"
                       step="0.01"
@@ -737,7 +737,7 @@ export default function CotizacionesPage() {
                     </option>
                   ))}
                 </select>
-                <p className="text-[11px] text-slate-400 mt-1">El stock se descontará de este almacén y se registrará en el Kárdex en tiempo real.</p>
+                <p className="text-xs text-slate-400 mt-1">El stock se descontará de este almacén y se registrará en el Kárdex en tiempo real.</p>
               </div>
 
               <div>

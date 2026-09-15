@@ -13,12 +13,18 @@ export async function GET(req: NextRequest) {
         usuarios: {
           select: { id: true, nombre: true, email: true, rol: true, activo: true },
         },
-        almacenes: true,
+        almacenes: {
+          select: { id: true, codigo: true, nombre: true, esPrincipal: true },
+        },
         _count: {
           select: {
+            usuarios: true,
+            almacenes: true,
             clientes: true,
             productos: true,
             traspasos: true,
+            ventas: true,
+            compras: true,
           },
         },
       },
@@ -44,6 +50,15 @@ export async function POST(req: NextRequest) {
 
     const defaultPasswordHash = await hashPassword(body.adminPassword || 'admin123');
 
+    // Calcular fecha de vencimiento por defecto si no viene dada (ej. 30 días o según plan)
+    let fechaVenc: Date | null = null;
+    if (body.fechaVencimientoPlan) {
+      fechaVenc = new Date(body.fechaVencimientoPlan);
+    } else {
+      const hoy = new Date();
+      fechaVenc = new Date(hoy.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 días de periodo inicial
+    }
+
     const result = await prisma.$transaction(async (tx) => {
       const newTenant = await tx.tenant.create({
         data: {
@@ -53,13 +68,33 @@ export async function POST(req: NextRequest) {
           giro: body.giro || 'DISTRIBUCION_MAYOREO',
           moneda: body.moneda || 'MXN',
           colorPrimario: body.colorPrimario || '#1e40af',
-          moduloMultiAlmacen: body.moduloMultiAlmacen ?? true,
-          moduloTraspasos: body.moduloTraspasos ?? true,
+          textoEncabezadoDoc: body.textoEncabezadoDoc || null,
+          diasGraciaCredito: body.diasGraciaCredito ? parseInt(body.diasGraciaCredito) : 0,
+          alertaVencimientoDias: body.alertaVencimientoDias ? parseInt(body.alertaVencimientoDias) : 5,
+          politicaBloqueoCredito: body.politicaBloqueoCredito || 'ESTRICTO',
+
+          // Control de Suscripción SaaS
+          planSuscripcion: body.planSuscripcion || 'PROFESIONAL',
+          fechaInicioPlan: body.fechaInicioPlan ? new Date(body.fechaInicioPlan) : new Date(),
+          fechaVencimientoPlan: fechaVenc,
+          diasGraciaSuscripcion: body.diasGraciaSuscripcion ? parseInt(body.diasGraciaSuscripcion) : 3,
+          bloqueadoPorSuscripcion: body.bloqueadoPorSuscripcion ?? false,
+          limiteUsuarios: body.limiteUsuarios ? parseInt(body.limiteUsuarios) : 10,
+          limiteAlmacenes: body.limiteAlmacenes ? parseInt(body.limiteAlmacenes) : 5,
+          notasSuperadmin: body.notasSuperadmin || null,
+
+          // Módulos autorizados
           moduloCredito: body.moduloCredito ?? true,
           moduloCxC: body.moduloCxC ?? true,
           moduloProveedores: body.moduloProveedores ?? true,
           moduloCxP: body.moduloCxP ?? true,
+          moduloMultiAlmacen: body.moduloMultiAlmacen ?? true,
+          moduloTraspasos: body.moduloTraspasos ?? true,
           moduloReportes: body.moduloReportes ?? true,
+          moduloFacturacionSAT: body.moduloFacturacionSAT ?? false,
+          moduloTesoreria: body.moduloTesoreria ?? true,
+          moduloManufactura: body.moduloManufactura ?? true,
+          moduloCrm: body.moduloCrm ?? true,
         },
       });
 

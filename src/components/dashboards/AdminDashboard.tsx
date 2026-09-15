@@ -168,7 +168,7 @@ export default function AdminDashboard() {
               <div>
                 <div className="flex items-center gap-2">
                   <span className="font-semibold text-slate-900 text-sm">Comercializadora San Pedro</span>
-                  <span className="bg-rose-100 text-rose-700 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                  <span className="bg-rose-100 text-rose-700 text-xs font-bold px-2 py-0.5 rounded-full">
                     BLOQUEADO POR MORA
                   </span>
                 </div>
@@ -178,7 +178,7 @@ export default function AdminDashboard() {
                 <div className="h-2 w-full bg-slate-200 rounded-full overflow-hidden">
                   <div className="h-full bg-rose-500 rounded-full w-full"></div>
                 </div>
-                <p className="text-[11px] text-right font-semibold text-rose-600 mt-1">Crédito Agotado</p>
+                <p className="text-xs text-right font-semibold text-rose-600 mt-1">Crédito Agotado</p>
               </div>
             </div>
 
@@ -187,7 +187,7 @@ export default function AdminDashboard() {
               <div>
                 <div className="flex items-center gap-2">
                   <span className="font-semibold text-slate-900 text-sm">Constructora del Bajío S.A.</span>
-                  <span className="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                  <span className="bg-emerald-100 text-emerald-700 text-xs font-bold px-2 py-0.5 rounded-full">
                     ACTIVO
                   </span>
                 </div>
@@ -197,7 +197,7 @@ export default function AdminDashboard() {
                 <div className="h-2 w-full bg-slate-200 rounded-full overflow-hidden">
                   <div className="h-full bg-emerald-500 rounded-full" style={{ width: '30%' }}></div>
                 </div>
-                <p className="text-[11px] text-right font-semibold text-emerald-600 mt-1">Disponible: $105,000</p>
+                <p className="text-xs text-right font-semibold text-emerald-600 mt-1">Disponible: $105,000</p>
               </div>
             </div>
 
@@ -206,7 +206,7 @@ export default function AdminDashboard() {
               <div>
                 <div className="flex items-center gap-2">
                   <span className="font-semibold text-slate-900 text-sm">Ferreterías Unidas del Norte</span>
-                  <span className="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                  <span className="bg-emerald-100 text-emerald-700 text-xs font-bold px-2 py-0.5 rounded-full">
                     ACTIVO
                   </span>
                 </div>
@@ -216,7 +216,7 @@ export default function AdminDashboard() {
                 <div className="h-2 w-full bg-slate-200 rounded-full overflow-hidden">
                   <div className="h-full bg-emerald-500 rounded-full" style={{ width: '16%' }}></div>
                 </div>
-                <p className="text-[11px] text-right font-semibold text-emerald-600 mt-1">Disponible: $67,500</p>
+                <p className="text-xs text-right font-semibold text-emerald-600 mt-1">Disponible: $67,500</p>
               </div>
             </div>
           </div>

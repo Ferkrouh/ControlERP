@@ -92,7 +92,7 @@ export default function Navbar() {
               {isSuperadmin ? 'ControlERP Master Cloud' : (tenant?.nombreComercial || 'ControlERP')}
             </h1>
             {!isSuperadmin && tenant && (
-              <span className="text-[11px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-mono">
+              <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-mono">
                 {tenant.identificacionFiscal}
               </span>
             )}
@@ -139,8 +139,8 @@ export default function Navbar() {
                         switchUser(u.email);
                         setDropdownOpen(false);
                       }}
-                      className={`w-full text-left px-3 py-2 flex items-center justify-between hover:bg-slate-50 transition-colors ${
-                        isSelected ? 'bg-blue-50/70 border-l-4 border-blue-600' : ''
+                      className={`w-full text-left px-3 py-2 flex items-center justify-between rounded-lg transition-colors ${
+                        isSelected ? 'bg-blue-50 text-blue-900 font-semibold' : 'hover:bg-slate-50'
                       }`}
                     >
                       <div className="truncate pr-2">
@@ -177,7 +177,7 @@ export default function Navbar() {
             >
               <Bell className="w-4 h-4" />
               {alertasData?.resumen?.totalAlertas > 0 && (
-                <span className={`absolute -top-1 -right-1 w-5 h-5 rounded-full text-[10px] font-bold text-white flex items-center justify-center animate-pulse ${
+                <span className={`absolute -top-1 -right-1 w-5 h-5 rounded-full text-xs font-bold text-white flex items-center justify-center animate-pulse ${
                   alertasData?.resumen?.tieneCriticas ? 'bg-rose-600' : 'bg-amber-500'
                 }`}>
                   {alertasData?.resumen?.totalAlertas}
@@ -194,10 +194,10 @@ export default function Navbar() {
                     </div>
                     <div>
                       <h4 className="font-bold text-sm text-slate-900 leading-tight">Mesa de Control de Cartera</h4>
-                      <p className="text-[11px] text-slate-500">Alertas de cobros y pagos programados</p>
+                      <p className="text-xs text-slate-500">Alertas de cobros y pagos programados</p>
                     </div>
                   </div>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
+                  <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
                     {alertasData?.resumen?.totalAlertas || 0} avisos
                   </span>
                 </div>
@@ -205,25 +205,25 @@ export default function Navbar() {
                 {/* Resumen Métricas Rápidas */}
                 <div className="grid grid-cols-2 gap-2 p-3 bg-slate-50 border-b border-slate-100 text-xs">
                   <div className="bg-white p-2.5 rounded-xl border border-slate-200/80">
-                    <p className="text-[10px] uppercase font-bold text-slate-400 flex items-center gap-1">
+                    <p className="text-xs uppercase font-bold text-slate-400 flex items-center gap-1">
                       <CreditCard className="w-3 h-3 text-blue-600" /> Cobros (CxC)
                     </p>
                     <p className="text-xs font-bold text-rose-600 mt-1">
                       ${alertasData?.resumen?.cxc?.montoVencido?.toLocaleString('es-MX', { minimumFractionDigits: 2 }) || '0.00'}
                     </p>
-                    <p className="text-[10px] text-slate-500">
+                    <p className="text-xs text-slate-500">
                       {alertasData?.resumen?.cxc?.totalVencidas || 0} vencidas • {alertasData?.resumen?.cxc?.totalPorVencer || 0} por vencer
                     </p>
                   </div>
 
                   <div className="bg-white p-2.5 rounded-xl border border-slate-200/80">
-                    <p className="text-[10px] uppercase font-bold text-slate-400 flex items-center gap-1">
+                    <p className="text-xs uppercase font-bold text-slate-400 flex items-center gap-1">
                       <Receipt className="w-3 h-3 text-purple-600" /> Pagos (CxP)
                     </p>
                     <p className="text-xs font-bold text-rose-600 mt-1">
                       ${alertasData?.resumen?.cxp?.montoVencido?.toLocaleString('es-MX', { minimumFractionDigits: 2 }) || '0.00'}
                     </p>
-                    <p className="text-[10px] text-slate-500">
+                    <p className="text-xs text-slate-500">
                       {alertasData?.resumen?.cxp?.totalVencidas || 0} vencidas • {alertasData?.resumen?.cxp?.totalPorVencer || 0} por vencer
                     </p>
                   </div>
@@ -242,18 +242,18 @@ export default function Navbar() {
                       {alertasData?.alertas?.cxcVencidas?.map((item: any) => (
                         <div key={item.id} className="p-3 hover:bg-slate-50 transition-colors flex items-start justify-between gap-2 text-xs">
                           <div className="space-y-0.5">
-                            <span className="bg-rose-100 text-rose-800 text-[10px] font-bold px-1.5 py-0.5 rounded">
+                            <span className="bg-rose-100 text-rose-800 text-xs font-bold px-1.5 py-0.5 rounded">
                               Cobro Vencido (+{item.diasVencido}d)
                             </span>
                             <p className="font-bold text-slate-900 leading-snug">{item.entidad}</p>
-                            <p className="font-mono text-[10px] text-slate-400">Folio: {item.folio}</p>
+                            <p className="font-mono text-xs text-slate-400">Folio: {item.folio}</p>
                           </div>
                           <div className="text-right shrink-0">
                             <p className="font-mono font-bold text-rose-600">${item.saldoPendiente?.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</p>
                             <Link
                               href="/cxc"
                               onClick={() => setBellOpen(false)}
-                              className="text-[10px] text-blue-600 hover:underline font-bold inline-flex items-center gap-0.5 mt-1"
+                              className="text-xs text-blue-600 hover:underline font-bold inline-flex items-center gap-0.5 mt-1"
                             >
                               Cobrar <ArrowRight className="w-2.5 h-2.5" />
                             </Link>
@@ -265,18 +265,18 @@ export default function Navbar() {
                       {alertasData?.alertas?.cxpVencidas?.map((item: any) => (
                         <div key={item.id} className="p-3 hover:bg-slate-50 transition-colors flex items-start justify-between gap-2 text-xs">
                           <div className="space-y-0.5">
-                            <span className="bg-rose-100 text-rose-800 text-[10px] font-bold px-1.5 py-0.5 rounded">
+                            <span className="bg-rose-100 text-rose-800 text-xs font-bold px-1.5 py-0.5 rounded">
                               Pago a Proveedor Vencido (+{item.diasVencido}d)
                             </span>
                             <p className="font-bold text-slate-900 leading-snug">{item.entidad}</p>
-                            <p className="font-mono text-[10px] text-slate-400">Factura: {item.folio}</p>
+                            <p className="font-mono text-xs text-slate-400">Factura: {item.folio}</p>
                           </div>
                           <div className="text-right shrink-0">
                             <p className="font-mono font-bold text-rose-600">${item.saldoPendiente?.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</p>
                             <Link
                               href="/cxp"
                               onClick={() => setBellOpen(false)}
-                              className="text-[10px] text-purple-600 hover:underline font-bold inline-flex items-center gap-0.5 mt-1"
+                              className="text-xs text-purple-600 hover:underline font-bold inline-flex items-center gap-0.5 mt-1"
                             >
                               Liquidar <ArrowRight className="w-2.5 h-2.5" />
                             </Link>
@@ -288,18 +288,18 @@ export default function Navbar() {
                       {alertasData?.alertas?.cxcPorVencer?.map((item: any) => (
                         <div key={item.id} className="p-3 hover:bg-slate-50 transition-colors flex items-start justify-between gap-2 text-xs">
                           <div className="space-y-0.5">
-                            <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-1.5 py-0.5 rounded">
+                            <span className="bg-amber-100 text-amber-800 text-xs font-bold px-1.5 py-0.5 rounded">
                               Cobro Por Vencer (En {item.diasRestantes}d)
                             </span>
                             <p className="font-semibold text-slate-800 leading-snug">{item.entidad}</p>
-                            <p className="font-mono text-[10px] text-slate-400">Folio: {item.folio}</p>
+                            <p className="font-mono text-xs text-slate-400">Folio: {item.folio}</p>
                           </div>
                           <div className="text-right shrink-0">
                             <p className="font-mono font-bold text-slate-900">${item.saldoPendiente?.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</p>
                             <Link
                               href="/cxc"
                               onClick={() => setBellOpen(false)}
-                              className="text-[10px] text-blue-600 hover:underline font-semibold inline-flex items-center gap-0.5 mt-1"
+                              className="text-xs text-blue-600 hover:underline font-semibold inline-flex items-center gap-0.5 mt-1"
                             >
                               Ver <ArrowRight className="w-2.5 h-2.5" />
                             </Link>
@@ -311,18 +311,18 @@ export default function Navbar() {
                       {alertasData?.alertas?.cxpPorVencer?.map((item: any) => (
                         <div key={item.id} className="p-3 hover:bg-slate-50 transition-colors flex items-start justify-between gap-2 text-xs">
                           <div className="space-y-0.5">
-                            <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-1.5 py-0.5 rounded">
+                            <span className="bg-amber-100 text-amber-800 text-xs font-bold px-1.5 py-0.5 rounded">
                               Pago Por Vencer (En {item.diasRestantes}d)
                             </span>
                             <p className="font-semibold text-slate-800 leading-snug">{item.entidad}</p>
-                            <p className="font-mono text-[10px] text-slate-400">Factura: {item.folio}</p>
+                            <p className="font-mono text-xs text-slate-400">Factura: {item.folio}</p>
                           </div>
                           <div className="text-right shrink-0">
                             <p className="font-mono font-bold text-slate-900">${item.saldoPendiente?.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</p>
                             <Link
                               href="/cxp"
                               onClick={() => setBellOpen(false)}
-                              className="text-[10px] text-purple-600 hover:underline font-semibold inline-flex items-center gap-0.5 mt-1"
+                              className="text-xs text-purple-600 hover:underline font-semibold inline-flex items-center gap-0.5 mt-1"
                             >
                               Programar <ArrowRight className="w-2.5 h-2.5" />
                             </Link>
@@ -362,7 +362,7 @@ export default function Navbar() {
           </div>
           <div className="text-left">
             <p className="text-xs font-semibold text-slate-800 leading-tight">{user.nombre}</p>
-            <p className="text-[11px] text-slate-500 leading-tight">{user.email}</p>
+            <p className="text-xs text-slate-500 leading-tight">{user.email}</p>
           </div>
         </div>
 
@@ -370,7 +370,7 @@ export default function Navbar() {
         {user.rol === 'ADMIN' && (
           <Link
             href="/personalizacion"
-            className="p-2 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+            className="p-2 text-slate-600 hover:text-blue-600 hover:bg-slate-100 rounded-lg transition-colors"
             title="Personalizar mi negocio"
           >
             <Sliders className="w-4 h-4" />
@@ -380,7 +380,7 @@ export default function Navbar() {
         {/* Botón de Cerrar Sesión */}
         <button
           onClick={logout}
-          className="p-2 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+          className="p-2 text-slate-500 hover:text-rose-600 hover:bg-slate-100 rounded-lg transition-colors"
           title="Cerrar sesión"
         >
           <LogOut className="w-4 h-4" />

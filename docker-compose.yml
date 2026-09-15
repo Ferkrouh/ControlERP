@@ -1,6 +1,30 @@
 version: '3.8'
 
 services:
+  # 1. Base de Datos Corporativa PostgreSQL 16
+  postgres:
+    image: postgres:16-alpine
+    container_name: controlerp-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-controlerp}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-controlerp_secure_password_2026!}
+      POSTGRES_DB: ${POSTGRES_DB:-controlerp_db}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      # Expuesto solo al localhost del servidor para pg_dump y tareas administrativas
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-controlerp} -d ${POSTGRES_DB:-controlerp_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 6
+    networks:
+      - controlerp-net
+
+  # 2. Aplicación Web ControlERP (Next.js 15)
   app:
     build:
       context: .
@@ -11,19 +35,34 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=file:./dev.db
-      - NEXT_PUBLIC_APP_NAME=ControlERP
-    volumes:
-      - ./data:/app/data
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-controlerp}:${POSTGRES_PASSWORD:-controlerp_secure_password_2026!}@postgres:5432/${POSTGRES_DB:-controlerp_db}?schema=public
+      - NEXT_PUBLIC_APP_NAME=${NEXT_PUBLIC_APP_NAME:-ControlERP}
+      - JWT_SECRET=${JWT_SECRET:-controlerp_super_secret_jwt_key_cambiar_en_produccion_xyz123}
+      - PORT=3000
+      - SEED_ON_START=${SEED_ON_START:-true}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - controlerp-net
 
-  # Túnel Cloudflare para acceso remoto seguro desde Internet sin abrir puertos en el router
-  # Para activarlo: reemplaza TUNNEL_TOKEN con el token de tu túnel en dash.cloudflare.com
+  # 3. Túnel Seguro Cloudflare Zero Trust (Acceso remoto mundial HTTPS sin abrir puertos)
   cloudflare-tunnel:
     image: cloudflare/cloudflared:latest
     container_name: controlerp-tunnel
     restart: always
     command: tunnel run
     environment:
-      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN:-dummy_token_configurar_en_env}
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN:-}
     depends_on:
       - app
+    networks:
+      - controlerp-net
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  controlerp-net:
+    driver: bridge

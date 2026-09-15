@@ -38,6 +38,9 @@ export async function GET(req: NextRequest) {
   }
 }
 
+import { computeAuditHash, classifyAuditRisk, GENESIS_AUDIT_HASH } from '@/lib/audit-crypt';
+import crypto from 'crypto';
+
 export async function POST(req: NextRequest) {
   try {
     // Auditores y Almacenistas no pueden dar de alta clientes
@@ -81,3 +84,114 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Error al crear cliente' }, { status: 500 });
   }
 }
+
+export async function PATCH(req: NextRequest) {
+  try {
+    const auth = await requireAuth(req, ['SUPERADMIN', 'ADMIN', 'ENCARGADO']);
+    if (auth.errorResponse) return auth.errorResponse;
+
+    const { user } = auth;
+    const body = await req.json();
+
+    if (!body.id) {
+      return NextResponse.json({ error: 'ID de cliente requerido' }, { status: 400 });
+    }
+
+    const clientePrevio = await prisma.cliente.findUnique({
+      where: { id: body.id },
+    });
+
+    if (!clientePrevio) {
+      return NextResponse.json({ error: 'Cliente no encontrado' }, { status: 404 });
+    }
+
+    // Aislamiento tenant estricto
+    if (user.rol !== 'SUPERADMIN' && clientePrevio.tenantId !== user.tenantId) {
+      return NextResponse.json({ error: 'Acceso no autorizado a este cliente' }, { status: 403 });
+    }
+
+    const updateData: any = {};
+    if (body.razonSocial !== undefined) updateData.razonSocial = body.razonSocial;
+    if (body.rfc !== undefined) updateData.rfc = body.rfc;
+    if (body.email !== undefined) updateData.email = body.email;
+    if (body.telefono !== undefined) updateData.telefono = body.telefono;
+    if (body.direccion !== undefined) updateData.direccion = body.direccion;
+    if (body.diasCredito !== undefined) updateData.diasCredito = Number(body.diasCredito);
+    if (body.limiteCredito !== undefined) updateData.limiteCredito = Number(body.limiteCredito);
+    if (body.estadoCredito !== undefined) updateData.estadoCredito = body.estadoCredito;
+    if (body.regimenFiscal !== undefined) updateData.regimenFiscal = body.regimenFiscal;
+    if (body.usoCfdi !== undefined) updateData.usoCfdi = body.usoCfdi;
+    if (body.codigoPostal !== undefined) updateData.codigoPostal = body.codigoPostal;
+
+    const clienteActualizado = await prisma.cliente.update({
+      where: { id: body.id },
+      data: updateData,
+    });
+
+    // Registrar auditoría si hubo cambio en límite de crédito, días o estado
+    const cambioLimite = body.limiteCredito !== undefined && Number(body.limiteCredito) !== clientePrevio.limiteCredito;
+    const cambioEstado = body.estadoCredito !== undefined && body.estadoCredito !== clientePrevio.estadoCredito;
+    const cambioDias = body.diasCredito !== undefined && Number(body.diasCredito) !== clientePrevio.diasCredito;
+
+    if (cambioLimite || cambioEstado || cambioDias) {
+      const detalles = `Ajuste en política crediticia de ${clientePrevio.razonSocial} (${clientePrevio.codigo}): ` +
+        [
+          cambioLimite ? `Límite: $${clientePrevio.limiteCredito} -> $${Number(body.limiteCredito)}` : '',
+          cambioEstado ? `Estado: ${clientePrevio.estadoCredito} -> ${body.estadoCredito}` : '',
+          cambioDias ? `Plazo: ${clientePrevio.diasCredito}d -> ${Number(body.diasCredito)}d` : '',
+        ].filter(Boolean).join(' | ');
+
+      const ultimoRegistro = await prisma.registroAuditoria.findFirst({
+        where: { tenantId: clientePrevio.tenantId },
+        orderBy: { fecha: 'desc' },
+      });
+      const hashPrevio = ultimoRegistro?.hashEvento || GENESIS_AUDIT_HASH;
+      const auditId = crypto.randomUUID();
+      const fechaNow = new Date();
+      const hashEvento = computeAuditHash(hashPrevio, {
+        id: auditId,
+        tenantId: clientePrevio.tenantId,
+        fecha: fechaNow,
+        modulo: 'CREDITO',
+        accion: 'EDITAR',
+        detalles,
+        usuarioId: user.id,
+      });
+
+      await prisma.registroAuditoria.create({
+        data: {
+          id: auditId,
+          tenantId: clientePrevio.tenantId,
+          usuarioId: user.id,
+          usuarioNombre: user.nombre || user.email || 'Operador',
+          modulo: 'CREDITO',
+          accion: 'EDITAR',
+          nivelRiesgo: classifyAuditRisk('CREDITO', 'EDITAR', detalles),
+          detalles,
+          hashPrevio,
+          hashEvento,
+          metadataJson: JSON.stringify({
+            clienteId: clientePrevio.id,
+            codigo: clientePrevio.codigo,
+            anterior: {
+              limiteCredito: clientePrevio.limiteCredito,
+              estadoCredito: clientePrevio.estadoCredito,
+              diasCredito: clientePrevio.diasCredito,
+            },
+            nuevo: {
+              limiteCredito: body.limiteCredito !== undefined ? Number(body.limiteCredito) : clientePrevio.limiteCredito,
+              estadoCredito: body.estadoCredito !== undefined ? body.estadoCredito : clientePrevio.estadoCredito,
+              diasCredito: body.diasCredito !== undefined ? Number(body.diasCredito) : clientePrevio.diasCredito,
+            }
+          }),
+        },
+      });
+    }
+
+    return NextResponse.json(clienteActualizado);
+  } catch (error) {
+    console.error('Error updating cliente:', error);
+    return NextResponse.json({ error: 'Error al actualizar cliente' }, { status: 500 });
+  }
+}
+

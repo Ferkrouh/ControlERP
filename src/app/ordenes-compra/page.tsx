@@ -553,7 +553,7 @@ export default function OrdenesCompraPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
                   <div className="md:col-span-6">
-                    <label className="block text-[11px] text-slate-400 mb-1">Producto</label>
+                    <label className="block text-xs text-slate-400 mb-1">Producto</label>
                     <select
                       value={selectedProdId}
                       onChange={(e) => handleProductSelectChange(e.target.value)}
@@ -568,7 +568,7 @@ export default function OrdenesCompraPage() {
                   </div>
 
                   <div className="md:col-span-2">
-                    <label className="block text-[11px] text-slate-400 mb-1">Cantidad</label>
+                    <label className="block text-xs text-slate-400 mb-1">Cantidad</label>
                     <input
                       type="number"
                       min="1"
@@ -579,7 +579,7 @@ export default function OrdenesCompraPage() {
                   </div>
 
                   <div className="md:col-span-2">
-                    <label className="block text-[11px] text-slate-400 mb-1">Costo Unitario ($)</label>
+                    <label className="block text-xs text-slate-400 mb-1">Costo Unitario ($)</label>
                     <input
                       type="number"
                       step="0.01"
@@ -737,7 +737,7 @@ export default function OrdenesCompraPage() {
                     onChange={(e) => setFolioFacturaProveedor(e.target.value)}
                     className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white font-mono placeholder-slate-500 focus:outline-none focus:border-emerald-500"
                   />
-                  <span className="text-[11px] text-slate-500 mt-1 block">
+                  <span className="text-xs text-slate-500 mt-1 block">
                     Se vinculará directamente a la Cuenta por Pagar (CxP).
                   </span>
                 </div>
@@ -775,7 +775,7 @@ export default function OrdenesCompraPage() {
                       <tr key={idx} className="hover:bg-slate-800/30">
                         <td className="p-3">
                           <span className="font-mono font-bold text-white block">{item.sku}</span>
-                          <span className="text-slate-400 text-[11px]">{item.nombre}</span>
+                          <span className="text-slate-400 text-xs">{item.nombre}</span>
                         </td>
                         <td className="p-3 text-center font-mono font-medium">{item.cantidadSolicitada}</td>
                         <td className="p-3 text-center font-mono text-slate-400">{item.cantidadRecibidaPrevia}</td>

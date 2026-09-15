@@ -1,0 +1,819 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Tenant {
+  id                    String    @id @default(uuid())
+  nombreComercial       String
+  razonSocial           String
+  identificacionFiscal   String    // RFC / NIT / RUT / NIF
+  regimenFiscal         String?   // ej. 601 General de Ley, 612, 626 RESICO
+  codigoPostal          String?
+  giro                  String    @default("DISTRIBUCION_MAYOREO")
+  moneda                String    @default("MXN")
+  activo                Boolean   @default(true)
+
+  // Personalización del Negocio (Admin)
+  logoUrl               String?
+  colorPrimario         String    @default("#2563eb")
+  textoEncabezadoDoc    String?
+  diasGraciaCredito     Int       @default(0)
+  alertaVencimientoDias Int       @default(5)
+  politicaBloqueoCredito String   @default("ESTRICTO") // ESTRICTO, ADVERTENCIA
+
+  // Control de Suscripción SaaS y Bloqueo Temporal (Superadmin)
+  planSuscripcion       String    @default("PROFESIONAL") // DEMO, BASICO, PROFESIONAL, ENTERPRISE, PERSONALIZADO
+  fechaInicioPlan       DateTime  @default(now())
+  fechaVencimientoPlan  DateTime? // Fecha límite de uso del servicio
+  diasGraciaSuscripcion Int       @default(3) // Días adicionales tras expirar antes del bloqueo total
+  bloqueadoPorSuscripcion Boolean @default(false)
+  limiteUsuarios        Int       @default(10)
+  limiteAlmacenes       Int       @default(5)
+  notasSuperadmin       String?   // Notas privadas del Superadmin sobre facturación, cobro o acuerdos
+
+  // Módulos autorizados por el Superadmin
+  moduloCredito         Boolean   @default(true)
+  moduloCxC             Boolean   @default(true)
+  moduloProveedores     Boolean   @default(true)
+  moduloCxP             Boolean   @default(true)
+  moduloMultiAlmacen    Boolean   @default(true)
+  moduloTraspasos       Boolean   @default(true)
+  moduloReportes        Boolean   @default(true)
+  moduloFacturacionSAT  Boolean   @default(false)
+  moduloTesoreria       Boolean   @default(true)
+  moduloManufactura     Boolean   @default(true)
+  moduloCrm             Boolean   @default(true)
+
+  // Configuración PAC / Timbrado Fiscal CFDI 4.0
+  pacProveedor          String?   @default("FINKOK") // FINKOK, SW_SAPIEN, PRODIGIA, SIMULADOR
+  pacUsuario            String?
+  pacPassword           String?
+  pacModoProduccion     Boolean   @default(false)
+  serieFactura          String?   @default("A")
+  seriePagoRep          String?   @default("P")
+  serieCartaPorte       String?   @default("CP")
+  csdCertificadoBase64  String?   // Certificado de Sello Digital (.cer en base64)
+  csdLlaveBase64        String?   // Clave privada (.key en base64)
+  csdPassword           String?   // Contraseña del CSD
+
+  usuarios              Usuario[]
+  clientes              Cliente[]
+  proveedores           Proveedor[]
+  almacenes             Almacen[]
+  productos             Producto[]
+  traspasos             Traspaso[]
+  ajustesInventario     AjusteInventario[]
+  ventas                Venta[]
+  compras               Compra[]
+  cxc                   CuentaPorCobrar[]
+  cxp                   CuentaPorPagar[]
+  movimientosKardex     MovimientoKardex[]
+  cotizaciones          Cotizacion[]
+  turnosCaja            TurnoCajaPOS[]
+  listasPrecio          ListaPrecio[]
+  ordenesCompra         OrdenCompra[]
+  lotes                 LoteProducto[]
+  cuentasBancarias      CuentaBancaria[]
+  movimientosBancarios  MovimientoBancario[]
+  listasMateriales      ListaMateriales[]
+  ordenesProduccion     OrdenProduccion[]
+  oportunidadesCrm      OportunidadCRM[]
+  auditorias            RegistroAuditoria[]
+  createdAt             DateTime  @default(now())
+
+  @@index([identificacionFiscal])
+}
+
+model Usuario {
+  id                String      @id @default(uuid())
+  tenantId          String?     // NULL únicamente para el SUPERADMIN de plataforma
+  nombre            String
+  email             String      @unique
+  passwordHash      String
+  rol               String      @default("ENCARGADO") // SUPERADMIN, ADMIN, ENCARGADO, ALMACENISTA, AUDITOR
+  activo            Boolean     @default(true)
+  almacenAsignadoId String?
+  createdAt         DateTime    @default(now())
+
+  tenant            Tenant?     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, rol])
+}
+
+model Cliente {
+  id              String    @id @default(uuid())
+  tenantId        String
+  codigo          String
+  razonSocial     String
+  rfc             String?
+  email           String?
+  telefono        String?
+  direccion       String?
+  diasCredito     Int       @default(0)
+  limiteCredito   Float     @default(0)
+  saldoActual     Float     @default(0)
+  estadoCredito   String    @default("ACTIVO") // ACTIVO, BLOQUEADO, EN_REVISION, SUSPENDIDO
+  regimenFiscal   String?   // Catálogo SAT (ej. 601, 612, 626)
+  usoCfdi         String?   @default("G01") // Catálogo SAT (ej. G01, G03, S01)
+  codigoPostal    String?   // Domicilio fiscal 5 dígitos requerido CFDI 4.0
+  createdAt       DateTime  @default(now())
+
+  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  cxc             CuentaPorCobrar[]
+  ventas          Venta[]
+  cotizaciones    Cotizacion[]
+
+  @@unique([tenantId, codigo])
+  @@index([tenantId, estadoCredito])
+}
+
+model Proveedor {
+  id              String    @id @default(uuid())
+  tenantId        String
+  codigo          String
+  razonSocial     String
+  rfc             String?
+  contacto        String?
+  telefono        String?
+  email           String?
+  diasCredito     Int       @default(0)
+  saldoPendiente  Float     @default(0)
+  createdAt       DateTime  @default(now())
+
+  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  cxp             CuentaPorPagar[]
+  compras         Compra[]
+  ordenesCompra   OrdenCompra[]
+
+  @@unique([tenantId, codigo])
+  @@index([tenantId])
+}
+
+model Almacen {
+  id              String    @id @default(uuid())
+  tenantId        String
+  codigo          String
+  nombre          String
+  ubicacion       String?
+  esPrincipal     Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+
+  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  existencias     Existencia[]
+  movimientos     MovimientoKardex[]
+  ajustes         AjusteInventario[]
+  ventas          Venta[]
+  compras         Compra[]
+  ordenesCompra   OrdenCompra[]
+  ordenesProduccionOrigen OrdenProduccion[] @relation("AlmacenOrigenMRP")
+  ordenesProduccionDestino OrdenProduccion[] @relation("AlmacenDestinoMRP")
+
+  @@unique([tenantId, codigo])
+  @@index([tenantId])
+}
+
+model Producto {
+  id              String    @id @default(uuid())
+  tenantId        String
+  sku             String
+  codigoBarras    String?
+  nombre          String
+  categoria       String    @default("General")
+  unidadMedida    String    @default("PZA")
+  costoPromedio   Float     @default(0)
+  precioVenta     Float     @default(0)
+  stockMinimo     Float     @default(0)
+  stockMaximo     Float     @default(0)
+  claveSat        String?   @default("01010101") // ClaveProdServ SAT
+  claveUnidadSat  String?   @default("H87")      // ClaveUnidad SAT
+  objetoImp       String    @default("02")       // 01 No objeto, 02 Sí objeto de impuesto
+  createdAt       DateTime  @default(now())
+
+  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  existencias     Existencia[]
+  movimientos     MovimientoKardex[]
+  traspasoItems   TraspasoItem[]
+  ajusteItems     AjusteInventarioItem[]
+  ventaDetalles   VentaDetalle[]
+  compraDetalles  CompraDetalle[]
+  cotizacionDetalles CotizacionDetalle[]
+  preciosEspeciales  ListaPrecioItem[]
+  ordenCompraItems   OrdenCompraItem[]
+  lotes              LoteProducto[]
+  listasMateriales   ListaMateriales[] // Como producto terminado
+  insumosBOM         ListaMaterialesItem[] // Como componente / materia prima
+  ordenesProduccion  OrdenProduccion[]
+
+  @@unique([tenantId, sku])
+  @@index([tenantId, codigoBarras])
+  @@index([tenantId, categoria])
+}
+
+model Existencia {
+  id              String    @id @default(uuid())
+  almacenId       String
+  productoId      String
+  cantidad        Float     @default(0)
+
+  almacen         Almacen   @relation(fields: [almacenId], references: [id], onDelete: Cascade)
+  producto        Producto  @relation(fields: [productoId], references: [id], onDelete: Cascade)
+
+  @@unique([almacenId, productoId])
+  @@index([productoId])
+}
+
+model Venta {
+  id              String    @id @default(uuid())
+  tenantId        String
+  clienteId       String
+  almacenId       String
+  folio           String
+  tipoPago        String    @default("CONTADO") // CONTADO, CREDITO
+  subtotal        Float
+  impuestos       Float     @default(0)
+  total           Float
+  estado          String    @default("COMPLETADA") // COMPLETADA, CANCELADA
+  cxcId           String?   // Vínculo a CuentaPorCobrar si fue a crédito
+  usuarioId       String
+  usuarioNombre   String
+  observaciones   String?
+
+  // Campos CFDI 4.0 Timbrado SAT
+  estadoFiscal    String    @default("PENDIENTE") // PENDIENTE, TIMBRADA, CANCELADA
+  uuidFiscal      String?   // Folio Fiscal Digital (UUID SAT)
+  fechaTimbrado   DateTime?
+  selloDigitalSat String?
+  xmlSat          String?   // XML firmado y sellado
+
+  fecha           DateTime  @default(now())
+
+  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  cliente         Cliente   @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  almacen         Almacen   @relation(fields: [almacenId], references: [id], onDelete: Cascade)
+  detalles        VentaDetalle[]
+
+  @@unique([tenantId, folio])
+  @@index([tenantId, fecha])
+  @@index([clienteId])
+}
+
+model VentaDetalle {
+  id            String    @id @default(uuid())
+  ventaId       String
+  productoId    String
+  cantidad      Float
+  precioUnitario Float
+  costoUnitario Float     // Costo promedio histórico al momento de la venta
+  subtotal      Float
+
+  venta         Venta     @relation(fields: [ventaId], references: [id], onDelete: Cascade)
+  producto      Producto  @relation(fields: [productoId], references: [id], onDelete: Cascade)
+
+  @@index([ventaId])
+  @@index([productoId])
+}
+
+model Compra {
+  id              String    @id @default(uuid())
+  tenantId        String
+  proveedorId     String
+  almacenId       String
+  folio           String
+  folioFacturaProv String?
+  tipoPago        String    @default("CREDITO") // CONTADO, CREDITO
+  subtotal        Float
+  impuestos       Float     @default(0)
+  total           Float
+  estado          String    @default("RECIBIDA") // RECIBIDA, CANCELADA
+  cxpId           String?   // Vínculo a CuentaPorPagar si fue a crédito
+  usuarioId       String
+  usuarioNombre   String
+  observaciones   String?
+  fecha           DateTime  @default(now())
+
+  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  proveedor       Proveedor @relation(fields: [proveedorId], references: [id], onDelete: Cascade)
+  almacen         Almacen   @relation(fields: [almacenId], references: [id], onDelete: Cascade)
+  detalles        CompraDetalle[]
+
+  @@unique([tenantId, folio])
+  @@index([tenantId, fecha])
+  @@index([proveedorId])
+}
+
+model CompraDetalle {
+  id            String    @id @default(uuid())
+  compraId      String
+  productoId    String
+  cantidad      Float
+  costoUnitario Float
+  subtotal      Float
+
+  compra        Compra    @relation(fields: [compraId], references: [id], onDelete: Cascade)
+  producto      Producto  @relation(fields: [productoId], references: [id], onDelete: Cascade)
+
+  @@index([compraId])
+  @@index([productoId])
+}
+
+model Traspaso {
+  id              String    @id @default(uuid())
+  tenantId        String
+  folio           String
+  almacenOrigenId String
+  almacenDestinoId String
+  estado          String    @default("SOLICITADO") // SOLICITADO, DESPACHADO, RECIBIDO, RECHAZADO
+  fechaSolicitud  DateTime  @default(now())
+  fechaEnvio      DateTime?
+  fechaRecepcion  DateTime?
+  observaciones   String?
+
+  // Carta Porte 3.1 (Traslado de Mercancías)
+  requiereCartaPorte Boolean   @default(false)
+  estadoCartaPorte   String    @default("NO_APLICA") // NO_APLICA, PENDIENTE, TIMBRADA, ERROR
+  uuidCartaPorte     String?
+  fechaTimbradoCP    DateTime?
+  xmlCartaPorte      String?
+  distanciaKm        Float?    @default(0)
+  vehiculoPlacas     String?
+  vehiculoModelo     String?
+  operadorNombre     String?
+  operadorRfc        String?
+  operadorLicencia   String?
+
+  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  items           TraspasoItem[]
+
+  @@unique([tenantId, folio])
+  @@index([tenantId, estado])
+  @@index([tenantId, estadoCartaPorte])
+}
+
+model TraspasoItem {
+  id              String    @id @default(uuid())
+  traspasoId      String
+  productoId      String
+  cantidadEnviada Float
+  cantidadRecibida Float?
+
+  traspaso        Traspaso  @relation(fields: [traspasoId], references: [id], onDelete: Cascade)
+  producto        Producto  @relation(fields: [productoId], references: [id], onDelete: Cascade)
+
+  @@index([traspasoId])
+  @@index([productoId])
+}
+
+model AjusteInventario {
+  id              String    @id @default(uuid())
+  tenantId        String
+  almacenId       String
+  folio           String
+  tipo            String    // AJUSTE_POSITIVO, AJUSTE_NEGATIVO, MERMA, CONTEO_FISICO
+  motivo          String    // MERMA, MERMA_CADUCIDAD, DAÑO_TRANSPORTE, CONTEO_FISICO, CORRECCION_SISTEMA
+  observaciones   String?
+  usuarioId       String
+  usuarioNombre   String
+  fecha           DateTime  @default(now())
+
+  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  almacen         Almacen   @relation(fields: [almacenId], references: [id], onDelete: Cascade)
+  items           AjusteInventarioItem[]
+
+  @@unique([tenantId, folio])
+  @@index([tenantId, fecha])
+}
+
+model AjusteInventarioItem {
+  id                String    @id @default(uuid())
+  ajusteId          String
+  productoId        String
+  cantidadAnterior  Float
+  cantidadAjustada  Float     // Diferencia (+/-)
+  cantidadNueva     Float     // Stock resultante
+  costoUnitario     Float
+
+  ajuste            AjusteInventario @relation(fields: [ajusteId], references: [id], onDelete: Cascade)
+  producto          Producto         @relation(fields: [productoId], references: [id], onDelete: Cascade)
+
+  @@index([ajusteId])
+  @@index([productoId])
+}
+
+model MovimientoKardex {
+  id              String    @id @default(uuid())
+  tenantId        String
+  almacenId       String
+  productoId      String
+  tipoMovimiento  String    // ENTRADA_COMPRA, SALIDA_VENTA, TRASPASO_SALIDA, TRASPASO_ENTRADA, AJUSTE_INVENTARIO, MERMA
+  cantidad        Float
+  costoUnitario   Float
+  saldoResultante Float
+  folioReferencia String?
+  motivo          String?
+  fecha           DateTime  @default(now())
+
+  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  almacen         Almacen   @relation(fields: [almacenId], references: [id], onDelete: Cascade)
+  producto        Producto  @relation(fields: [productoId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, almacenId, productoId])
+  @@index([tenantId, fecha])
+}
+
+model CuentaPorCobrar {
+  id              String    @id @default(uuid())
+  tenantId        String
+  clienteId       String
+  folio           String
+  montoTotal      Float
+  saldoPendiente  Float
+  fechaEmision    DateTime  @default(now())
+  fechaVencimiento DateTime
+  estado          String    @default("PENDIENTE") // PENDIENTE, PARCIAL, PAGADA, VENCIDA
+
+  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  cliente         Cliente   @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  pagos           PagoCxC[]
+
+  @@unique([tenantId, folio])
+  @@index([tenantId, estado])
+  @@index([clienteId])
+}
+
+model PagoCxC {
+  id              String    @id @default(uuid())
+  cxcId           String
+  monto           Float
+  metodo          String    // TRANSFERENCIA, EFECTIVO, CHEQUE, TARJETA
+  referencia      String?
+  fecha           DateTime  @default(now())
+
+  // Complemento de Recepción de Pagos (REP 2.0)
+  requiereRep     Boolean   @default(false)
+  estadoFiscalRep String    @default("NO_APLICA") // NO_APLICA, PENDIENTE, TIMBRADO, ERROR
+  uuidRep         String?
+  fechaTimbradoRep DateTime?
+  xmlRep          String?
+
+  cxc             CuentaPorCobrar @relation(fields: [cxcId], references: [id], onDelete: Cascade)
+
+  @@index([cxcId])
+  @@index([estadoFiscalRep])
+}
+
+model CuentaPorPagar {
+  id              String    @id @default(uuid())
+  tenantId        String
+  proveedorId     String
+  folioFactura    String
+  montoTotal      Float
+  saldoPendiente  Float
+  fechaEmision    DateTime  @default(now())
+  fechaVencimiento DateTime
+  estado          String    @default("PENDIENTE") // PENDIENTE, PARCIAL, PAGADA, VENCIDA
+
+  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  proveedor       Proveedor @relation(fields: [proveedorId], references: [id], onDelete: Cascade)
+  pagos           PagoCxP[]
+
+  @@index([tenantId, estado])
+  @@index([proveedorId])
+}
+
+model PagoCxP {
+  id              String    @id @default(uuid())
+  cxpId           String
+  monto           Float
+  metodo          String
+  referencia      String?
+  fecha           DateTime  @default(now())
+
+  cxp             CuentaPorPagar @relation(fields: [cxpId], references: [id], onDelete: Cascade)
+
+  @@index([cxpId])
+}
+
+model RegistroAuditoria {
+  id              String    @id @default(uuid())
+  tenantId        String
+  usuarioId       String
+  usuarioNombre   String
+  modulo          String
+  accion          String    // CREAR, EDITAR, ELIMINAR, AUTORIZAR, ABONO, TRASPASO, AJUSTE_STOCK, VENTA, COMPRA, CANCELAR
+  nivelRiesgo     String    @default("NORMAL") // NORMAL, ADVERTENCIA, CRITICO
+  detalles        String
+  hashPrevio      String?
+  hashEvento      String?
+  ipAddress       String?
+  metadataJson    String?   // Diff estructurado: { anterior?: any, nuevo?: any, campos?: string[] }
+  fecha           DateTime  @default(now())
+
+  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, fecha])
+  @@index([tenantId, modulo])
+  @@index([tenantId, nivelRiesgo])
+}
+
+model Cotizacion {
+  id              String    @id @default(uuid())
+  tenantId        String
+  clienteId       String
+  folio           String
+  vigenciaDias    Int       @default(15)
+  fechaVencimiento DateTime
+  subtotal        Float
+  impuestos       Float     @default(0)
+  total           Float
+  estado          String    @default("BORRADOR") // BORRADOR, ENVIADA, APROBADA, RECHAZADA, CONVERTIDA
+  ventaIdGenerada String?   // Referencia si fue convertida a venta
+  usuarioId       String
+  usuarioNombre   String
+  observaciones   String?
+  condicionesPago String?   @default("Contado / Crédito sujeto a aprobación")
+  fecha           DateTime  @default(now())
+
+  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  cliente         Cliente   @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  detalles        CotizacionDetalle[]
+
+  @@unique([tenantId, folio])
+  @@index([tenantId, estado])
+  @@index([clienteId])
+}
+
+model CotizacionDetalle {
+  id            String    @id @default(uuid())
+  cotizacionId  String
+  productoId    String
+  cantidad      Float
+  precioUnitario Float
+  descuento     Float     @default(0)
+  subtotal      Float
+
+  cotizacion    Cotizacion @relation(fields: [cotizacionId], references: [id], onDelete: Cascade)
+  producto      Producto   @relation(fields: [productoId], references: [id], onDelete: Cascade)
+
+  @@index([cotizacionId])
+  @@index([productoId])
+}
+
+model TurnoCajaPOS {
+  id              String    @id @default(uuid())
+  tenantId        String
+  almacenId       String
+  usuarioId       String
+  usuarioNombre   String
+  montoApertura   Float     @default(0)
+  montoCierre     Float?
+  totalEfectivo   Float     @default(0)
+  totalTarjeta    Float     @default(0)
+  totalTransfer   Float     @default(0)
+  totalVentas     Float     @default(0)
+  diferencia      Float?    @default(0)
+  estado          String    @default("ABIERTO") // ABIERTO, CERRADO
+  notasApertura   String?
+  notasCierre     String?
+  fechaApertura   DateTime  @default(now())
+  fechaCierre     DateTime?
+
+  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, estado])
+  @@index([almacenId])
+}
+
+model ListaPrecio {
+  id              String    @id @default(uuid())
+  tenantId        String
+  nombre          String    // ej: Mayoreo Nivel 1, Distribuidor, Público General
+  descripcion     String?
+  porcentajeDescuento Float @default(0) // Descuento global o específico por artículo
+  activa          Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+
+  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  items           ListaPrecioItem[]
+
+  @@unique([tenantId, nombre])
+}
+
+model ListaPrecioItem {
+  id            String      @id @default(uuid())
+  listaPrecioId String
+  productoId    String
+  precioFijo    Float?
+  descuento     Float?
+
+  listaPrecio   ListaPrecio @relation(fields: [listaPrecioId], references: [id], onDelete: Cascade)
+  producto      Producto    @relation(fields: [productoId], references: [id], onDelete: Cascade)
+
+  @@unique([listaPrecioId, productoId])
+}
+
+model OrdenCompra {
+  id              String    @id @default(uuid())
+  tenantId        String
+  proveedorId     String
+  almacenDestinoId String
+  folio           String
+  subtotal        Float
+  impuestos       Float     @default(0)
+  total           Float
+  estado          String    @default("BORRADOR") // BORRADOR, AUTORIZADA, RECIBIDA_PARCIAL, RECIBIDA_TOTAL, CANCELADA
+  usuarioId       String
+  usuarioNombre   String
+  observaciones   String?
+  fechaEsperada   DateTime?
+  fecha           DateTime  @default(now())
+
+  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  proveedor       Proveedor @relation(fields: [proveedorId], references: [id], onDelete: Cascade)
+  almacenDestino  Almacen   @relation(fields: [almacenDestinoId], references: [id], onDelete: Cascade)
+  items           OrdenCompraItem[]
+
+  @@unique([tenantId, folio])
+  @@index([tenantId, estado])
+  @@index([proveedorId])
+}
+
+model OrdenCompraItem {
+  id                String      @id @default(uuid())
+  ordenCompraId     String
+  productoId        String
+  cantidadSolicitada Float
+  cantidadRecibida   Float       @default(0)
+  costoUnitario     Float
+  subtotal          Float
+
+  ordenCompra       OrdenCompra @relation(fields: [ordenCompraId], references: [id], onDelete: Cascade)
+  producto          Producto    @relation(fields: [productoId], references: [id], onDelete: Cascade)
+
+  @@index([ordenCompraId])
+  @@index([productoId])
+}
+
+model LoteProducto {
+  id              String    @id @default(uuid())
+  tenantId        String
+  productoId      String
+  almacenId       String
+  numeroLote      String
+  fechaCaducidad  DateTime?
+  cantidad        Float     @default(0)
+  createdAt       DateTime  @default(now())
+
+  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  producto        Producto  @relation(fields: [productoId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, productoId, numeroLote, almacenId])
+  @@index([tenantId, fechaCaducidad])
+}
+
+model CuentaBancaria {
+  id              String    @id @default(uuid())
+  tenantId        String
+  banco           String    // BBVA, BANAMEX, SANTANDER, BANORTE, HSBC, INBURSA, MERCADO_PAGO, CAJA_CHICA
+  nombreCuenta    String    // ej: Operativa Principal, Concentradora Ventas, Pagos Nómina
+  numeroCuenta    String?
+  clabe           String?   // 18 dígitos CLABE interbancaria
+  moneda          String    @default("MXN")
+  saldoActual     Float     @default(0)
+  activa          Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+
+  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  movimientos     MovimientoBancario[]
+
+  @@unique([tenantId, nombreCuenta])
+  @@index([tenantId, banco])
+}
+
+model MovimientoBancario {
+  id                String    @id @default(uuid())
+  tenantId          String
+  cuentaBancariaId  String
+  tipo              String    // INGRESO, EGRESO, TRASPASO_ENTRE_CUENTAS
+  monto             Float
+  saldoResultante   Float
+  concepto          String
+  referencia        String?   // Clave de rastreo SPEI, número de cheque o comprobante
+  categoria         String    @default("OPERATIVO") // COBRANZA_CLIENTE, PAGO_PROVEEDOR, GASTO_OPERATIVO, TRASPASO, IMPUESTOS, NOMINA
+  origenModulo      String?   // CXC, CXP, POS, MANUAL
+  origenId          String?   // ID de PagoCxC o PagoCxP
+  conciliado        Boolean   @default(false)
+  fechaConciliacion DateTime?
+  fecha             DateTime  @default(now())
+
+  tenant            Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  cuentaBancaria    CuentaBancaria @relation(fields: [cuentaBancariaId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, cuentaBancariaId])
+  @@index([tenantId, fecha])
+  @@index([tenantId, conciliado])
+}
+
+// -------------------------------------------------------------
+// FASE 6: MANUFACTURA & MRP (Listas de Materiales / BOM y Órdenes)
+// -------------------------------------------------------------
+
+model ListaMateriales {
+  id              String    @id @default(uuid())
+  tenantId        String
+  codigo          String    // ej: BOM-PROD-001
+  nombre          String    // ej: Ensamble Estándar Silla Ergonómica
+  productoId      String    // Producto Terminado a fabricar
+  cantidadBase    Float     @default(1) // Cantidad resultante de la receta
+  costoEstimado   Float     @default(0)
+  activa          Boolean   @default(true)
+  notas           String?
+  createdAt       DateTime  @default(now())
+
+  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  producto        Producto  @relation(fields: [productoId], references: [id], onDelete: Cascade)
+  insumos         ListaMaterialesItem[]
+  ordenes         OrdenProduccion[]
+
+  @@unique([tenantId, codigo])
+  @@index([tenantId, productoId])
+}
+
+model ListaMaterialesItem {
+  id                String          @id @default(uuid())
+  listaMaterialesId String
+  productoId        String          // Materia prima / componente
+  cantidadRequerida Float           // Cantidad necesaria por cada cantidadBase
+  mermaEsperadaPct  Float           @default(0) // % de tolerancia por desperdicio
+
+  listaMateriales   ListaMateriales @relation(fields: [listaMaterialesId], references: [id], onDelete: Cascade)
+  producto          Producto        @relation(fields: [productoId], references: [id], onDelete: Cascade)
+
+  @@index([listaMaterialesId])
+  @@index([productoId])
+}
+
+model OrdenProduccion {
+  id                String          @id @default(uuid())
+  tenantId          String
+  folio             String          // OP-2026-0001
+  listaMaterialesId String
+  productoId        String          // Producto Terminado
+  almacenOrigenId   String          // Almacén de donde se descuenta la materia prima
+  almacenDestinoId  String          // Almacén donde entra el producto terminado
+  cantidadPlan      Float           // Cantidad a fabricar
+  cantidadReal      Float?          // Cantidad realmente fabricada y aprobada
+  costoTotalInsumos Float           @default(0)
+  costoManoObra     Float           @default(0)
+  costoTotal        Float           @default(0)
+  estado            String          @default("PLANIFICADA") // PLANIFICADA, EN_PROCESO, FINALIZADA, CANCELADA
+  usuarioId         String
+  usuarioNombre     String
+  observaciones     String?
+  fechaInicio       DateTime?
+  fechaFin          DateTime?
+  createdAt         DateTime        @default(now())
+
+  tenant            Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  listaMateriales   ListaMateriales @relation(fields: [listaMaterialesId], references: [id], onDelete: Cascade)
+  producto          Producto        @relation(fields: [productoId], references: [id], onDelete: Cascade)
+  almacenOrigen     Almacen         @relation("AlmacenOrigenMRP", fields: [almacenOrigenId], references: [id], onDelete: Cascade)
+  almacenDestino    Almacen         @relation("AlmacenDestinoMRP", fields: [almacenDestinoId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, folio])
+  @@index([tenantId, estado])
+  @@index([tenantId, productoId])
+}
+
+// -------------------------------------------------------------
+// FASE 7: CRM & PIPELINE DE OPORTUNIDADES
+// -------------------------------------------------------------
+
+model OportunidadCRM {
+  id              String    @id @default(uuid())
+  tenantId        String
+  nombre          String    // Título del negocio o trato
+  contactoNombre  String
+  contactoEmail   String?
+  contactoTelefono String?
+  etapa           String    @default("PROSPECCION") // PROSPECCION, CALIFICACION, PROPUESTA, NEGOCIACION, GANADA, PERDIDA
+  valorEstimado   Float     @default(0)
+  probabilidadPct Int       @default(20) // % de cierre estimado
+  fechaCierrePrev DateTime?
+  origen          String?   @default("DIRECTO") // WEB, RECOMENDACION, CAMPAÑA, LLAMADA_FRIO
+  usuarioAsignado String?   // Asesor o ejecutivo asignado
+  notas           String?
+  motivoPerdida   String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, etapa])
+  @@index([tenantId, usuarioAsignado])
+}
+

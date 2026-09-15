@@ -160,7 +160,7 @@ export default function EncargadoDashboard() {
             <p className="text-xs text-slate-600">
               Artículo: <strong>Compresor de Aire 50 Litros (5 piezas)</strong>
             </p>
-            <p className="text-[11px] text-slate-500">
+            <p className="text-xs text-slate-500">
               Estatus: <span className="text-blue-600 font-bold">DESPACHADO</span>. El almacenista de destino debe confirmar la recepción física.
             </p>
             <div className="pt-2">

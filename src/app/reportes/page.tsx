@@ -203,7 +203,7 @@ Valuacion Total de Inventario,${data.valuacionTotal},Costo Promedio Ponderado CF
               <p className="text-xs text-slate-500">Total por Cobrar: ${(data?.totalPorCobrar || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</p>
             </div>
             {data?.totalVencido > 0 && (
-              <span className="bg-rose-100 text-rose-800 text-[11px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
+              <span className="bg-rose-100 text-rose-800 text-xs font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
                 <AlertTriangle className="w-3.5 h-3.5" /> ${(data?.totalVencido || 0).toLocaleString()} en Mora
               </span>
             )}
@@ -213,7 +213,7 @@ Valuacion Total de Inventario,${data.valuacionTotal},Costo Promedio Ponderado CF
             <div className="flex justify-between items-center text-xs p-3 bg-slate-50 rounded-xl border border-slate-100">
               <div>
                 <p className="font-bold text-slate-900">Al Corriente (Vigente)</p>
-                <p className="text-[11px] text-slate-500">Plazo de crédito no vencido</p>
+                <p className="text-xs text-slate-500">Plazo de crédito no vencido</p>
               </div>
               <strong className="text-emerald-700 font-mono text-sm font-bold">
                 ${(data?.antiguedad?.vigente || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
@@ -223,7 +223,7 @@ Valuacion Total de Inventario,${data.valuacionTotal},Costo Promedio Ponderado CF
             <div className="flex justify-between items-center text-xs p-3 bg-slate-50 rounded-xl border border-slate-100">
               <div>
                 <p className="font-bold text-slate-900">1 a 30 Días de Mora</p>
-                <p className="text-[11px] text-slate-500">Vencimiento reciente</p>
+                <p className="text-xs text-slate-500">Vencimiento reciente</p>
               </div>
               <strong className="text-amber-700 font-mono text-sm font-bold">
                 ${(data?.antiguedad?.dias1a30 || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
@@ -233,7 +233,7 @@ Valuacion Total de Inventario,${data.valuacionTotal},Costo Promedio Ponderado CF
             <div className="flex justify-between items-center text-xs p-3 bg-slate-50 rounded-xl border border-slate-100">
               <div>
                 <p className="font-bold text-slate-900">31 a 60 Días de Mora</p>
-                <p className="text-[11px] text-slate-500">Gestión de cobranza requerida</p>
+                <p className="text-xs text-slate-500">Gestión de cobranza requerida</p>
               </div>
               <strong className="text-slate-600 font-mono text-sm font-bold">
                 ${(data?.antiguedad?.dias31a60 || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
@@ -243,7 +243,7 @@ Valuacion Total de Inventario,${data.valuacionTotal},Costo Promedio Ponderado CF
             <div className="flex justify-between items-center text-xs p-3 bg-slate-50 rounded-xl border border-slate-100">
               <div>
                 <p className="font-bold text-rose-700">+90 Días (Cartera Crítica)</p>
-                <p className="text-[11px] text-rose-500">Bloqueo de crédito automático sugerido</p>
+                <p className="text-xs text-rose-500">Bloqueo de crédito automático sugerido</p>
               </div>
               <strong className="text-rose-700 font-mono text-sm font-bold">
                 ${(data?.antiguedad?.mas90 || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
@@ -270,7 +270,7 @@ Valuacion Total de Inventario,${data.valuacionTotal},Costo Promedio Ponderado CF
                 <div key={almNombre} className="flex justify-between items-center text-xs p-3 bg-slate-50 rounded-xl border border-slate-100">
                   <div>
                     <p className="font-bold text-slate-900">{almNombre}</p>
-                    <p className="text-[11px] text-slate-500">{val.piezas} unidades en existencia</p>
+                    <p className="text-xs text-slate-500">{val.piezas} unidades en existencia</p>
                   </div>
                   <strong className="text-slate-900 font-mono text-sm font-bold">
                     ${val.total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
@@ -285,7 +285,7 @@ Valuacion Total de Inventario,${data.valuacionTotal},Costo Promedio Ponderado CF
               <ShieldCheck className="w-4 h-4 text-blue-600" />
               <span>Valuación Regulada según CFF Art. 28 y NIF C-4</span>
             </div>
-            <p className="text-[11px] text-blue-700">
+            <p className="text-xs text-blue-700">
               El costo de las existencias y de las salidas por venta es computado mediante el método de <strong>Costo Promedio Ponderado</strong>, garantizando estricta consistencia fiscal y contable para dictámenes y auditorías.
             </p>
           </div>

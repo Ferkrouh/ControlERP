@@ -129,7 +129,7 @@ export default function CxPPage() {
           <p className="text-xl font-bold font-mono text-slate-900 mt-1">
             ${totalPorPagar.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
           </p>
-          <p className="text-[11px] text-slate-500 mt-0.5">Suma de facturas por pagar</p>
+          <p className="text-xs text-slate-500 mt-0.5">Suma de facturas por pagar</p>
         </div>
 
         <div className="bg-white p-4 rounded-xl border border-rose-200 bg-rose-50/20 shadow-sm">
@@ -139,7 +139,7 @@ export default function CxPPage() {
           <p className="text-xl font-bold font-mono text-rose-600 mt-1">
             ${totalVencido.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
           </p>
-          <p className="text-[11px] text-rose-500 font-semibold mt-0.5">Requiere liquidación inmediata</p>
+          <p className="text-xs text-rose-500 font-semibold mt-0.5">Requiere liquidación inmediata</p>
         </div>
 
         <div className="bg-white p-4 rounded-xl border border-amber-200 bg-amber-50/20 shadow-sm">
@@ -149,13 +149,13 @@ export default function CxPPage() {
           <p className="text-xl font-bold font-mono text-amber-600 mt-1">
             ${totalPorVencer.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
           </p>
-          <p className="text-[11px] text-amber-600 font-medium mt-0.5">Programar flujo de tesorería</p>
+          <p className="text-xs text-amber-600 font-medium mt-0.5">Programar flujo de tesorería</p>
         </div>
 
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
           <span className="text-xs font-semibold uppercase text-slate-500">Facturas Registradas</span>
           <p className="text-xl font-bold text-slate-900 mt-1">{cxpList.length} documentos</p>
-          <p className="text-[11px] text-slate-500 mt-0.5">Pasivo corriente</p>
+          <p className="text-xs text-slate-500 mt-0.5">Pasivo corriente</p>
         </div>
       </div>
 
@@ -209,7 +209,7 @@ export default function CxPPage() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50 text-slate-600 uppercase text-[11px] font-semibold border-b border-slate-200">
+              <thead className="bg-slate-50 text-slate-600 uppercase text-xs font-semibold border-b border-slate-200">
                 <tr>
                   <th className="py-3 px-4">Folio Factura</th>
                   <th className="py-3 px-4">Proveedor</th>
@@ -248,7 +248,7 @@ export default function CxPPage() {
                             {new Date(doc.fechaVencimiento).toLocaleDateString('es-MX')}
                           </span>
                           {doc.saldoPendiente > 0 && (
-                            <span className="text-[10px] font-medium text-slate-400">
+                            <span className="text-xs font-medium text-slate-400">
                               {diffDias < 0 ? `Vencido hace ${Math.abs(diffDias)} días` : diffDias === 0 ? 'Vence hoy' : `Vence en ${diffDias} días`}
                             </span>
                           )}
@@ -262,19 +262,19 @@ export default function CxPPage() {
                       </td>
                       <td className="py-3 px-4 text-center">
                         {doc.saldoPendiente === 0 ? (
-                          <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                          <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-2 py-0.5 rounded-full">
                             LIQUIDADA
                           </span>
                         ) : isVencida ? (
-                          <span className="bg-rose-100 text-rose-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                          <span className="bg-rose-100 text-rose-800 text-xs font-bold px-2 py-0.5 rounded-full">
                             VENCIDA
                           </span>
                         ) : isPorVencer ? (
-                          <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                          <span className="bg-amber-100 text-amber-800 text-xs font-bold px-2 py-0.5 rounded-full">
                             POR VENCER
                           </span>
                         ) : (
-                          <span className="bg-purple-100 text-purple-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                          <span className="bg-purple-100 text-purple-800 text-xs font-bold px-2 py-0.5 rounded-full">
                             PENDIENTE
                           </span>
                         )}

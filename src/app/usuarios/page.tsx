@@ -105,7 +105,7 @@ export default function UsuariosPage() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50 text-slate-600 uppercase text-[11px] font-semibold border-b">
+              <thead className="bg-slate-50 text-slate-600 uppercase text-xs font-semibold border-b">
                 <tr>
                   <th className="py-3 px-4">Colaborador</th>
                   <th className="py-3 px-4">Correo Electrónico</th>

@@ -226,7 +226,7 @@ export default function PersonalizacionPage() {
                 onChange={(e) => setDiasGraciaCredito(Number(e.target.value))}
                 className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
-              <p className="text-[11px] text-slate-400 mt-1">Días tras vencimiento antes de bloquear</p>
+              <p className="text-xs text-slate-400 mt-1">Días tras vencimiento antes de bloquear</p>
             </div>
 
             <div>
@@ -241,7 +241,7 @@ export default function PersonalizacionPage() {
                 onChange={(e) => setAlertaVencimientoDias(Number(e.target.value))}
                 className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
-              <p className="text-[11px] text-slate-400 mt-1">Días de anticipación para avisar al vendedor</p>
+              <p className="text-xs text-slate-400 mt-1">Días de anticipación para avisar al vendedor</p>
             </div>
 
             <div>
@@ -256,7 +256,7 @@ export default function PersonalizacionPage() {
                 <option value="ESTRICTO">Bloqueo Estricto (Prohibir Venta)</option>
                 <option value="ADVERTENCIA">Modo Advertencia (Permite con Alerta)</option>
               </select>
-              <p className="text-[11px] text-slate-400 mt-1">Regla aplicada al facturar</p>
+              <p className="text-xs text-slate-400 mt-1">Regla aplicada al facturar</p>
             </div>
           </div>
         </div>

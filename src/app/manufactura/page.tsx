@@ -237,7 +237,7 @@ export default function ManufacturaPage() {
             <Layers className="w-4 h-4 text-indigo-500" />
           </div>
           <p className="text-2xl font-mono font-bold text-slate-900 mt-2">{boms.length}</p>
-          <span className="text-[11px] text-slate-400">Listas de Materiales (BOM)</span>
+          <span className="text-xs text-slate-400">Listas de Materiales (BOM)</span>
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-amber-200/60 bg-amber-50/20 shadow-sm">
@@ -246,7 +246,7 @@ export default function ManufacturaPage() {
             <Hammer className="w-4 h-4 text-amber-600" />
           </div>
           <p className="text-2xl font-mono font-bold text-amber-900 mt-2">{totalEnProceso}</p>
-          <span className="text-[11px] text-amber-600">Órdenes activas en planta</span>
+          <span className="text-xs text-amber-600">Órdenes activas en planta</span>
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-blue-200/60 bg-blue-50/20 shadow-sm">
@@ -255,7 +255,7 @@ export default function ManufacturaPage() {
             <Clock className="w-4 h-4 text-blue-600" />
           </div>
           <p className="text-2xl font-mono font-bold text-blue-900 mt-2">{totalPlanificadas}</p>
-          <span className="text-[11px] text-blue-600">Pendientes de inicio</span>
+          <span className="text-xs text-blue-600">Pendientes de inicio</span>
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-emerald-200/60 bg-emerald-50/20 shadow-sm">
@@ -264,7 +264,7 @@ export default function ManufacturaPage() {
             <CheckCircle2 className="w-4 h-4 text-emerald-600" />
           </div>
           <p className="text-2xl font-mono font-bold text-emerald-900 mt-2">{totalFinalizadas}</p>
-          <span className="text-[11px] text-emerald-600">Stock PT ingresado al Kárdex</span>
+          <span className="text-xs text-emerald-600">Stock PT ingresado al Kárdex</span>
         </div>
       </div>
 
@@ -299,7 +299,7 @@ export default function ManufacturaPage() {
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs text-slate-600">
-              <thead className="bg-slate-50 border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+              <thead className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                 <tr>
                   <th className="py-3 px-4">Folio OP</th>
                   <th className="py-3 px-4">Producto a Fabricar</th>
@@ -324,10 +324,10 @@ export default function ManufacturaPage() {
                       <td className="py-3.5 px-4 font-mono font-bold text-slate-900">{op.folio}</td>
                       <td className="py-3.5 px-4">
                         <div className="font-semibold text-slate-900">{op.producto.nombre}</div>
-                        <div className="font-mono text-[10px] text-slate-400">SKU: {op.producto.sku}</div>
+                        <div className="font-mono text-xs text-slate-400">SKU: {op.producto.sku}</div>
                       </td>
                       <td className="py-3.5 px-4">
-                        <div className="flex items-center gap-1.5 text-[11px]">
+                        <div className="flex items-center gap-1.5 text-xs">
                           <span className="text-slate-500">{op.almacenOrigen?.nombre}</span>
                           <ArrowRight className="w-3 h-3 text-slate-400" />
                           <span className="font-medium text-slate-800">{op.almacenDestino?.nombre}</span>
@@ -344,7 +344,7 @@ export default function ManufacturaPage() {
                       </td>
                       <td className="py-3.5 px-4 text-center">
                         <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold ${
                             op.estado === 'FINALIZADA'
                               ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                               : op.estado === 'EN_PROCESO'
@@ -362,7 +362,7 @@ export default function ManufacturaPage() {
                           <button
                             disabled={processingId === op.id}
                             onClick={() => handleProcesarOrden(op.id, 'INICIAR')}
-                            className="px-2.5 py-1 text-[11px] font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all inline-flex items-center gap-1"
+                            className="px-2.5 py-1 text-xs font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all inline-flex items-center gap-1"
                           >
                             <Play className="w-3 h-3" />
                             Iniciar
@@ -373,7 +373,7 @@ export default function ManufacturaPage() {
                           <button
                             disabled={processingId === op.id}
                             onClick={() => handleProcesarOrden(op.id, 'FINALIZAR')}
-                            className="px-2.5 py-1 text-[11px] font-semibold bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all inline-flex items-center gap-1"
+                            className="px-2.5 py-1 text-xs font-semibold bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all inline-flex items-center gap-1"
                           >
                             <CheckCircle2 className="w-3 h-3" />
                             Finalizar y Entregar PT
@@ -384,7 +384,7 @@ export default function ManufacturaPage() {
                           <button
                             disabled={processingId === op.id}
                             onClick={() => handleProcesarOrden(op.id, 'CANCELAR')}
-                            className="px-2 py-1 text-[11px] font-medium text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                            className="px-2 py-1 text-xs font-medium text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
                           >
                             Cancelar
                           </button>
@@ -420,7 +420,7 @@ export default function ManufacturaPage() {
                     </p>
                   </div>
                   <div className="text-right">
-                    <span className="text-[10px] text-slate-400 block uppercase">Costo Insumos Estimado</span>
+                    <span className="text-xs text-slate-400 block uppercase">Costo Insumos Estimado</span>
                     <span className="font-mono font-bold text-slate-900 text-sm">
                       ${bom.costoEstimado.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
                     </span>
@@ -428,7 +428,7 @@ export default function ManufacturaPage() {
                 </div>
 
                 <div>
-                  <h4 className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                  <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
                     Insumos Requeridos ({bom.insumos?.length || 0})
                   </h4>
                   <div className="space-y-1.5">
@@ -441,7 +441,7 @@ export default function ManufacturaPage() {
                         <div className="font-mono text-slate-600">
                           {insumo.cantidadRequerida} {insumo.producto?.unidadMedida}
                           {insumo.mermaEsperadaPct > 0 && (
-                            <span className="text-amber-600 text-[10px] ml-1">
+                            <span className="text-amber-600 text-xs ml-1">
                               (+{insumo.mermaEsperadaPct}% merma)
                             </span>
                           )}

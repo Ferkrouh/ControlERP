@@ -35,26 +35,34 @@ A diferencia de los ERPs tradicionales costosos, rígidos o de los puntos de ven
 ## Capabilities and Constraints
 
 - **Multi-tenancy:** Aislamiento estricto por `tenantId` en datos transaccionales, configurable por empresa.
-- **Control de Crédito:** Límites de crédito por cliente, control de días de vencimiento, periodos de gracia y modos de bloqueo (ESTRICTO vs ADVERTENCIA).
-- **Gestión de Stock:** Multialmacén, control de stock mínimo/máximo, trazabilidad mediante Kardex.
-- **Fiscal / Localización:** Preparación para catálogo SAT CFDI 4.0, manejo de RFC, Régimen Fiscal y Código Postal.
-- **Stack Técnico:** Next.js 15 (App Router), React 19, TypeScript, Tailwind CSS, Prisma ORM con SQLite/PostgreSQL.
+- **Control de Crédito & Cartera:** Límites de crédito por cliente, control de días de vencimiento, periodos de gracia y modos de bloqueo (`ESTRICTO` vs `ADVERTENCIA`).
+- **Punto de Venta (POS) & Comercial:** Terminal POS rápida de mostrador con escaneo de código de barras, arqueo/corte Z de caja (`TurnoCajaPOS`), listas de precios diferenciadas (`ListaPrecio`) y cotizaciones formales con conversión a venta en 1 clic (`/cotizaciones`).
+- **Cadena de Suministro & 3-Way Matching:** Órdenes de compra autorizadas (`/ordenes-compra`), validación cruzada tripartita (OC = Factura/Remisión = Picking físico en almacén), entregas parciales/totales y control de lotes con fechas de caducidad (`LoteProducto`).
+- **Gestión de Stock & Kardex:** Multialmacén, control de stock mínimo/máximo, traspasos interestatales con estatus, y Kárdex transaccional con cálculo continuo de Costo Promedio Ponderado.
+- **SAT CFDI 4.0 (México):** Facturación electrónica multi-PAC (Finkok, SW Sapien, Prodigia, Simulador), timbrado de facturas de ingreso en 1 clic con XML y UUID SAT, Recibo Electrónico de Pago (REP 2.0) en abonos a CxC y Carta Porte 3.1 en traslados de almacén.
+- **Tesorería & Bancos:** Catálogo de cuentas bancarias multimoneda y cajas chicas (`/tesoreria`), flujo de ingresos/egresos con saldo acumulativo y conciliación bancaria en 1 clic (`CuentaBancaria`, `MovimientoBancario`).
+- **Manufactura & MRP:** Listas de Materiales / BOM con componentes y porcentaje de merma (`/manufactura`), órdenes de producción (`OrdenProduccion`) y motor transaccional de conversión física que descuenta insumos y da entrada al producto terminado recalculando su costo promedio ponderado.
+- **CRM Comercial & Pipeline:** Tablero visual Kanban con 6 etapas de ventas (`/crm`), pronóstico ponderado de ventas (Sales Forecasting) y registro de oportunidades (`OportunidadCRM`).
+- **Contabilidad Electrónica (SAT Anexo 24):** Catálogo de cuentas con código agrupador oficial (`/contabilidad`), motor transaccional de pólizas automáticas de partida doble (ingreso, egreso, diario), balanza de comprobación y exportación de XMLs oficiales para el SAT (`CuentaContable`, `PolizaContable`, `PartidaPoliza`).
+- **Recursos Humanos & Nómina CFDI 1.2:** Expediente digital de colaboradores (`/nomina`), cálculo fiscal automatizado de ISR (Art. 96 LISR) y cuotas obrero-patronales IMSS, timbrado digital de recibos con QR SAT, dispersión bancaria masiva y póliza contable automática (`Empleado`, `PeriodoNomina`, `ReciboNomina`, `IncidenciaNomina`).
+- **Stack Técnico:** Next.js 15 (App Router), React 19, TypeScript, Tailwind CSS, Prisma ORM con SQLite/PostgreSQL y Docker para despliegue en Linux Ubuntu.
 
 ## Brand Commitments
 
 - **Nombre:** ControlERP.
-- **Voz y Tono:** Profesional, confiable, directo y ágil. Lenguaje financiero y de inventarios claro, sin fricciones innecesarias ni ambigüedades.
+- **Voz y Tono:** Profesional, confiable, directo y ágil. Estilo "The Fintech Ledger" con pulcritud financiera, rigor contable y precisión transaccional estilo banca corporativa moderna.
 - **Identidad:** Modular y personalizable por empresa (logo y color primario configurable por tenant para la emisión de documentos e interfaz corporativa).
+- **The Fiscal Code Rule:** SKU, códigos de barras, RFCs, folios fiscales (UUID) e importes monetarios deben usar siempre tipografía monoespaciada (`font-mono`).
 
 ## Evidence on Hand
 
-- Código fuente en Next.js 15 con rutas completas (`/ventas`, `/inventarios`, `/compras`, `/cxc`, `/cxp`, `/traspasos`, `/auditoria`, `/negocios`, `/reportes`).
-- Modelo de datos Prisma detallado en [schema.prisma](file:///c:/Proyectos/ControlERP/prisma/schema.prisma) con modelos `Tenant`, `Usuario`, `Cliente`, `Proveedor`, `Producto`, `Almacen`, `Venta`, `Compra`, `CuentaPorCobrar`, `CuentaPorPagar`, `MovimientoKardex` y `RegistroAuditoria`.
+- Código fuente en Next.js 15 con rutas completas (`/ventas`, `/inventarios`, `/compras`, `/cxc`, `/cxp`, `/traspasos`, `/auditoria`, `/negocios`, `/reportes`, `/cotizaciones`, `/pos`, `/ordenes-compra`, `/tesoreria`, `/manufactura`, `/crm`, `/contabilidad`, `/nomina`).
+- Modelo de datos Prisma detallado en [schema.prisma](file:///c:/Proyectos/ControlERP/prisma/schema.prisma) con 35 modelos completamente integrados.
 - Sistema de autenticación con JWT (`jose`) y roles bien diferenciados con dashboards específicos por rol en `@/components/dashboards/`.
 
 ## Product Principles
 
-1. **La integridad de inventario y saldos es sagrada:** Cada salida, entrada o cambio de crédito debe estar respaldado por un movimiento auditable y trazable.
-2. **Claridad sobre complejidad:** Los procesos de almacén y cobro deben ejecutarse con la menor cantidad de clics y sin ambigüedad en los datos mostrados.
-3. **Gobierno por rol sin estorbos:** Cada usuario ve exactamente la información relevante para su trabajo, sin saturar la pantalla con opciones para las que no tiene permiso.
-4. **Respuesta inmediata en operaciones críticas:** La búsqueda de clientes, productos y validación de crédito debe ser instantánea.
+1. **La integridad de inventario y saldos es sagrada:** Cada salida, entrada, transformación física (MRP) o cambio de crédito debe estar respaldado por un movimiento auditable y trazable en Kárdex o auditoría.
+2. **Claridad sobre complejidad:** Los procesos de almacén, cobro, facturación y POS deben ejecutarse con la menor cantidad de clics y sin ambigüedad en los datos mostrados.
+3. **Gobierno por rol sin estorbos:** Cada usuario ve exactamente la información relevante para su trabajo (`SUPERADMIN`, `ADMIN`, `ENCARGADO`, `ALMACENISTA`, `AUDITOR`), sin saturar la pantalla con opciones para las que no tiene permiso.
+4. **Respuesta inmediata en operaciones críticas:** La búsqueda de clientes, escaneo de productos por código de barras y validación de crédito debe ser instantánea.

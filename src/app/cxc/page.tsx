@@ -12,6 +12,7 @@ import {
   Plus, 
   Calendar,
   Eye,
+  FileDown,
   Filter
 } from 'lucide-react';
 
@@ -154,7 +155,7 @@ export default function CxCPage() {
           <p className="text-xl font-bold font-mono text-slate-900 mt-1">
             ${totalPorCobrar.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
           </p>
-          <p className="text-[11px] text-slate-500 mt-0.5">Suma de saldos pendientes</p>
+          <p className="text-xs text-slate-500 mt-0.5">Suma de saldos pendientes</p>
         </div>
 
         <div className="bg-white p-4 rounded-xl border border-rose-200 bg-rose-50/20 shadow-sm">
@@ -164,7 +165,7 @@ export default function CxCPage() {
           <p className="text-xl font-bold font-mono text-rose-600 mt-1">
             ${totalVencido.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
           </p>
-          <p className="text-[11px] text-rose-500 font-semibold mt-0.5">Requiere cobro urgente</p>
+          <p className="text-xs text-rose-500 font-semibold mt-0.5">Requiere cobro urgente</p>
         </div>
 
         <div className="bg-white p-4 rounded-xl border border-amber-200 bg-amber-50/20 shadow-sm">
@@ -174,13 +175,13 @@ export default function CxCPage() {
           <p className="text-xl font-bold font-mono text-amber-600 mt-1">
             ${totalPorVencer.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
           </p>
-          <p className="text-[11px] text-amber-600 font-medium mt-0.5">Gestión preventiva de cobro</p>
+          <p className="text-xs text-amber-600 font-medium mt-0.5">Gestión preventiva de cobro</p>
         </div>
 
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
           <span className="text-xs font-semibold uppercase text-slate-500">Documentos Emitidos</span>
           <p className="text-xl font-bold text-slate-900 mt-1">{cxcList.length} facturas</p>
-          <p className="text-[11px] text-slate-500 mt-0.5">Con crédito activo</p>
+          <p className="text-xs text-slate-500 mt-0.5">Con crédito activo</p>
         </div>
       </div>
 
@@ -234,7 +235,7 @@ export default function CxCPage() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50 text-slate-600 uppercase text-[11px] font-semibold border-b border-slate-200">
+              <thead className="bg-slate-50 text-slate-600 uppercase text-xs font-semibold border-b border-slate-200">
                 <tr>
                   <th className="py-3 px-4">Folio Factura</th>
                   <th className="py-3 px-4">Cliente</th>
@@ -243,7 +244,7 @@ export default function CxCPage() {
                   <th className="py-3 px-4 text-right">Total Factura</th>
                   <th className="py-3 px-4 text-right">Saldo Pendiente</th>
                   <th className="py-3 px-4 text-center">Estado de Cartera</th>
-                  {!isReadOnly && <th className="py-3 px-4 text-center">Acción</th>}
+                  <th className="py-3 px-4 text-center">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -276,7 +277,7 @@ export default function CxCPage() {
                             {new Date(doc.fechaVencimiento).toLocaleDateString('es-MX')}
                           </span>
                           {doc.saldoPendiente > 0 && (
-                            <span className="text-[10px] font-medium text-slate-400">
+                            <span className="text-xs font-medium text-slate-400">
                               {diffDias < 0 ? `Vencido hace ${Math.abs(diffDias)} días` : diffDias === 0 ? 'Vence hoy' : `Vence en ${diffDias} días`}
                             </span>
                           )}
@@ -293,27 +294,39 @@ export default function CxCPage() {
 
                       <td className="py-3 px-4 text-center">
                         {doc.saldoPendiente === 0 ? (
-                          <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                          <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-2 py-0.5 rounded-full">
                             LIQUIDADA
                           </span>
                         ) : isVencida ? (
-                          <span className="bg-rose-100 text-rose-800 text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                          <span className="bg-rose-100 text-rose-800 text-xs font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1">
                             <AlertTriangle className="w-2.5 h-2.5" /> VENCIDA
                           </span>
                         ) : isPorVencer ? (
-                          <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                          <span className="bg-amber-100 text-amber-800 text-xs font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1">
                             <Clock className="w-2.5 h-2.5" /> POR VENCER
                           </span>
                         ) : (
-                          <span className="bg-blue-100 text-blue-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                          <span className="bg-blue-100 text-blue-800 text-xs font-bold px-2 py-0.5 rounded-full">
                             VIGENTE
                           </span>
                         )}
                       </td>
 
-                      {!isReadOnly && (
-                        <td className="py-3 px-4 text-center">
-                          {doc.saldoPendiente > 0 ? (
+                      <td className="py-3 px-4 text-center">
+                        <div className="flex items-center justify-center gap-1.5">
+                          {doc.pagos && doc.pagos.length > 0 && (
+                            <a
+                              href={`/api/cxc/${doc.id}/rep/pdf`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="p-1.5 rounded-lg text-purple-700 bg-purple-50 hover:bg-purple-100 transition-colors inline-flex items-center gap-1 text-xs font-semibold"
+                              title="Descargar Recibo Electrónico de Pago (REP 2.0 SAT) en PDF"
+                            >
+                              <FileDown className="w-3.5 h-3.5" /> REP PDF
+                            </a>
+                          )}
+
+                          {!isReadOnly && doc.saldoPendiente > 0 && (
                             <button
                               onClick={() => {
                                 setSelectedDoc(doc);
@@ -321,15 +334,17 @@ export default function CxCPage() {
                                 setReferencia('');
                                 setAbonoMsg('');
                               }}
-                              className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-1 rounded-lg shadow-sm transition-colors"
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-2.5 py-1 rounded-lg shadow-sm transition-colors"
                             >
                               Abonar
                             </button>
-                          ) : (
+                          )}
+
+                          {doc.saldoPendiente === 0 && (!doc.pagos || doc.pagos.length === 0) && (
                             <span className="text-xs text-slate-400 font-semibold">Liquidada</span>
                           )}
-                        </td>
-                      )}
+                        </div>
+                      </td>
                     </tr>
                   );
                 })}
@@ -356,9 +371,22 @@ export default function CxCPage() {
               </button>
             </div>
 
-            <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs space-y-1">
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs space-y-1.5">
               <p className="text-slate-500">Cliente: <strong className="text-slate-900">{selectedDoc.cliente.razonSocial}</strong></p>
               <p className="text-slate-500">Saldo Pendiente de Factura: <strong className="text-slate-900">${selectedDoc.saldoPendiente.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</strong></p>
+              {selectedDoc.pagos && selectedDoc.pagos.length > 0 && (
+                <div className="pt-1.5 border-t border-slate-200 flex items-center justify-between">
+                  <span className="text-slate-500">Abonos previos: <strong>{selectedDoc.pagos.length}</strong></span>
+                  <a
+                    href={`/api/cxc/${selectedDoc.id}/rep/pdf`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-purple-700 hover:text-purple-800 hover:underline font-semibold flex items-center gap-1"
+                  >
+                    <FileDown className="w-3 h-3" /> Ver Último REP PDF
+                  </a>
+                </div>
+              )}
             </div>
 
             <form onSubmit={handleRegistrarAbono} className="space-y-4">
@@ -418,7 +446,7 @@ export default function CxCPage() {
                   />
                   <div>
                     <span className="text-xs font-bold text-purple-900 block">Timbrar Complemento de Pago (REP 2.0)</span>
-                    <span className="text-[11px] text-purple-700 block">Emite recibo fiscal electrónico ante el SAT con desglose de saldo anterior e insoluto.</span>
+                    <span className="text-xs text-purple-700 block">Emite recibo fiscal electrónico ante el SAT con desglose de saldo anterior e insoluto.</span>
                   </div>
                 </label>
               </div>

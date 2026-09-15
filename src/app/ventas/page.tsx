@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { 
   ShoppingCart, 
@@ -19,7 +19,15 @@ import {
   Printer,
   Edit,
   X,
-  Clock
+  Clock,
+  Download,
+  FileDown,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  Search,
+  ShieldCheck,
+  PackageCheck
 } from 'lucide-react';
 
 interface CartItem {
@@ -33,6 +41,9 @@ interface CartItem {
   subtotal: number;
 }
 
+type FilterFiscal = 'TODOS' | 'TIMBRADAS' | 'SIN_TIMBRAR' | 'CONTADO' | 'CREDITO';
+type SortField = 'folio' | 'fecha' | 'cliente' | 'total' | 'subtotal';
+
 export default function VentasPage() {
   const { user } = useAuth();
   const [ventas, setVentas] = useState<any[]>([]);
@@ -40,6 +51,12 @@ export default function VentasPage() {
   const [almacenes, setAlmacenes] = useState<any[]>([]);
   const [productos, setProductos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Filtros, búsqueda y ordenamiento
+  const [search, setSearch] = useState('');
+  const [filterFiscal, setFilterFiscal] = useState<FilterFiscal>('TODOS');
+  const [sortField, setSortField] = useState<SortField>('fecha');
+  const [sortAsc, setSortAsc] = useState(false);
 
   // Formulario de Nueva Venta
   const [showModal, setShowModal] = useState(false);
@@ -69,6 +86,47 @@ export default function VentasPage() {
   const [savingEdit, setSavingEdit] = useState(false);
   const [editError, setEditError] = useState('');
 
+  useEffect(() => {
+    if (user?.tenantId) {
+      loadData();
+    }
+  }, [user]);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const [resVentas, resClientes, resAlm, resProd] = await Promise.all([
+        fetch(`/api/ventas`),
+        fetch(`/api/clientes`),
+        fetch(`/api/almacenes`),
+        fetch(`/api/productos`),
+      ]);
+
+      if (resVentas.ok && resClientes.ok && resAlm.ok && resProd.ok) {
+        const vData = await resVentas.json();
+        const cData = await resClientes.json();
+        const aData = await resAlm.json();
+        const pData = await resProd.json();
+
+        setVentas(vData);
+        setClientes(cData);
+        setAlmacenes(aData);
+        setProductos(pData);
+
+        if (cData.length > 0 && !clienteId) setClienteId(cData[0].id);
+        if (aData.length > 0 && !almacenId) setAlmacenId(aData[0].id);
+        if (pData.length > 0 && !selectedProdId) {
+          setSelectedProdId(pData[0].id);
+          setAddPrice(pData[0].precioVenta || 0);
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Handler para imprimir factura / comprobante comercial
   const handlePrintFactura = (venta: any) => {
     const printWindow = window.open('', '_blank', 'width=800,height=600');
@@ -82,8 +140,8 @@ export default function VentasPage() {
         <td style="padding: 6px 8px; border-bottom: 1px solid #e2e8f0; font-family: monospace;">${d.producto?.sku || 'N/A'}</td>
         <td style="padding: 6px 8px; border-bottom: 1px solid #e2e8f0;">${d.producto?.nombre || 'Artículo'}</td>
         <td style="padding: 6px 8px; border-bottom: 1px solid #e2e8f0; text-align: center;">${d.cantidad}</td>
-        <td style="padding: 6px 8px; border-bottom: 1px solid #e2e8f0; text-align: right;">$${d.precioUnitario.toFixed(2)}</td>
-        <td style="padding: 6px 8px; border-bottom: 1px solid #e2e8f0; text-align: right; font-weight: bold;">$${d.subtotal.toFixed(2)}</td>
+        <td style="padding: 6px 8px; border-bottom: 1px solid #e2e8f0; text-align: right; font-family: monospace;">$${d.precioUnitario.toFixed(2)}</td>
+        <td style="padding: 6px 8px; border-bottom: 1px solid #e2e8f0; text-align: right; font-family: monospace; font-weight: bold;">$${d.subtotal.toFixed(2)}</td>
       </tr>
     `).join('') || '';
 
@@ -93,35 +151,35 @@ export default function VentasPage() {
         <head>
           <title>Comprobante de Venta - ${venta.folio}</title>
           <style>
-            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #0f172a; margin: 40px; }
-            .header { display: flex; justify-content: space-between; border-bottom: 2px solid #0f172a; padding-bottom: 16px; margin-bottom: 24px; }
-            .badge { display: inline-block; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; background: #e2e8f0; }
-            table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 13px; }
-            th { background: #f8fafc; text-align: left; padding: 8px; border-bottom: 2px solid #cbd5e1; font-size: 11px; text-transform: uppercase; }
-            .totals { margin-top: 24px; display: flex; justify-content: flex-end; }
-            .totals table { width: 280px; }
-            .footer { margin-top: 40px; text-align: center; font-size: 11px; color: #64748b; border-top: 1px dashed #cbd5e1; padding-top: 16px; }
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #0f172a; margin: 2.5rem; font-size: 0.875rem; }
+            .header { display: flex; justify-content: space-between; border-bottom: 2px solid #0f172a; padding-bottom: 1rem; margin-bottom: 1.5rem; }
+            .badge { display: inline-block; padding: 0.25rem 0.5rem; border-radius: 0.375rem; font-size: 0.75rem; font-weight: bold; background: #e2e8f0; }
+            table { width: 100%; border-collapse: collapse; margin-top: 1.25rem; font-size: 0.875rem; }
+            th { background: #f8fafc; text-align: left; padding: 0.5rem; border-bottom: 2px solid #cbd5e1; font-size: 0.75rem; text-transform: uppercase; }
+            .totals { margin-top: 1.5rem; display: flex; justify-content: flex-end; }
+            .totals table { width: 18rem; }
+            .footer { margin-top: 2.5rem; text-align: center; font-size: 0.75rem; color: #64748b; border-top: 1px dashed #cbd5e1; padding-top: 1rem; }
             @media print { body { margin: 0; } }
           </style>
         </head>
         <body>
           <div class="header">
             <div>
-              <h2 style="margin: 0 0 4px 0;">ControlERP</h2>
-              <p style="margin: 0; font-size: 12px; color: #64748b;">Comprobante de Operación Comercial</p>
-              <p style="margin: 4px 0 0 0; font-size: 12px; font-weight: 600;">Despacho: ${venta.almacen?.nombre || 'Almacén Central'}</p>
+              <h2 style="margin: 0 0 0.25rem 0; font-size: 1.125rem;">${user?.tenant?.nombreComercial || 'ControlERP'}</h2>
+              <p style="margin: 0; font-size: 0.75rem; color: #64748b;">Comprobante de Operación Comercial</p>
+              <p style="margin: 0.25rem 0 0 0; font-size: 0.75rem; font-weight: 600;">Despacho: ${venta.almacen?.nombre || 'Almacén Central'}</p>
             </div>
             <div style="text-align: right;">
-              <h3 style="margin: 0; font-family: monospace; color: #2563eb;">${venta.folio}</h3>
-              <p style="margin: 4px 0 0 0; font-size: 12px;">Fecha: ${new Date(venta.fecha).toLocaleDateString('es-MX')}</p>
-              <span class="badge" style="margin-top: 6px;">PAGO: ${venta.tipoPago}</span>
+              <h3 style="margin: 0; font-family: monospace; color: #2563eb; font-size: 1.125rem;">${venta.folio}</h3>
+              <p style="margin: 0.25rem 0 0 0; font-size: 0.75rem;">Fecha: ${new Date(venta.fecha).toLocaleDateString('es-MX')}</p>
+              <span class="badge" style="margin-top: 0.375rem;">PAGO: ${venta.tipoPago}</span>
             </div>
           </div>
 
-          <div style="margin-bottom: 20px; font-size: 13px; background: #f8fafc; padding: 12px 16px; border-radius: 8px;">
-            <p style="margin: 0 0 4px 0;"><strong>Cliente:</strong> ${venta.cliente?.razonSocial || 'Público General'}</p>
-            <p style="margin: 0; font-size: 12px; color: #64748b;"><strong>RFC:</strong> ${venta.cliente?.rfc || 'XAXX010101000'} | <strong>Código:</strong> ${venta.cliente?.codigo || 'CLI-01'}</p>
-            ${venta.observaciones ? `<p style="margin: 6px 0 0 0; font-size: 12px;"><strong>Notas:</strong> ${venta.observaciones}</p>` : ''}
+          <div style="margin-bottom: 1.25rem; font-size: 0.875rem; background: #f8fafc; padding: 0.75rem 1rem; border-radius: 0.5rem;">
+            <p style="margin: 0 0 0.25rem 0;"><strong>Cliente:</strong> ${venta.cliente?.razonSocial || 'Público General'}</p>
+            <p style="margin: 0; font-size: 0.75rem; color: #64748b;"><strong>RFC:</strong> ${venta.cliente?.rfc || 'XAXX010101000'} | <strong>Código:</strong> ${venta.cliente?.codigo || 'CLI-01'}</p>
+            ${venta.observaciones ? `<p style="margin: 0.375rem 0 0 0; font-size: 0.75rem;"><strong>Notas:</strong> ${venta.observaciones}</p>` : ''}
           </div>
 
           <table>
@@ -142,15 +200,15 @@ export default function VentasPage() {
           <div class="totals">
             <table>
               <tr>
-                <td style="padding: 4px 0;">Subtotal:</td>
+                <td style="padding: 0.25rem 0;">Subtotal:</td>
                 <td style="text-align: right; font-family: monospace; font-weight: bold;">$${venta.subtotal.toFixed(2)}</td>
               </tr>
               <tr>
-                <td style="padding: 4px 0;">IVA (16%):</td>
+                <td style="padding: 0.25rem 0;">IVA (16%):</td>
                 <td style="text-align: right; font-family: monospace; font-weight: bold;">$${venta.impuestos.toFixed(2)}</td>
               </tr>
-              <tr style="border-top: 1px solid #0f172a; font-size: 15px;">
-                <td style="padding: 8px 0; font-weight: bold;">Total Neto:</td>
+              <tr style="border-top: 1px solid #0f172a; font-size: 1.125rem;">
+                <td style="padding: 0.5rem 0; font-weight: bold;">Total Neto:</td>
                 <td style="text-align: right; font-family: monospace; font-weight: bold; color: #2563eb;">$${venta.total.toFixed(2)}</td>
               </tr>
             </table>
@@ -174,7 +232,6 @@ export default function VentasPage() {
     printWindow.document.close();
   };
 
-  // Handler para eliminar venta con reversión de inventario
   const handleDeleteVenta = async (venta: any) => {
     const confirmDelete = confirm(
       `¿Estás seguro de eliminar y cancelar la venta "${venta.folio}"?\n\nAl eliminarla, las cantidades despachadas se reintegrarán automáticamente al almacén "${venta.almacen?.nombre}" y se ajustará el saldo del cliente.`
@@ -197,7 +254,6 @@ export default function VentasPage() {
     }
   };
 
-  // Handler para guardar modificación de venta
   const handleSaveEditVenta = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingVenta) return;
@@ -250,47 +306,6 @@ export default function VentasPage() {
     }
   };
 
-  useEffect(() => {
-    if (user?.tenantId) {
-      loadData();
-    }
-  }, [user]);
-
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      const [resVentas, resClientes, resAlm, resProd] = await Promise.all([
-        fetch(`/api/ventas`),
-        fetch(`/api/clientes`),
-        fetch(`/api/almacenes`),
-        fetch(`/api/productos`),
-      ]);
-
-      if (resVentas.ok && resClientes.ok && resAlm.ok && resProd.ok) {
-        const vData = await resVentas.json();
-        const cData = await resClientes.json();
-        const aData = await resAlm.json();
-        const pData = await resProd.json();
-
-        setVentas(vData);
-        setClientes(cData);
-        setAlmacenes(aData);
-        setProductos(pData);
-
-        if (cData.length > 0 && !clienteId) setClienteId(cData[0].id);
-        if (aData.length > 0 && !almacenId) setAlmacenId(aData[0].id);
-        if (pData.length > 0 && !selectedProdId) {
-          setSelectedProdId(pData[0].id);
-          setAddPrice(pData[0].precioVenta || 0);
-        }
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleProductSelectChange = (prodId: string) => {
     setSelectedProdId(prodId);
     const prod = productos.find((p) => p.id === prodId);
@@ -312,7 +327,6 @@ export default function VentasPage() {
       return;
     }
 
-    // Verificar si ya está en el carrito
     const existingIndex = cart.findIndex((it) => it.productoId === selectedProdId);
     const cantidadTotal = existingIndex >= 0 ? cart[existingIndex].cantidad + addQty : addQty;
 
@@ -403,6 +417,116 @@ export default function VentasPage() {
     }
   };
 
+  // Exportar Ventas a CSV
+  const handleExportCSV = () => {
+    const headers = [
+      'Folio',
+      'Fecha',
+      'Cliente',
+      'RFC',
+      'Almacen',
+      'Tipo Pago',
+      'Estado Fiscal',
+      'UUID SAT',
+      'Subtotal',
+      'IVA',
+      'Total'
+    ];
+
+    const rows = filteredVentas.map(v => [
+      `"${v.folio}"`,
+      `"${new Date(v.fecha).toLocaleDateString('es-MX')}"`,
+      `"${(v.cliente?.razonSocial || 'Público General').replace(/"/g, '""')}"`,
+      `"${v.cliente?.rfc || 'XAXX010101000'}"`,
+      `"${v.almacen?.nombre || ''}"`,
+      v.tipoPago,
+      v.estadoFiscal,
+      `"${v.uuidFiscal || ''}"`,
+      (v.subtotal || 0).toFixed(2),
+      (v.impuestos || 0).toFixed(2),
+      (v.total || 0).toFixed(2)
+    ].join(','));
+
+    const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...rows].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `ventas_comerciales_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // KPIs calculados
+  const kpis = useMemo(() => {
+    let volumenTotal = 0;
+    let timbradasTotal = 0;
+    let contadoTotal = 0;
+    let creditoTotal = 0;
+
+    ventas.forEach(v => {
+      const tot = v.total || 0;
+      volumenTotal += tot;
+      if (v.estadoFiscal === 'TIMBRADA') timbradasTotal += tot;
+      if (v.tipoPago === 'CONTADO') contadoTotal += tot;
+      if (v.tipoPago === 'CREDITO') creditoTotal += tot;
+    });
+
+    return {
+      totalVentas: ventas.length,
+      volumenTotal,
+      timbradasTotal,
+      contadoTotal,
+      creditoTotal,
+    };
+  }, [ventas]);
+
+  // Filtrado y ordenamiento de ventas
+  const filteredVentas = useMemo(() => {
+    return ventas.filter((v) => {
+      const matchesSearch = 
+        v.folio.toLowerCase().includes(search.toLowerCase()) ||
+        (v.cliente?.razonSocial && v.cliente.razonSocial.toLowerCase().includes(search.toLowerCase())) ||
+        (v.cliente?.rfc && v.cliente.rfc.toLowerCase().includes(search.toLowerCase())) ||
+        (v.uuidFiscal && v.uuidFiscal.toLowerCase().includes(search.toLowerCase())) ||
+        (v.almacen?.nombre && v.almacen.nombre.toLowerCase().includes(search.toLowerCase()));
+
+      if (!matchesSearch) return false;
+
+      if (filterFiscal === 'TIMBRADAS') return v.estadoFiscal === 'TIMBRADA';
+      if (filterFiscal === 'SIN_TIMBRAR') return v.estadoFiscal !== 'TIMBRADA';
+      if (filterFiscal === 'CONTADO') return v.tipoPago === 'CONTADO';
+      if (filterFiscal === 'CREDITO') return v.tipoPago === 'CREDITO';
+
+      return true;
+    }).sort((a, b) => {
+      let valA: any;
+      let valB: any;
+
+      if (sortField === 'cliente') {
+        valA = a.cliente?.razonSocial || '';
+        valB = b.cliente?.razonSocial || '';
+      } else {
+        valA = a[sortField];
+        valB = b[sortField];
+      }
+
+      if (typeof valA === 'string') {
+        return sortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+      }
+      return sortAsc ? (valA - valB) : (valB - valA);
+    });
+  }, [ventas, search, filterFiscal, sortField, sortAsc]);
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortAsc(!sortAsc);
+    } else {
+      setSortField(field);
+      setSortAsc(true);
+    }
+  };
+
   const isReadOnly = user?.rol === 'AUDITOR';
   const isAlmacenista = user?.rol === 'ALMACENISTA';
 
@@ -411,134 +535,370 @@ export default function VentasPage() {
     (x: any) => (x.estado === 'VENCIDA' || new Date(x.fechaVencimiento) < new Date()) && x.saldoPendiente > 0
   ) || [];
   const tieneMoraCliente = facturasVencidasCliente.length > 0;
-  const creditoExcedido = selectedClienteObj && tipoPago === 'CREDITO' && (selectedClienteObj.saldoActual + totalCart > selectedClienteObj.limiteCredito);
   const estaBloqueado = selectedClienteObj?.estadoCredito === 'BLOQUEADO';
 
   return (
     <div className="space-y-6">
-      {/* Encabezado */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-            <ShoppingCart className="w-6 h-6 text-blue-600" />
-            Área Comercial
-          </h2>
-          <p className="text-sm text-slate-500 mt-1">
-            Gestión comercial de ventas de mostrador y crédito con control de almacenes y cuentas corrientes.
-          </p>
-        </div>
+      {/* Cabecera Soberana Ejecutiva (The Fintech Ledger) */}
+      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 text-white shadow-xl relative overflow-hidden">
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="flex items-center gap-3.5">
+            <div className="p-3 bg-blue-600/30 border border-blue-500/30 rounded-2xl text-blue-400">
+              <ShoppingCart className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <h1 className="text-2xl font-bold tracking-tight text-white">
+                  Área Comercial & Facturación CFDI 4.0
+                </h1>
+                <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-bold px-2.5 py-0.5 rounded-full inline-flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> PAC Multi-Proveedor
+                </span>
+              </div>
+              <p className="text-sm text-slate-400 mt-1">
+                Emisión de ventas de mostrador y crédito con timbrado fiscal, deducción multialmacén y afectación a cuentas por cobrar.
+              </p>
+            </div>
+          </div>
 
-        {!isReadOnly && !isAlmacenista && (
-          <button
-            onClick={() => {
-              setCart([]);
-              setErrorMsg('');
-              setSuccessMsg('');
-              setShowModal(true);
-            }}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm px-4 py-2.5 rounded-xl shadow-sm transition-all flex items-center gap-2 self-start sm:self-auto"
-          >
-            <Plus className="w-4 h-4" /> Nueva Venta
-          </button>
-        )}
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={handleExportCSV}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold transition-all shadow-sm active:scale-95"
+              title="Descargar libro comercial en CSV"
+            >
+              <Download className="w-4 h-4" />
+              Exportar CSV
+            </button>
+
+            {!isReadOnly && !isAlmacenista && (
+              <button
+                onClick={() => {
+                  setCart([]);
+                  setErrorMsg('');
+                  setSuccessMsg('');
+                  setShowModal(true);
+                }}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold shadow-lg shadow-blue-600/30 transition-all active:scale-95"
+              >
+                <Plus className="w-4 h-4" />
+                Nueva Venta
+              </button>
+            )}
+          </div>
+        </div>
       </div>
 
+      {/* Notificación de Modo Auditor */}
       {isReadOnly && (
-        <div className="bg-amber-50 border border-amber-200 text-amber-800 text-xs px-4 py-2.5 rounded-xl flex items-center gap-2 font-medium">
-          <Eye className="w-4 h-4 text-amber-600" />
-          Modo Auditoría: Consulta histórica de folios comerciales en modo solo lectura.
+        <div className="bg-amber-50 border border-amber-200 text-amber-900 text-xs p-4 rounded-2xl flex items-center gap-3 font-medium">
+          <Eye className="w-4 h-4 text-amber-700 shrink-0" />
+          <span>
+            <strong>Modo Auditoría Activo:</strong> Consulta histórica de operaciones comerciales y folios fiscales en modo solo lectura.
+          </span>
         </div>
       )}
 
-      {/* Historial de Ventas */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="p-4 border-b border-slate-100 flex items-center justify-between">
-          <h3 className="font-bold text-slate-800 text-sm">Historial de Operaciones Comerciales</h3>
-          <span className="text-xs text-slate-500 font-medium">{ventas.length} ventas registradas</span>
+      {/* Top Executive KPIs (The Card Float Principle) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Volumen Total de Ventas */}
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-md shadow-slate-900/5 hover:shadow-xl hover:-translate-y-0.5 transition-all">
+          <div className="flex items-center justify-between text-slate-500">
+            <span className="text-xs font-semibold uppercase tracking-wider">Facturación Bruta</span>
+            <div className="p-2 bg-blue-50 text-blue-600 rounded-xl">
+              <DollarSign className="w-4 h-4" />
+            </div>
+          </div>
+          <p className="text-2xl font-bold font-mono text-slate-900 mt-2">
+            ${kpis.volumenTotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+          </p>
+          <p className="text-xs text-slate-500 mt-1">
+            {kpis.totalVentas} operaciones registradas
+          </p>
         </div>
 
+        {/* Timbrado Fiscal SAT CFDI 4.0 */}
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-md shadow-slate-900/5 hover:shadow-xl hover:-translate-y-0.5 transition-all">
+          <div className="flex items-center justify-between text-slate-500">
+            <span className="text-xs font-semibold uppercase tracking-wider text-emerald-700">Timbrado CFDI 4.0</span>
+            <div className="p-2 bg-emerald-50 text-emerald-600 rounded-xl">
+              <FileCheck className="w-4 h-4" />
+            </div>
+          </div>
+          <p className="text-2xl font-bold font-mono text-emerald-600 mt-2">
+            ${kpis.timbradasTotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+          </p>
+          <p className="text-xs text-slate-500 mt-1">
+            Volumen fiscal con UUID SAT certificado
+          </p>
+        </div>
+
+        {/* Ventas de Contado (Mostrador / POS) */}
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-md shadow-slate-900/5 hover:shadow-xl hover:-translate-y-0.5 transition-all">
+          <div className="flex items-center justify-between text-slate-500">
+            <span className="text-xs font-semibold uppercase tracking-wider">Ventas de Contado</span>
+            <div className="p-2 bg-slate-100 text-slate-700 rounded-xl">
+              <Receipt className="w-4 h-4" />
+            </div>
+          </div>
+          <p className="text-2xl font-bold font-mono text-slate-900 mt-2">
+            ${kpis.contadoTotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+          </p>
+          <p className="text-xs text-slate-500 mt-1">
+            Liquidación inmediata en mostrador
+          </p>
+        </div>
+
+        {/* Ventas a Crédito (CxC) */}
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-md shadow-slate-900/5 hover:shadow-xl hover:-translate-y-0.5 transition-all">
+          <div className="flex items-center justify-between text-slate-500">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-700">Ventas a Crédito (CxC)</span>
+            <div className="p-2 bg-indigo-50 text-indigo-600 rounded-xl">
+              <CreditCard className="w-4 h-4" />
+            </div>
+          </div>
+          <p className="text-2xl font-bold font-mono text-slate-900 mt-2">
+            ${kpis.creditoTotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+          </p>
+          <p className="text-xs text-slate-500 mt-1">
+            Colocación en cartera con plazos comerciales
+          </p>
+        </div>
+      </div>
+
+      {/* Barra de Filtros Multifactor */}
+      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+        {/* Buscador */}
+        <div className="relative flex-1 min-w-[280px]">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar por folio, cliente, RFC, UUID o almacén..."
+            className="w-full pl-10 pr-4 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+          />
+          {search && (
+            <button
+              onClick={() => setSearch('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+
+        {/* Filtros Segmentados */}
+        <div className="flex flex-wrap items-center gap-1.5 bg-slate-100 p-1 rounded-xl">
+          <button
+            onClick={() => setFilterFiscal('TODOS')}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+              filterFiscal === 'TODOS'
+                ? 'bg-white text-slate-900 shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            Todos ({ventas.length})
+          </button>
+          <button
+            onClick={() => setFilterFiscal('TIMBRADAS')}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+              filterFiscal === 'TIMBRADAS'
+                ? 'bg-white text-emerald-700 shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            CFDI 4.0 Timbradas
+          </button>
+          <button
+            onClick={() => setFilterFiscal('SIN_TIMBRAR')}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+              filterFiscal === 'SIN_TIMBRAR'
+                ? 'bg-white text-amber-700 shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            Sin Timbrar
+          </button>
+          <button
+            onClick={() => setFilterFiscal('CONTADO')}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+              filterFiscal === 'CONTADO'
+                ? 'bg-white text-slate-900 shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            Contado
+          </button>
+          <button
+            onClick={() => setFilterFiscal('CREDITO')}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+              filterFiscal === 'CREDITO'
+                ? 'bg-white text-purple-700 shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            Crédito
+          </button>
+        </div>
+      </div>
+
+      {/* Historial de Operaciones Comerciales (Dense Ledger Table) */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-md shadow-slate-900/5 overflow-hidden">
         {loading ? (
-          <div className="p-8 text-center text-slate-400">Cargando ventas...</div>
-        ) : ventas.length === 0 ? (
-          <div className="p-8 text-center text-slate-400">No hay ventas registradas en este periodo.</div>
+          <div className="p-12 text-center text-slate-400">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-blue-600 border-t-transparent mb-3"></div>
+            <p className="text-sm font-medium">Cargando libro de ventas y timbres fiscales...</p>
+          </div>
+        ) : filteredVentas.length === 0 ? (
+          <div className="p-12 text-center text-slate-400">
+            <ShoppingCart className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+            <h3 className="text-base font-bold text-slate-800">No se encontraron ventas</h3>
+            <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+              {search || filterFiscal !== 'TODOS'
+                ? 'Prueba ajustando los términos de búsqueda o el filtro de estado.'
+                : 'Comienza emitiendo tu primera venta en el mostrador o a crédito.'}
+            </p>
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50 text-slate-600 uppercase text-[11px] font-semibold border-b border-slate-200">
+              <thead className="bg-slate-50 text-slate-600 uppercase text-xs font-semibold border-b border-slate-200">
                 <tr>
-                  <th className="py-3 px-4">Folio Venta</th>
-                  <th className="py-3 px-4">Cliente</th>
-                  <th className="py-3 px-4">Almacén Despacho</th>
-                  <th className="py-3 px-4 text-center">Tipo Pago</th>
-                  <th className="py-3 px-4 text-center">Estado Fiscal SAT</th>
-                  <th className="py-3 px-4 text-right">Subtotal</th>
-                  <th className="py-3 px-4 text-right">IVA (16%)</th>
-                  <th className="py-3 px-4 text-right">Total</th>
-                  <th className="py-3 px-4">Fecha</th>
-                  <th className="py-3 px-4 text-center">Acciones</th>
+                  <th 
+                    onClick={() => handleSort('folio')}
+                    className="py-3.5 px-4 cursor-pointer hover:bg-slate-100 transition-colors"
+                  >
+                    <div className="flex items-center gap-1">
+                      <span>Folio</span>
+                      {sortField === 'folio' ? (sortAsc ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 text-slate-300" />}
+                    </div>
+                  </th>
+                  <th 
+                    onClick={() => handleSort('cliente')}
+                    className="py-3.5 px-4 cursor-pointer hover:bg-slate-100 transition-colors"
+                  >
+                    <div className="flex items-center gap-1">
+                      <span>Cliente & RFC</span>
+                      {sortField === 'cliente' ? (sortAsc ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 text-slate-300" />}
+                    </div>
+                  </th>
+                  <th className="py-3.5 px-4">Almacén Despacho</th>
+                  <th className="py-3.5 px-4 text-center">Condición</th>
+                  <th className="py-3.5 px-4 text-center">Estado Fiscal SAT</th>
+                  <th 
+                    onClick={() => handleSort('subtotal')}
+                    className="py-3.5 px-4 text-right cursor-pointer hover:bg-slate-100 transition-colors"
+                  >
+                    <div className="flex items-center justify-end gap-1">
+                      <span>Subtotal</span>
+                      {sortField === 'subtotal' ? (sortAsc ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 text-slate-300" />}
+                    </div>
+                  </th>
+                  <th className="py-3.5 px-4 text-right">IVA 16%</th>
+                  <th 
+                    onClick={() => handleSort('total')}
+                    className="py-3.5 px-4 text-right cursor-pointer hover:bg-slate-100 transition-colors"
+                  >
+                    <div className="flex items-center justify-end gap-1">
+                      <span>Total Neto</span>
+                      {sortField === 'total' ? (sortAsc ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 text-slate-300" />}
+                    </div>
+                  </th>
+                  <th 
+                    onClick={() => handleSort('fecha')}
+                    className="py-3.5 px-4 cursor-pointer hover:bg-slate-100 transition-colors"
+                  >
+                    <div className="flex items-center gap-1">
+                      <span>Fecha</span>
+                      {sortField === 'fecha' ? (sortAsc ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 text-slate-300" />}
+                    </div>
+                  </th>
+                  <th className="py-3.5 px-4 text-center">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {ventas.map((v) => (
-                  <tr key={v.id} className="hover:bg-slate-50/70 transition-colors">
-                    <td className="py-3 px-4 font-mono font-bold text-blue-700">
+                {filteredVentas.map((v) => (
+                  <tr key={v.id} className="hover:bg-slate-50/80 transition-colors">
+                    {/* Folio de Venta */}
+                    <td className="py-3.5 px-4 font-mono font-bold text-blue-700 text-xs">
                       {v.folio}
                     </td>
-                    <td className="py-3 px-4">
-                      <p className="font-semibold text-slate-900">{v.cliente?.razonSocial}</p>
-                      <p className="text-xs text-slate-400 font-mono">{v.cliente?.codigo} • RFC: {v.cliente?.rfc || 'XAXX010101000'}</p>
+
+                    {/* Cliente & RFC */}
+                    <td className="py-3.5 px-4">
+                      <p className="font-semibold text-slate-900 text-xs">{v.cliente?.razonSocial || 'Público General'}</p>
+                      <p className="text-xs text-slate-500 font-mono mt-0.5">
+                        {v.cliente?.codigo || 'CLI-000'} • {v.cliente?.rfc || 'XAXX010101000'}
+                      </p>
                     </td>
-                    <td className="py-3 px-4 text-xs text-slate-600">
+
+                    {/* Almacén */}
+                    <td className="py-3.5 px-4 text-xs text-slate-700 font-medium">
                       {v.almacen?.nombre}
                     </td>
-                    <td className="py-3 px-4 text-center">
+
+                    {/* Condición Comercial */}
+                    <td className="py-3.5 px-4 text-center">
                       {v.tipoPago === 'CREDITO' ? (
-                        <span className="bg-purple-100 text-purple-800 text-[10px] font-bold px-2.5 py-0.5 rounded-full">
+                        <span className="bg-purple-100 text-purple-800 text-xs font-bold px-2.5 py-0.5 rounded-full inline-block">
                           CRÉDITO (CxC)
                         </span>
                       ) : (
-                        <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2.5 py-0.5 rounded-full">
+                        <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-2.5 py-0.5 rounded-full inline-block">
                           CONTADO
                         </span>
                       )}
                     </td>
-                    <td className="py-3 px-4 text-center">
+
+                    {/* Estado Fiscal SAT */}
+                    <td className="py-3.5 px-4 text-center">
                       {v.estadoFiscal === 'TIMBRADA' ? (
                         <div className="flex flex-col items-center">
-                          <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2.5 py-0.5 rounded-full">
-                            <CheckCircle2 className="w-3 h-3 text-emerald-600" /> CFDI 4.0
+                          <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 text-xs font-bold px-2.5 py-0.5 rounded-full">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" /> CFDI 4.0
                           </span>
-                          <span className="text-[9px] font-mono text-slate-500 mt-0.5 truncate max-w-[120px]" title={v.uuidFiscal}>
+                          <span className="text-xs font-mono text-slate-500 mt-1 truncate max-w-[130px]" title={v.uuidFiscal}>
                             {v.uuidFiscal?.slice(0, 13)}...
                           </span>
                         </div>
                       ) : (
-                        <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-600 text-[10px] font-medium px-2 py-0.5 rounded-full">
-                          <Clock className="w-3 h-3 text-slate-400" /> Sin Timbrar
+                        <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-600 text-xs font-medium px-2.5 py-0.5 rounded-full">
+                          <Clock className="w-3.5 h-3.5 text-slate-500" /> Sin Timbrar
                         </span>
                       )}
                     </td>
-                    <td className="py-3 px-4 text-right text-xs text-slate-700 font-medium font-mono">
+
+                    {/* Subtotal */}
+                    <td className="py-3.5 px-4 text-right text-xs font-mono font-medium text-slate-700">
                       ${v.subtotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
                     </td>
-                    <td className="py-3 px-4 text-right text-xs text-slate-500 font-mono">
+
+                    {/* IVA */}
+                    <td className="py-3.5 px-4 text-right text-xs font-mono text-slate-500">
                       ${v.impuestos.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
                     </td>
-                    <td className="py-3 px-4 text-right font-bold text-slate-900 font-mono">
+
+                    {/* Total Neto */}
+                    <td className="py-3.5 px-4 text-right text-xs font-mono font-bold text-slate-900">
                       ${v.total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
                     </td>
-                    <td className="py-3 px-4 text-xs text-slate-500">
+
+                    {/* Fecha */}
+                    <td className="py-3.5 px-4 text-xs font-mono text-slate-600">
                       {new Date(v.fecha).toLocaleDateString('es-MX')}
                     </td>
-                    <td className="py-3 px-4 text-center">
-                      <div className="flex items-center justify-center gap-1">
-                        {/* Timbrar CFDI 4.0 ante el SAT */}
+
+                    {/* Acciones */}
+                    <td className="py-3.5 px-4 text-center">
+                      <div className="flex items-center justify-center gap-1.5">
+                        {/* Timbrar CFDI 4.0 oficial ante el SAT */}
                         {v.estadoFiscal !== 'TIMBRADA' && !isReadOnly && !isAlmacenista && (
                           <button
                             onClick={() => handleTimbrarVenta(v.id, v.folio)}
                             disabled={timbrandoId === v.id}
-                            className="p-1.5 rounded-lg text-white bg-blue-600 hover:bg-blue-700 transition-colors shadow-xs"
-                            title="Timbrar CFDI 4.0 oficial"
+                            className="p-1.5 rounded-lg text-white bg-blue-600 hover:bg-blue-700 transition-colors shadow-sm"
+                            title="Timbrar CFDI 4.0 oficial ante el SAT"
                           >
                             <FileCheck className={`w-4 h-4 ${timbrandoId === v.id ? 'animate-spin' : ''}`} />
                           </button>
@@ -557,31 +917,42 @@ export default function VentasPage() {
                               URL.revokeObjectURL(url);
                             }}
                             className="p-1.5 rounded-lg text-purple-700 bg-purple-50 hover:bg-purple-100 transition-colors"
-                            title="Descargar XML CFDI 4.0 sellado"
+                            title="Descargar XML CFDI 4.0 timbrado"
                           >
                             <FileText className="w-4 h-4" />
                           </button>
                         )}
 
-                        {/* 1. Visualizar Venta */}
+                        {/* Visualizar Venta */}
                         <button
                           onClick={() => setSelectedVentaView(v)}
-                          className="p-1.5 rounded-lg text-slate-600 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                          className="p-1.5 rounded-lg text-slate-600 hover:text-blue-600 hover:bg-slate-100 transition-colors"
                           title="Visualizar detalles de la venta"
                         >
                           <Eye className="w-4 h-4" />
                         </button>
 
-                        {/* 2. Imprimir Factura / Comprobante */}
+                        {/* PDF Factura CFDI 4.0 Oficial */}
+                        <a
+                          href={`/api/ventas/${v.id}/pdf`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-1.5 rounded-lg text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 transition-colors inline-flex items-center justify-center shadow-xs"
+                          title="Factura PDF CFDI 4.0 Oficial (SAT)"
+                        >
+                          <FileDown className="w-4 h-4" />
+                        </a>
+
+                        {/* Imprimir Factura / Comprobante */}
                         <button
                           onClick={() => handlePrintFactura(v)}
-                          className="p-1.5 rounded-lg text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
-                          title="Imprimir factura / comprobante"
+                          className="p-1.5 rounded-lg text-slate-600 hover:text-emerald-600 hover:bg-slate-100 transition-colors"
+                          title="Imprimir comprobante formal"
                         >
                           <Printer className="w-4 h-4 text-emerald-600" />
                         </button>
 
-                        {/* 3. Modificar Venta */}
+                        {/* Modificar Venta */}
                         {!isReadOnly && !isAlmacenista && v.estadoFiscal !== 'TIMBRADA' && (
                           <button
                             onClick={() => {
@@ -590,18 +961,18 @@ export default function VentasPage() {
                               setEditTipoPago(v.tipoPago);
                               setEditError('');
                             }}
-                            className="p-1.5 rounded-lg text-slate-600 hover:text-amber-600 hover:bg-amber-50 transition-colors"
+                            className="p-1.5 rounded-lg text-slate-600 hover:text-amber-600 hover:bg-slate-100 transition-colors"
                             title="Modificar venta"
                           >
                             <Edit className="w-4 h-4 text-amber-600" />
                           </button>
                         )}
 
-                        {/* 4. Eliminar Venta */}
+                        {/* Eliminar Venta */}
                         {!isReadOnly && !isAlmacenista && (user?.rol === 'ADMIN' || user?.rol === 'SUPERADMIN') && v.estadoFiscal !== 'TIMBRADA' && (
                           <button
                             onClick={() => handleDeleteVenta(v)}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-slate-100 transition-colors"
                             title="Eliminar venta y reintegrar stock"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -617,29 +988,29 @@ export default function VentasPage() {
         )}
       </div>
 
-      {/* Modal de Nueva Venta Rediseñado - Terminal Fintech POS */}
+      {/* MODAL NUEVA VENTA (The Sovereign Lift) */}
       {showModal && (
-        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-md flex items-center justify-center z-50 p-3 sm:p-6 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl w-full max-w-5xl shadow-2xl border border-slate-200 flex flex-col max-h-[92vh] overflow-hidden">
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-6 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl w-full max-w-5xl shadow-2xl border border-slate-200 flex flex-col max-h-[92vh] overflow-hidden animate-in zoom-in-95 duration-200">
             
             {/* Header Modal */}
             <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
-                  <ShoppingCart className="w-5 h-5 text-white" />
+                <div className="w-10 h-10 rounded-2xl bg-blue-600/30 border border-blue-500/30 flex items-center justify-center text-blue-400">
+                  <ShoppingCart className="w-5 h-5" />
                 </div>
                 <div>
                   <h3 className="text-base sm:text-lg font-bold text-white tracking-tight flex items-center gap-2">
-                    Terminal de Emisión de Venta & CFDI
+                    Terminal de Emisión de Venta & CFDI 4.0
                   </h3>
                   <p className="text-xs text-slate-400">
-                    Despacho de almacén con afectación en vivo de existencias y cuenta corriente
+                    Despacho de almacén con afectación en tiempo real de kárdex y línea de crédito
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => setShowModal(false)}
-                className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors text-sm font-bold"
+                className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors text-xs font-bold"
               >
                 ✕
               </button>
@@ -655,7 +1026,7 @@ export default function VentasPage() {
                     <Users className="w-3.5 h-3.5" /> 1. Datos de Operación & Despacho
                   </span>
                   {selectedClienteObj && (
-                    <span className="text-[11px] font-mono text-slate-500">
+                    <span className="text-xs font-mono text-slate-500">
                       RFC: <strong className="text-slate-800">{selectedClienteObj.rfc || 'XAXX010101000'}</strong>
                     </span>
                   )}
@@ -686,14 +1057,14 @@ export default function VentasPage() {
                       value={almacenId}
                       onChange={(e) => {
                         setAlmacenId(e.target.value);
-                        setCart([]); // Limpiar carrito para garantizar stock exacto del nuevo almacén
+                        setCart([]);
                       }}
                       className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 font-medium text-slate-800 transition-all outline-none"
                       required
                     >
                       {almacenes.map((a) => (
                         <option key={a.id} value={a.id}>
-                          🏬 {a.nombre} {a.esPrincipal ? '★ (Principal)' : ''}
+                          {a.nombre} {a.esPrincipal ? '★ (Principal)' : ''}
                         </option>
                       ))}
                     </select>
@@ -706,24 +1077,24 @@ export default function VentasPage() {
                       <button
                         type="button"
                         onClick={() => setTipoPago('CONTADO')}
-                        className={`py-1.5 text-xs font-bold rounded-lg transition-all ${
+                        className={`py-2 text-xs font-bold rounded-lg transition-all ${
                           tipoPago === 'CONTADO' 
                             ? 'bg-white text-emerald-700 shadow-sm' 
-                            : 'text-slate-500 hover:text-slate-800'
+                            : 'text-slate-600 hover:text-slate-900'
                         }`}
                       >
-                        💵 Contado
+                        Contado
                       </button>
                       <button
                         type="button"
                         onClick={() => setTipoPago('CREDITO')}
-                        className={`py-1.5 text-xs font-bold rounded-lg transition-all ${
+                        className={`py-2 text-xs font-bold rounded-lg transition-all ${
                           tipoPago === 'CREDITO' 
                             ? 'bg-purple-600 text-white shadow-sm' 
-                            : 'text-slate-500 hover:text-slate-800'
+                            : 'text-slate-600 hover:text-slate-900'
                         }`}
                       >
-                        💳 Crédito CxC
+                        Crédito CxC
                       </button>
                     </div>
                   </div>
@@ -757,19 +1128,19 @@ export default function VentasPage() {
                       <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-xl flex items-start gap-2 animate-in fade-in">
                         <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
                         <div>
-                          <p className="font-bold">⚠️ Atención: Este cliente tiene {facturasVencidasCliente.length} factura(s) con vencimiento cumplido en Cartera.</p>
-                          <p className="text-[11px] text-rose-700 mt-0.5">
-                            Total en mora: <strong className="font-mono">${facturasVencidasCliente.reduce((acc: number, f: any) => acc + f.saldoPendiente, 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</strong>. Se recomienda solicitar cobro antes de otorgar más crédito.
+                          <p className="font-bold">Atención: Este cliente tiene {facturasVencidasCliente.length} factura(s) con plazo vencido en cartera.</p>
+                          <p className="text-xs text-rose-700 mt-0.5">
+                            Total en mora: <strong className="font-mono">${facturasVencidasCliente.reduce((acc: number, f: any) => acc + f.saldoPendiente, 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</strong>. Se recomienda solicitar cobro antes de ampliar crédito.
                           </p>
                         </div>
                       </div>
                     )}
 
-                    {/* Alerta si el crédito está bloqueado o excede el límite */}
+                    {/* Alerta si el crédito está bloqueado */}
                     {estaBloqueado && (
                       <div className="p-3 bg-red-100 border border-red-300 text-red-900 text-xs rounded-xl flex items-center gap-2 font-bold animate-pulse">
                         <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
-                        <span>⛔ CRÉDITO BLOQUEADO: El cliente tiene su línea restringida por políticas de mora o riesgo crediticio.</span>
+                        <span>CRÉDITO BLOQUEADO: El cliente tiene su línea restringida por políticas de mora o riesgo crediticio.</span>
                       </div>
                     )}
                   </div>
@@ -782,19 +1153,19 @@ export default function VentasPage() {
                   <span className="text-xs font-bold uppercase tracking-wider text-blue-600 flex items-center gap-1.5">
                     <ShoppingCart className="w-3.5 h-3.5" /> 2. Selección de Artículos & Existencias
                   </span>
-                  <span className="text-xs text-slate-400">
-                    Almacén activo: <strong className="text-slate-700">{almacenes.find(a => a.id === almacenId)?.nombre}</strong>
+                  <span className="text-xs text-slate-500">
+                    Almacén activo: <strong className="text-slate-800">{almacenes.find(a => a.id === almacenId)?.nombre}</strong>
                   </span>
                 </div>
 
                 {/* Formulario Rápido de Agregar */}
                 <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end bg-slate-50 p-3.5 rounded-xl border border-slate-200/80">
                   <div className="sm:col-span-6">
-                    <label className="block text-[11px] font-bold text-slate-600 mb-1">Buscar / Elegir Artículo</label>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Buscar / Elegir Artículo</label>
                     <select
                       value={selectedProdId}
                       onChange={(e) => handleProductSelectChange(e.target.value)}
-                      className="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 bg-white font-medium text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 bg-white font-medium text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       {productos.map((p) => {
                         const ex = p.existencias?.find((e: any) => e.almacenId === almacenId);
@@ -809,24 +1180,24 @@ export default function VentasPage() {
                   </div>
 
                   <div className="sm:col-span-2">
-                    <label className="block text-[11px] font-bold text-slate-600 mb-1">Cantidad</label>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Cantidad</label>
                     <input
                       type="number"
                       min="1"
                       value={addQty}
                       onChange={(e) => setAddQty(Number(e.target.value))}
-                      className="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 bg-white font-bold text-center text-slate-900 outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 bg-white font-bold font-mono text-center text-slate-900 outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
 
                   <div className="sm:col-span-2">
-                    <label className="block text-[11px] font-bold text-slate-600 mb-1">Precio Unit. ($)</label>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Precio Unit. ($)</label>
                     <input
                       type="number"
                       step="0.01"
                       value={addPrice}
                       onChange={(e) => setAddPrice(Number(e.target.value))}
-                      className="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 bg-white font-bold text-right text-slate-900 outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 bg-white font-bold font-mono text-right text-slate-900 outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
 
@@ -834,7 +1205,7 @@ export default function VentasPage() {
                     <button
                       type="button"
                       onClick={handleAddToCart}
-                      className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs py-2 rounded-lg shadow-md shadow-blue-500/20 transition-all flex items-center justify-center gap-1.5"
+                      className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs py-2 rounded-xl shadow-md shadow-blue-500/20 transition-all flex items-center justify-center gap-1.5 active:scale-95"
                     >
                       <Plus className="w-4 h-4" /> Agregar
                     </button>
@@ -867,13 +1238,13 @@ export default function VentasPage() {
                           <tr key={idx} className="hover:bg-slate-50/70 transition-colors">
                             <td className="py-2.5 px-4">
                               <p className="font-bold text-slate-900">{it.nombre}</p>
-                              <span className="font-mono text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
+                              <span className="font-mono text-xs text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
                                 {it.sku}
                               </span>
                             </td>
-                            <td className="py-2.5 px-3 text-center text-slate-500 font-medium">{it.unidadMedida}</td>
+                            <td className="py-2.5 px-3 text-center text-slate-600 font-medium">{it.unidadMedida}</td>
                             <td className="py-2.5 px-3 text-center">
-                              <span className="font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded-lg">
+                              <span className="font-bold font-mono text-slate-900 bg-slate-100 px-2 py-0.5 rounded-lg">
                                 {it.cantidad}
                               </span>
                             </td>
@@ -908,7 +1279,7 @@ export default function VentasPage() {
                       rows={2}
                       value={observaciones}
                       onChange={(e) => setObservaciones(e.target.value)}
-                      placeholder="Ej. Entregar en rampa 2, atención con el Ing. Pérez..."
+                      placeholder="Ej. Entregar en rampa 2, atención con el encargado de recepción..."
                       className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all resize-none"
                     />
                   </div>
@@ -952,7 +1323,7 @@ export default function VentasPage() {
               <button
                 type="button"
                 onClick={() => setShowModal(false)}
-                className="px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+                className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
               >
                 Cancelar Operación
               </button>
@@ -961,7 +1332,7 @@ export default function VentasPage() {
                 type="button"
                 onClick={handleCreateVenta}
                 disabled={saving || cart.length === 0}
-                className="bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm px-6 py-2.5 rounded-xl shadow-lg shadow-blue-600/30 transition-all disabled:opacity-50 flex items-center gap-2"
+                className="bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm px-6 py-2.5 rounded-xl shadow-lg shadow-blue-600/30 transition-all disabled:opacity-50 flex items-center gap-2 active:scale-95"
               >
                 {saving ? (
                   <>Procesando y afectando almacén...</>
@@ -978,10 +1349,10 @@ export default function VentasPage() {
         </div>
       )}
 
-      {/* Modal Visualizar Detalle de Venta */}
+      {/* MODAL VISUALIZAR DETALLE DE VENTA (The Sovereign Lift) */}
       {selectedVentaView && (
-        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl max-w-2xl w-full shadow-2xl border border-slate-200 p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl max-w-2xl w-full shadow-2xl border border-slate-200 p-6 space-y-4 max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
@@ -991,7 +1362,7 @@ export default function VentasPage() {
                   <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
                     Comprobante de Venta: <span className="font-mono text-blue-600">{selectedVentaView.folio}</span>
                   </h3>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-slate-500">
                     Fecha: {new Date(selectedVentaView.fecha).toLocaleString('es-MX')} • Despachado por: {selectedVentaView.usuarioNombre}
                   </p>
                 </div>
@@ -1009,12 +1380,12 @@ export default function VentasPage() {
               <div>
                 <p className="text-slate-500 font-medium">Cliente Receptor:</p>
                 <p className="font-bold text-slate-900 text-sm">{selectedVentaView.cliente?.razonSocial}</p>
-                <p className="text-[11px] font-mono text-slate-400">RFC: {selectedVentaView.cliente?.rfc || 'XAXX010101000'}</p>
+                <p className="text-xs font-mono text-slate-500">RFC: {selectedVentaView.cliente?.rfc || 'XAXX010101000'}</p>
               </div>
               <div className="text-right">
                 <p className="text-slate-500 font-medium">Almacén de Salida:</p>
                 <p className="font-bold text-slate-800">{selectedVentaView.almacen?.nombre}</p>
-                <span className={`inline-block mt-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                <span className={`inline-block mt-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${
                   selectedVentaView.tipoPago === 'CREDITO' ? 'bg-purple-100 text-purple-800' : 'bg-emerald-100 text-emerald-800'
                 }`}>
                   PAGO: {selectedVentaView.tipoPago}
@@ -1043,7 +1414,7 @@ export default function VentasPage() {
                 <tbody className="divide-y divide-slate-100 bg-white">
                   {selectedVentaView.detalles?.map((det: any) => (
                     <tr key={det.id} className="hover:bg-slate-50/70">
-                      <td className="py-2 px-3 font-mono text-[11px] text-blue-600">{det.producto?.sku}</td>
+                      <td className="py-2 px-3 font-mono text-xs text-blue-600 font-semibold">{det.producto?.sku}</td>
                       <td className="py-2 px-3 font-medium text-slate-800">{det.producto?.nombre}</td>
                       <td className="py-2 px-3 text-center font-bold text-slate-900">{det.cantidad} {det.producto?.unidadMedida}</td>
                       <td className="py-2 px-3 text-right font-mono">${det.precioUnitario.toFixed(2)}</td>
@@ -1056,13 +1427,23 @@ export default function VentasPage() {
 
             {/* Totales */}
             <div className="flex justify-between items-center pt-2">
-              <button
-                type="button"
-                onClick={() => handlePrintFactura(selectedVentaView)}
-                className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 transition-colors"
-              >
-                <Printer className="w-4 h-4 text-emerald-400" /> Imprimir Comprobante
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handlePrintFactura(selectedVentaView)}
+                  className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 transition-colors active:scale-95 shadow-sm"
+                >
+                  <Printer className="w-4 h-4 text-emerald-400" /> Imprimir Comprobante
+                </button>
+                <a
+                  href={`/api/ventas/${selectedVentaView.id}/pdf`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 transition-colors active:scale-95 shadow-sm shadow-rose-600/20"
+                >
+                  <FileDown className="w-4 h-4" /> Factura PDF (CFDI 4.0)
+                </a>
+              </div>
 
               <div className="w-56 space-y-1 text-xs">
                 <div className="flex justify-between text-slate-600">
@@ -1083,10 +1464,10 @@ export default function VentasPage() {
         </div>
       )}
 
-      {/* Modal Modificar Venta */}
+      {/* MODAL MODIFICAR VENTA (The Sovereign Lift) */}
       {editingVenta && (
-        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl border border-slate-200 p-6 space-y-4">
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl border border-slate-200 p-6 space-y-4 animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
@@ -1158,7 +1539,7 @@ export default function VentasPage() {
                 <button
                   type="submit"
                   disabled={savingEdit}
-                  className="bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-5 py-2 rounded-xl shadow-md shadow-blue-500/20 disabled:opacity-50 transition-all flex items-center gap-1.5"
+                  className="bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-5 py-2 rounded-xl shadow-md shadow-blue-500/20 disabled:opacity-50 transition-all flex items-center gap-1.5 active:scale-95"
                 >
                   {savingEdit ? 'Guardando...' : 'Guardar Cambios'}
                 </button>

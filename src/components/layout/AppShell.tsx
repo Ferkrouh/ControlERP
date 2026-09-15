@@ -1,18 +1,36 @@
 'use client';
 
 import React from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const { user, loading } = useAuth();
   const isLoginPage = pathname === '/login';
+  const isExpiredPage = pathname === '/suscripcion-vencida';
 
-  // Si estamos en la página de login, no renderizar ni el Navbar ni el Sidebar (esqueletos blancos/grises)
-  if (isLoginPage) {
+  React.useEffect(() => {
+    if (!loading) {
+      if (!user && !isLoginPage && !isExpiredPage) {
+        router.push('/login');
+        return;
+      }
+
+      // Bloqueo explícito administrativo en tiempo de ejecución de interfaz
+      if (user && user.rol !== 'SUPERADMIN' && user.tenant) {
+        if (user.tenant.bloqueadoPorSuscripcion && !isExpiredPage) {
+          router.push('/suscripcion-vencida');
+        }
+      }
+    }
+  }, [loading, user, isLoginPage, isExpiredPage, router]);
+
+  // Si estamos en login o pantalla de suscripción vencida, no renderizar ni el Navbar ni el Sidebar
+  if (isLoginPage || isExpiredPage) {
     return <main className="min-h-screen w-full">{children}</main>;
   }
 

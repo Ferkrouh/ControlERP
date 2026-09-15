@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { 
   Zap, 
@@ -21,7 +21,15 @@ import {
   ArrowRight,
   RotateCcw,
   Sparkles,
-  Building2
+  Building2,
+  X,
+  ChevronUp,
+  ChevronDown,
+  Clock,
+  User,
+  Package,
+  Layers,
+  Check
 } from 'lucide-react';
 
 interface CartPosItem {
@@ -43,6 +51,7 @@ export default function PosPage() {
   const [almacenes, setAlmacenes] = useState<any[]>([]);
   const [almacenId, setAlmacenId] = useState('');
   const [clienteId, setClienteId] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('TODOS');
   const [loading, setLoading] = useState(true);
 
   // Turno de Caja
@@ -61,7 +70,11 @@ export default function PosPage() {
   const [pagoCon, setPagoCon] = useState<number>(0);
   const [processingSale, setProcessingSale] = useState(false);
   const [lastSale, setLastSale] = useState<any>(null);
+  const [showTicketModal, setShowTicketModal] = useState(false);
   const [posError, setPosError] = useState('');
+
+  // Adaptabilidad táctil / Móvil / Drawer
+  const [isMobileCartOpen, setIsMobileCartOpen] = useState(false);
 
   const barcodeInputRef = useRef<HTMLInputElement>(null);
 
@@ -175,7 +188,7 @@ export default function PosPage() {
     }
   };
 
-  // Agregar al carrito por clic o por escaneo de código de barras
+  // Agregar al carrito
   const handleAddProduct = (prod: any) => {
     setPosError('');
     const ex = prod.existencias?.find((e: any) => e.almacenId === almacenId);
@@ -232,7 +245,7 @@ export default function PosPage() {
     setCart(updated);
   };
 
-  // Buscar por escáner de código de barras o SKU al presionar Enter
+  // Búsqueda por escáner o SKU al presionar Enter
   const handleBarcodeSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
@@ -253,10 +266,36 @@ export default function PosPage() {
     }
   };
 
+  // Categorías disponibles
+  const categories = useMemo(() => {
+    const cats = new Set<string>();
+    productos.forEach(p => {
+      if (p.categoria) cats.add(p.categoria);
+    });
+    return ['TODOS', ...Array.from(cats)];
+  }, [productos]);
+
+  // Filtrado de productos
+  const filteredProducts = useMemo(() => {
+    return productos.filter((p) => {
+      const matchesCategory = selectedCategory === 'TODOS' || p.categoria === selectedCategory;
+      if (!matchesCategory) return false;
+
+      if (!searchQuery) return true;
+      const q = searchQuery.toLowerCase();
+      return (
+        p.nombre.toLowerCase().includes(q) ||
+        p.sku.toLowerCase().includes(q) ||
+        (p.codigoBarras && p.codigoBarras.includes(q))
+      );
+    });
+  }, [productos, selectedCategory, searchQuery]);
+
   const subtotal = cart.reduce((acc, i) => acc + i.subtotal, 0);
   const impuestos = Math.round(subtotal * 0.16 * 100) / 100;
   const total = subtotal + impuestos;
   const cambio = Math.max(0, pagoCon - total);
+  const totalItemsCount = cart.reduce((acc, i) => acc + i.cantidad, 0);
 
   // Cobrar e imprimir ticket
   const handleCheckout = async () => {
@@ -268,7 +307,7 @@ export default function PosPage() {
     }
 
     if (tipoPago === 'EFECTIVO' && pagoCon < total) {
-      setPosError(`El importe pagado ($${pagoCon.toFixed(2)}) es menor al total de la compra ($${total.toFixed(2)})`);
+      setPosError(`El importe recibido ($${pagoCon.toFixed(2)}) es menor al total ($${total.toFixed(2)})`);
       return;
     }
 
@@ -294,7 +333,6 @@ export default function PosPage() {
 
       const data = await res.json();
       if (res.ok) {
-        // Actualizar turno de caja en memoria
         setTurnoActivo((prev: any) => ({
           ...prev,
           totalEfectivo: prev.totalEfectivo + (tipoPago === 'EFECTIVO' ? total : 0),
@@ -318,9 +356,10 @@ export default function PosPage() {
         };
 
         setLastSale(saleRecord);
+        setShowTicketModal(true);
         setCart([]);
         setPagoCon(0);
-        handlePrintTicket(saleRecord);
+        setIsMobileCartOpen(false);
         loadInitialData();
       } else {
         setPosError(data.error || 'Error al procesar cobro en mostrador');
@@ -333,12 +372,12 @@ export default function PosPage() {
   };
 
   const handlePrintTicket = (sale: any) => {
-    const printWindow = window.open('', '_blank', 'width=350,height=600');
+    const printWindow = window.open('', '_blank', 'width=380,height=620');
     if (!printWindow) return;
 
     const itemsRows = sale.items.map((i: any) => `
       <tr>
-        <td style="padding: 2px 0;">${i.cantidad}x ${i.nombre.slice(0, 18)}</td>
+        <td style="padding: 3px 0;">${i.cantidad}x ${i.nombre.slice(0, 20)}</td>
         <td style="text-align: right; font-family: monospace;">$${i.subtotal.toFixed(2)}</td>
       </tr>
     `).join('');
@@ -350,18 +389,18 @@ export default function PosPage() {
           <title>Ticket ${sale.folio}</title>
           <style>
             @page { size: 58mm auto; margin: 0; }
-            body { font-family: monospace; font-size: 11px; margin: 6px; color: #000; }
+            body { font-family: monospace; font-size: 0.75rem; margin: 8px; color: black; }
             .center { text-align: center; }
             .right { text-align: right; }
-            .line { border-bottom: 1px dashed #000; margin: 6px 0; }
-            table { width: 100%; font-size: 11px; }
+            .line { border-bottom: 1px dashed black; margin: 6px 0; }
+            table { width: 100%; font-size: 0.75rem; }
           </style>
         </head>
         <body>
           <div class="center">
-            <h3 style="margin: 0;">${user?.tenant?.nombreComercial || 'ControlERP'}</h3>
-            <p style="margin: 2px 0; font-size: 9px;">RFC: ${user?.tenant?.identificacionFiscal || 'XAXX010101000'}</p>
-            <p style="margin: 0; font-size: 9px;">${sale.almacen || 'Mostrador Central'}</p>
+            <h3 style="margin: 0; font-size: 0.875rem;">${user?.tenant?.nombreComercial || 'ControlERP'}</h3>
+            <p style="margin: 2px 0;">RFC: ${user?.tenant?.identificacionFiscal || 'XAXX010101000'}</p>
+            <p style="margin: 0;">${sale.almacen || 'Mostrador Central'}</p>
           </div>
           <div class="line"></div>
           <p style="margin: 2px 0;">Folio: <strong>${sale.folio}</strong></p>
@@ -376,12 +415,12 @@ export default function PosPage() {
           <table>
             <tr><td>Subtotal:</td><td class="right">$${sale.subtotal.toFixed(2)}</td></tr>
             <tr><td>IVA (16%):</td><td class="right">$${sale.impuestos.toFixed(2)}</td></tr>
-            <tr style="font-weight: bold; font-size: 13px;"><td>TOTAL:</td><td class="right">$${sale.total.toFixed(2)}</td></tr>
+            <tr style="font-weight: bold; font-size: 0.875rem;"><td>TOTAL:</td><td class="right">$${sale.total.toFixed(2)}</td></tr>
             <tr><td>Pago (${sale.tipoPago}):</td><td class="right">$${sale.pagoCon.toFixed(2)}</td></tr>
             <tr><td>Cambio:</td><td class="right">$${sale.cambio.toFixed(2)}</td></tr>
           </table>
           <div class="line"></div>
-          <div class="center" style="font-size: 10px; margin-top: 8px;">
+          <div class="center" style="margin-top: 8px;">
             ¡Gracias por su compra!<br/>
             Comprobante de mostrador
           </div>
@@ -397,222 +436,304 @@ export default function PosPage() {
     printWindow.document.close();
   };
 
-  const filteredProducts = productos.filter((p) => {
-    if (!searchQuery) return true;
-    const q = searchQuery.toLowerCase();
-    return (
-      p.nombre.toLowerCase().includes(q) ||
-      p.sku.toLowerCase().includes(q) ||
-      (p.codigoBarras && p.codigoBarras.includes(q))
-    );
-  });
+  const handleQuickCash = (amount: number) => {
+    setTipoPago('EFECTIVO');
+    setPagoCon(amount);
+  };
 
   return (
-    <div className="space-y-4">
-      {/* Barra de Estado POS & Control de Caja */}
-      <div className="bg-slate-900 text-white px-5 py-3 rounded-2xl flex flex-wrap items-center justify-between gap-3 shadow-md">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center">
-            <Zap className="w-5 h-5 text-white" />
+    <div className="space-y-4 pb-20 lg:pb-4">
+      {/* Barra de Estado POS & Control de Caja (The Fintech Ledger) */}
+      <div className="bg-slate-900 text-white p-4 sm:p-5 rounded-3xl border border-slate-800 shadow-xl relative overflow-hidden">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-blue-600/30 border border-blue-500/30 flex items-center justify-center text-blue-400 shrink-0">
+              <Zap className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-lg sm:text-xl font-bold tracking-tight text-white">
+                  Punto de Venta Mostrador (POS)
+                </h1>
+                {turnoActivo ? (
+                  <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-bold px-2.5 py-0.5 rounded-full inline-flex items-center gap-1.5">
+                    <Unlock className="w-3.5 h-3.5" /> Caja Abierta
+                  </span>
+                ) : (
+                  <span className="bg-rose-500/20 text-rose-400 border border-rose-500/30 text-xs font-bold px-2.5 py-0.5 rounded-full inline-flex items-center gap-1.5">
+                    <Lock className="w-3.5 h-3.5" /> Caja Cerrada
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Despacho rápido con escáner de código de barras, calculadora de cambio y ticket térmico.
+              </p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-sm font-bold flex items-center gap-2">
-              Punto de Venta Mostrador (POS)
-              {turnoActivo ? (
-                <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
-                  <Unlock className="w-3 h-3" /> Caja Abierta (Turno Activo)
-                </span>
-              ) : (
-                <span className="bg-rose-500/20 text-rose-400 border border-rose-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
-                  <Lock className="w-3 h-3" /> Caja Cerrada
-                </span>
-              )}
-            </h2>
-            <p className="text-xs text-slate-400">
-              Venta rápida al paso con soporte de lector de código de barras y ticket térmico
-            </p>
+
+          <div className="flex flex-wrap items-center gap-2.5">
+            {/* Selector de Almacén */}
+            <div className="flex items-center gap-2 bg-slate-800/90 px-3 py-1.5 rounded-xl border border-slate-700 text-xs text-slate-200">
+              <Building2 className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+              <select
+                value={almacenId}
+                onChange={(e) => {
+                  setAlmacenId(e.target.value);
+                  checkTurnoCaja(e.target.value);
+                  setCart([]);
+                }}
+                className="bg-transparent text-white font-semibold outline-none cursor-pointer"
+              >
+                {almacenes.map((a) => (
+                  <option key={a.id} value={a.id} className="bg-slate-900 text-white">
+                    {a.nombre}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Acciones de Caja */}
+            {turnoActivo ? (
+              <button
+                onClick={() => {
+                  setMontoCierreEfectivo(turnoActivo.montoApertura + turnoActivo.totalEfectivo);
+                  setShowCierreModal(true);
+                }}
+                className="bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition-all inline-flex items-center gap-1.5 shadow-sm active:scale-95"
+              >
+                <Lock className="w-3.5 h-3.5" /> Corte Z / Cerrar Caja
+              </button>
+            ) : (
+              <button
+                onClick={() => setShowAperturaModal(true)}
+                className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition-all inline-flex items-center gap-1.5 shadow-sm active:scale-95"
+              >
+                <Unlock className="w-3.5 h-3.5" /> Abrir Caja
+              </button>
+            )}
           </div>
         </div>
 
-        <div className="flex items-center gap-3 text-xs">
-          {/* Selector de Almacén de Mostrador */}
-          <div className="flex items-center gap-1.5 bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-700">
-            <Building2 className="w-3.5 h-3.5 text-blue-400" />
-            <select
-              value={almacenId}
-              onChange={(e) => {
-                setAlmacenId(e.target.value);
-                checkTurnoCaja(e.target.value);
-                setCart([]);
-              }}
-              className="bg-transparent text-white font-semibold outline-none"
-            >
-              {almacenes.map((a) => (
-                <option key={a.id} value={a.id} className="bg-slate-900 text-white">
-                  {a.nombre}
-                </option>
-              ))}
-            </select>
+        {/* Resumen del Turno Activo */}
+        {turnoActivo && (
+          <div className="mt-3 pt-3 border-t border-slate-800 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+            <div>
+              <span className="text-slate-400 block font-medium">Cajero en Turno:</span>
+              <span className="font-bold text-white truncate block">{turnoActivo.usuarioNombre || user?.nombre}</span>
+            </div>
+            <div>
+              <span className="text-slate-400 block font-medium">Fondo de Apertura:</span>
+              <span className="font-bold font-mono text-slate-200">${turnoActivo.montoApertura?.toFixed(2)}</span>
+            </div>
+            <div>
+              <span className="text-slate-400 block font-medium">Ventas Efectivo:</span>
+              <span className="font-bold font-mono text-emerald-400">+${turnoActivo.totalEfectivo?.toFixed(2)}</span>
+            </div>
+            <div>
+              <span className="text-slate-400 block font-medium">Total Acumulado:</span>
+              <span className="font-bold font-mono text-blue-400">${((turnoActivo.montoApertura || 0) + (turnoActivo.totalEfectivo || 0)).toFixed(2)}</span>
+            </div>
           </div>
-
-          {turnoActivo ? (
-            <button
-              onClick={() => {
-                setMontoCierreEfectivo(turnoActivo.montoApertura + turnoActivo.totalEfectivo);
-                setShowCierreModal(true);
-              }}
-              className="bg-rose-600 hover:bg-rose-500 text-white font-bold px-3.5 py-1.5 rounded-xl transition-all flex items-center gap-1.5 shadow-sm"
-            >
-              <Lock className="w-3.5 h-3.5" /> Corte Z / Cerrar Caja
-            </button>
-          ) : (
-            <button
-              onClick={() => setShowAperturaModal(true)}
-              className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3.5 py-1.5 rounded-xl transition-all flex items-center gap-1.5 shadow-sm"
-            >
-              <Unlock className="w-3.5 h-3.5" /> Abrir Caja de Turno
-            </button>
-          )}
-        </div>
+        )}
       </div>
 
+      {/* Alerta de Error POS */}
       {posError && (
-        <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-xl flex items-center justify-between gap-2 font-medium animate-in fade-in">
+        <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-2xl flex items-center justify-between gap-3 font-medium animate-in fade-in">
           <div className="flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
             <span>{posError}</span>
           </div>
-          <button onClick={() => setPosError('')} className="font-bold text-rose-500 hover:text-rose-800">✕</button>
+          <button onClick={() => setPosError('')} className="font-bold text-rose-600 hover:text-rose-900 p-1">✕</button>
         </div>
       )}
 
-      {/* Grid Principal POS: Catálogo Izquierda vs Caja Derecha */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+      {/* GRID PRINCIPAL ADAPTIVO (Split en Desktop / Flotante en Móvil) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
         
-        {/* Lado Izquierdo: Catálogo y Búsqueda por Escáner (7 Columnas) */}
-        <div className="lg:col-span-7 space-y-3">
+        {/* PANEL IZQUIERDO: CATÁLOGO, BUSCADOR Y CATEGORÍAS (7 cols en Desktop) */}
+        <div className="lg:col-span-7 space-y-4">
           
           {/* Barra de Búsqueda y Escáner */}
-          <form onSubmit={handleBarcodeSubmit} className="relative">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+          <form onSubmit={handleBarcodeSubmit} className="relative flex items-center">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               ref={barcodeInputRef}
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Escanear código de barras o teclear SKU / Nombre y presionar Enter..."
-              className="w-full bg-white border border-slate-200 pl-10 pr-24 py-2.5 rounded-2xl text-xs font-semibold text-slate-800 placeholder-slate-400 shadow-sm focus:ring-2 focus:ring-blue-500 outline-none"
+              placeholder="Escanear código de barras o teclear SKU / Nombre..."
+              className="w-full bg-white border border-slate-200 pl-10 pr-24 py-2.5 rounded-2xl text-xs sm:text-sm font-semibold text-slate-800 placeholder-slate-400 shadow-sm focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition-all"
             />
             <button
               type="submit"
-              className="absolute right-2 top-1.5 px-3 py-1 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-xl text-xs font-bold flex items-center gap-1"
+              className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors"
             >
-              <Barcode className="w-3.5 h-3.5" /> Escanear
+              <Barcode className="w-4 h-4" />
+              <span className="hidden sm:inline">Escanear</span>
             </button>
           </form>
 
-          {/* Grid de Productos con Existencias en Vivo */}
-          <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm h-[580px] overflow-y-auto">
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-              {filteredProducts.map((p) => {
-                const ex = p.existencias?.find((e: any) => e.almacenId === almacenId);
-                const stock = ex ? ex.cantidad : 0;
-                const sinStock = stock <= 0;
+          {/* Filtro por Categorías (Touch Horizontal Scroll) */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+            {categories.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+                  selectedCategory === cat
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
 
-                return (
-                  <button
-                    key={p.id}
-                    type="button"
-                    disabled={sinStock}
-                    onClick={() => handleAddProduct(p)}
-                    className={`p-3 rounded-xl text-left border transition-all flex flex-col justify-between ${
-                      sinStock
-                        ? 'bg-slate-50 border-slate-200 opacity-50 cursor-not-allowed'
-                        : 'bg-white hover:border-blue-400 hover:shadow-md border-slate-200/80 active:scale-95'
-                    }`}
-                  >
-                    <div>
-                      <span className="text-[10px] font-mono font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded">
-                        {p.sku}
-                      </span>
-                      <p className="text-xs font-bold text-slate-800 line-clamp-2 mt-1.5 leading-snug">
-                        {p.nombre}
-                      </p>
-                    </div>
+          {/* Grid de Artículos Táctil */}
+          <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-md shadow-slate-900/5 min-h-[460px] max-h-[640px] overflow-y-auto">
+            {loading ? (
+              <div className="p-12 text-center text-slate-400">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-blue-600 border-t-transparent mb-2"></div>
+                <p className="text-xs font-medium">Cargando catálogo para despacho...</p>
+              </div>
+            ) : filteredProducts.length === 0 ? (
+              <div className="p-12 text-center text-slate-400">
+                <Package className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+                <p className="text-xs font-semibold">No se encontraron artículos con ese criterio.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
+                {filteredProducts.map((p) => {
+                  const ex = p.existencias?.find((e: any) => e.almacenId === almacenId);
+                  const stock = ex ? ex.cantidad : 0;
+                  const sinStock = stock <= 0;
 
-                    <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between">
-                      <span className="font-mono text-sm font-bold text-slate-900">
-                        ${p.precioVenta.toFixed(2)}
-                      </span>
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                        stock <= 5 ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600'
-                      }`}>
-                        {stock} {p.unidadMedida}
-                      </span>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      disabled={sinStock}
+                      onClick={() => handleAddProduct(p)}
+                      className={`p-3.5 rounded-2xl text-left border transition-all flex flex-col justify-between group select-none min-h-[120px] ${
+                        sinStock
+                          ? 'bg-slate-50 border-slate-200 opacity-50 cursor-not-allowed'
+                          : 'bg-white hover:border-blue-400 hover:shadow-md border-slate-200 active:scale-95'
+                      }`}
+                    >
+                      <div>
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="text-xs font-mono font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded-md">
+                            {p.sku}
+                          </span>
+                          {stock <= 5 ? (
+                            <span className="text-xs font-bold px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800">
+                              {stock} {p.unidadMedida}
+                            </span>
+                          ) : (
+                            <span className="text-xs font-bold px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600">
+                              {stock} {p.unidadMedida}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs font-bold text-slate-800 line-clamp-2 mt-2 leading-snug group-hover:text-blue-600 transition-colors">
+                          {p.nombre}
+                        </p>
+                      </div>
+
+                      <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between">
+                        <span className="font-mono text-sm font-bold text-slate-900">
+                          ${p.precioVenta.toFixed(2)}
+                        </span>
+                        <div className="w-6 h-6 rounded-lg bg-slate-100 group-hover:bg-blue-600 group-hover:text-white flex items-center justify-center transition-colors">
+                          <Plus className="w-3.5 h-3.5" />
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Lado Derecho: Carrito de Caja, Cobro y Ticket (5 Columnas) */}
-        <div className="lg:col-span-5 bg-white rounded-3xl border border-slate-200 shadow-md p-4 flex flex-col justify-between h-[640px]">
-          
+        {/* PANEL DERECHO: CARRITO, COBRO & TICKET (5 cols en Desktop / Drawer en Móvil) */}
+        <div className={`
+          fixed lg:static inset-x-0 bottom-0 z-40 lg:z-auto bg-white lg:rounded-3xl border-t lg:border border-slate-200 shadow-2xl lg:shadow-md p-4 sm:p-5 flex flex-col justify-between transition-transform duration-300
+          lg:col-span-5 lg:min-h-[640px]
+          ${isMobileCartOpen ? 'translate-y-0 max-h-[90vh] overflow-y-auto rounded-t-3xl' : 'translate-y-full lg:translate-y-0'}
+        `}>
           <div>
             {/* Cabecera del Carrito & Cliente */}
-            <div className="pb-3 border-b border-slate-100 flex items-center justify-between">
+            <div className="pb-3 border-b border-slate-100 flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
-                <ShoppingCart className="w-5 h-5 text-blue-600" />
-                <h3 className="font-bold text-slate-900 text-sm">Mostrador / Carrito</h3>
+                <div className="p-1.5 bg-blue-50 text-blue-600 rounded-xl">
+                  <ShoppingCart className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-sm">Mostrador / Carrito</h3>
+                  <span className="text-xs text-slate-500 font-medium">{totalItemsCount} artículos</span>
+                </div>
               </div>
-              <div className="w-48">
-                <select
-                  value={clienteId}
-                  onChange={(e) => setClienteId(e.target.value)}
-                  className="w-full text-[11px] font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg p-1 outline-none"
-                >
-                  {clientes.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.razonSocial}
-                    </option>
-                  ))}
-                </select>
-              </div>
+
+              {/* Botón cerrar en vista móvil */}
+              <button
+                onClick={() => setIsMobileCartOpen(false)}
+                className="lg:hidden p-1.5 rounded-xl bg-slate-100 text-slate-500 hover:text-slate-800"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Selector de Cliente */}
+            <div className="mt-3">
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Cliente de Venta:</label>
+              <select
+                value={clienteId}
+                onChange={(e) => setClienteId(e.target.value)}
+                className="w-full text-xs font-semibold text-slate-800 bg-slate-50 border border-slate-200 rounded-xl p-2 outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {clientes.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.razonSocial} {c.rfc ? `(${c.rfc})` : ''}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* Lista de Artículos en Carrito */}
-            <div className="h-[240px] overflow-y-auto divide-y divide-slate-100 py-1">
+            <div className="h-[200px] sm:h-[230px] overflow-y-auto divide-y divide-slate-100 py-1 mt-2">
               {cart.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-slate-400 text-xs">
-                  <Barcode className="w-8 h-8 text-slate-300 mb-1" />
-                  Escanea artículos o haz clic en el catálogo para agregarlos.
+                  <Barcode className="w-8 h-8 text-slate-300 mb-1.5" />
+                  <p className="font-medium">El carrito está vacío.</p>
+                  <p className="text-slate-400 mt-0.5">Escanea o toca productos para agregarlos.</p>
                 </div>
               ) : (
                 cart.map((item, idx) => (
-                  <div key={idx} className="py-2 flex items-center justify-between text-xs">
-                    <div className="truncate pr-2">
+                  <div key={idx} className="py-2.5 flex items-center justify-between text-xs gap-2">
+                    <div className="truncate pr-2 min-w-0">
                       <p className="font-bold text-slate-800 truncate">{item.nombre}</p>
-                      <p className="text-[11px] text-slate-400 font-mono font-bold">${item.precioUnitario.toFixed(2)} c/u</p>
+                      <p className="text-xs text-slate-500 font-mono font-medium">${item.precioUnitario.toFixed(2)} c/u</p>
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">
-                      <div className="flex items-center bg-slate-100 rounded-lg border border-slate-200">
+                      <div className="flex items-center bg-slate-100 rounded-xl border border-slate-200 p-0.5">
                         <button
                           type="button"
                           onClick={() => handleUpdateQty(idx, -1)}
-                          className="px-2 py-0.5 text-slate-600 hover:text-black font-bold"
+                          className="w-7 h-7 flex items-center justify-center text-slate-600 hover:text-black font-bold rounded-lg hover:bg-white"
                         >
-                          -
+                          <Minus className="w-3 h-3" />
                         </button>
-                        <span className="px-2 font-bold font-mono text-slate-800">{item.cantidad}</span>
+                        <span className="px-2 font-bold font-mono text-slate-900">{item.cantidad}</span>
                         <button
                           type="button"
                           onClick={() => handleUpdateQty(idx, 1)}
-                          className="px-2 py-0.5 text-slate-600 hover:text-black font-bold"
+                          className="w-7 h-7 flex items-center justify-center text-slate-600 hover:text-black font-bold rounded-lg hover:bg-white"
                         >
-                          +
+                          <Plus className="w-3 h-3" />
                         </button>
                       </div>
 
@@ -623,7 +744,7 @@ export default function PosPage() {
                       <button
                         type="button"
                         onClick={() => setCart(cart.filter((_, i) => i !== idx))}
-                        className="text-slate-400 hover:text-rose-600 p-1"
+                        className="text-slate-400 hover:text-rose-600 p-1 rounded-lg"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -636,77 +757,147 @@ export default function PosPage() {
 
           {/* Zona de Totales y Cobro */}
           <div className="pt-3 border-t border-slate-100 space-y-3">
-            <div className="bg-slate-50 p-3 rounded-2xl space-y-1 text-xs">
+            <div className="bg-slate-50 p-3.5 rounded-2xl space-y-1.5 text-xs">
               <div className="flex justify-between text-slate-500 font-medium">
                 <span>Subtotal:</span>
                 <span className="font-mono font-bold text-slate-700">${subtotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-slate-500 font-medium">
-                <span>IVA (16%):</span>
+                <span>IVA Trasladado (16%):</span>
                 <span className="font-mono font-bold text-slate-700">${impuestos.toFixed(2)}</span>
               </div>
-              <div className="flex justify-between text-slate-900 text-base font-bold pt-1 border-t border-slate-200">
+              <div className="flex justify-between text-slate-900 text-base font-bold pt-1.5 border-t border-slate-200">
                 <span>Total a Pagar:</span>
-                <span className="font-mono text-blue-600">${total.toFixed(2)} MXN</span>
+                <span className="font-mono text-blue-600 text-lg">${total.toFixed(2)} MXN</span>
               </div>
             </div>
 
             {/* Selector de Método de Pago */}
-            <div className="grid grid-cols-3 gap-1.5">
-              <button
-                type="button"
-                onClick={() => setTipoPago('EFECTIVO')}
-                className={`py-2 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1 ${
-                  tipoPago === 'EFECTIVO' ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' : 'bg-white text-slate-600 border-slate-200'
-                }`}
-              >
-                <Banknote className="w-3.5 h-3.5" /> Efectivo
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setTipoPago('TARJETA');
-                  setPagoCon(total);
-                }}
-                className={`py-2 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1 ${
-                  tipoPago === 'TARJETA' ? 'bg-purple-600 text-white border-purple-600 shadow-sm' : 'bg-white text-slate-600 border-slate-200'
-                }`}
-              >
-                <CreditCard className="w-3.5 h-3.5" /> Tarjeta
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setTipoPago('TRANSFERENCIA');
-                  setPagoCon(total);
-                }}
-                className={`py-2 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1 ${
-                  tipoPago === 'TRANSFERENCIA' ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-white text-slate-600 border-slate-200'
-                }`}
-              >
-                <Zap className="w-3.5 h-3.5" /> Transfer
-              </button>
+            <div className="grid grid-cols-3 gap-2">
+              {tipoPago === 'EFECTIVO' ? (
+                <button
+                  type="button"
+                  className="py-2.5 rounded-xl text-xs font-bold bg-emerald-600 text-white shadow-sm flex items-center justify-center gap-1.5"
+                >
+                  <Banknote className="w-4 h-4" /> Efectivo
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setTipoPago('EFECTIVO')}
+                  className="py-2.5 rounded-xl text-xs font-bold bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 flex items-center justify-center gap-1.5 transition-colors"
+                >
+                  <Banknote className="w-4 h-4 text-slate-500" /> Efectivo
+                </button>
+              )}
+
+              {tipoPago === 'TARJETA' ? (
+                <button
+                  type="button"
+                  className="py-2.5 rounded-xl text-xs font-bold bg-purple-600 text-white shadow-sm flex items-center justify-center gap-1.5"
+                >
+                  <CreditCard className="w-4 h-4" /> Tarjeta
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTipoPago('TARJETA');
+                    setPagoCon(total);
+                  }}
+                  className="py-2.5 rounded-xl text-xs font-bold bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 flex items-center justify-center gap-1.5 transition-colors"
+                >
+                  <CreditCard className="w-4 h-4 text-slate-500" /> Tarjeta
+                </button>
+              )}
+
+              {tipoPago === 'TRANSFERENCIA' ? (
+                <button
+                  type="button"
+                  className="py-2.5 rounded-xl text-xs font-bold bg-blue-600 text-white shadow-sm flex items-center justify-center gap-1.5"
+                >
+                  <Zap className="w-4 h-4" /> Transfer
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTipoPago('TRANSFERENCIA');
+                    setPagoCon(total);
+                  }}
+                  className="py-2.5 rounded-xl text-xs font-bold bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 flex items-center justify-center gap-1.5 transition-colors"
+                >
+                  <Zap className="w-4 h-4 text-slate-500" /> Transfer
+                </button>
+              )}
             </div>
 
-            {/* Cálculo de Cambio en Efectivo */}
+            {/* Calculadora de Denominaciones Rápidas para Efectivo */}
             {tipoPago === 'EFECTIVO' && (
-              <div className="flex items-center gap-2 text-xs">
-                <div className="flex-1">
-                  <label className="block text-[10px] font-bold text-slate-500 mb-0.5">Recibido ($)</label>
-                  <input
-                    type="number"
-                    step="0.5"
-                    value={pagoCon || ''}
-                    onChange={(e) => setPagoCon(Number(e.target.value))}
-                    placeholder="Monto entregado"
-                    className="w-full bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl font-mono font-bold text-slate-900 outline-none"
-                  />
+              <div className="space-y-2 text-xs">
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
+                  <button
+                    type="button"
+                    onClick={() => handleQuickCash(total)}
+                    className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-mono font-bold text-xs shrink-0"
+                  >
+                    Exacto
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleQuickCash(50)}
+                    className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-mono font-bold text-xs shrink-0"
+                  >
+                    $50
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleQuickCash(100)}
+                    className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-mono font-bold text-xs shrink-0"
+                  >
+                    $100
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleQuickCash(200)}
+                    className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-mono font-bold text-xs shrink-0"
+                  >
+                    $200
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleQuickCash(500)}
+                    className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-mono font-bold text-xs shrink-0"
+                  >
+                    $500
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleQuickCash(1000)}
+                    className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-mono font-bold text-xs shrink-0"
+                  >
+                    $1,000
+                  </button>
                 </div>
-                <div className="flex-1 text-right">
-                  <span className="block text-[10px] font-bold text-slate-500 mb-0.5">Cambio a Entregar:</span>
-                  <span className={`font-mono text-base font-bold ${cambio > 0 ? 'text-emerald-600' : 'text-slate-400'}`}>
-                    ${cambio.toFixed(2)}
-                  </span>
+
+                <div className="flex items-center gap-3">
+                  <div className="flex-1">
+                    <label className="block text-xs font-bold text-slate-600 mb-1">Recibido ($ MXN)</label>
+                    <input
+                      type="number"
+                      step="0.5"
+                      value={pagoCon || ''}
+                      onChange={(e) => setPagoCon(Number(e.target.value))}
+                      placeholder="Monto entregado"
+                      className="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl font-mono font-bold text-slate-900 text-sm outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                  <div className="flex-1 text-right">
+                    <span className="block text-xs font-bold text-slate-600 mb-1">Cambio a Entregar:</span>
+                    <span className={`font-mono text-lg font-bold ${cambio > 0 ? 'text-emerald-600' : 'text-slate-400'}`}>
+                      ${cambio.toFixed(2)}
+                    </span>
+                  </div>
                 </div>
               </div>
             )}
@@ -716,7 +907,7 @@ export default function PosPage() {
               type="button"
               disabled={processingSale || cart.length === 0}
               onClick={handleCheckout}
-              className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-2xl shadow-lg shadow-emerald-600/20 disabled:opacity-50 transition-all flex items-center justify-center gap-2 text-sm"
+              className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-2xl shadow-lg shadow-emerald-600/30 disabled:opacity-50 transition-all active:scale-95 flex items-center justify-center gap-2 text-sm"
             >
               {processingSale ? (
                 'Procesando despacho...'
@@ -730,25 +921,152 @@ export default function PosPage() {
         </div>
       </div>
 
-      {/* MODAL APERTURA DE CAJA */}
+      {/* BARRA FLOTANTE FIJA PARA DISPOSITIVOS TÁCTILES / MÓVILES (< 1024px) */}
+      <div className="lg:hidden fixed bottom-0 inset-x-0 bg-slate-900 text-white p-3.5 border-t border-slate-800 shadow-2xl z-30 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-blue-600 rounded-xl">
+            <ShoppingCart className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <span className="text-xs text-slate-400 block">{totalItemsCount} artículos</span>
+            <span className="text-base font-bold font-mono text-white">${total.toFixed(2)} MXN</span>
+          </div>
+        </div>
+
+        <button
+          onClick={() => setIsMobileCartOpen(!isMobileCartOpen)}
+          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-md active:scale-95"
+        >
+          {isMobileCartOpen ? 'Ver Catálogo' : 'Ver Carrito / Cobrar'}
+          {isMobileCartOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+        </button>
+      </div>
+
+      {/* MODAL PREVIEW DEL TICKET TÉRMICO (The Sovereign Lift) */}
+      {showTicketModal && lastSale && (
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-200 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 bg-emerald-50 text-emerald-600 rounded-xl">
+                  <CheckCircle2 className="w-4 h-4" />
+                </div>
+                <h3 className="font-bold text-slate-900 text-sm">Venta Despachada</h3>
+              </div>
+              <button
+                onClick={() => setShowTicketModal(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Simulación del Ticket Térmico 58mm */}
+            <div className="bg-slate-50 border border-dashed border-slate-300 p-4 rounded-2xl font-mono text-xs text-slate-800 space-y-2">
+              <div className="text-center pb-2 border-b border-dashed border-slate-300">
+                <p className="font-bold text-sm text-slate-900">{user?.tenant?.nombreComercial || 'ControlERP'}</p>
+                <p className="text-xs text-slate-500">RFC: {user?.tenant?.identificacionFiscal || 'XAXX010101000'}</p>
+                <p className="text-xs text-slate-500">{lastSale.almacen || 'Mostrador'}</p>
+              </div>
+
+              <div className="space-y-1 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Folio:</span>
+                  <span className="font-bold">{lastSale.folio}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Fecha:</span>
+                  <span>{new Date(lastSale.fecha).toLocaleTimeString('es-MX')}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Cajero:</span>
+                  <span>{lastSale.cajero}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Cliente:</span>
+                  <span className="truncate max-w-[150px]">{lastSale.cliente}</span>
+                </div>
+              </div>
+
+              <div className="border-t border-dashed border-slate-300 pt-2 space-y-1">
+                {lastSale.items.map((it: any, i: number) => (
+                  <div key={i} className="flex justify-between text-xs">
+                    <span className="truncate max-w-[140px]">{it.cantidad}x {it.nombre}</span>
+                    <span className="font-bold">${it.subtotal.toFixed(2)}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="border-t border-dashed border-slate-300 pt-2 space-y-1">
+                <div className="flex justify-between text-xs text-slate-500">
+                  <span>Subtotal:</span>
+                  <span>${lastSale.subtotal.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-xs text-slate-500">
+                  <span>IVA 16%:</span>
+                  <span>${lastSale.impuestos.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between font-bold text-sm text-slate-900 pt-1 border-t border-slate-200">
+                  <span>TOTAL:</span>
+                  <span>${lastSale.total.toFixed(2)} MXN</span>
+                </div>
+                <div className="flex justify-between text-xs text-slate-600">
+                  <span>Pago ({lastSale.tipoPago}):</span>
+                  <span>${lastSale.pagoCon.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-xs text-emerald-700 font-bold">
+                  <span>Cambio:</span>
+                  <span>${lastSale.cambio.toFixed(2)}</span>
+                </div>
+              </div>
+
+              <div className="text-center pt-2 border-t border-dashed border-slate-300 text-xs text-slate-500">
+                ¡Gracias por su compra!<br />
+                Comprobante de Mostrador
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => handlePrintTicket(lastSale)}
+                className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 shadow-md transition-all active:scale-95"
+              >
+                <Printer className="w-4 h-4" /> Reimprimir Ticket
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowTicketModal(false)}
+                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-colors"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL APERTURA DE CAJA (The Sovereign Lift) */}
       {showAperturaModal && (
-        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in">
-          <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl border border-slate-200 overflow-hidden">
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <Unlock className="w-5 h-5 text-emerald-400" />
+                <div className="p-1.5 bg-emerald-500/20 text-emerald-400 rounded-xl">
+                  <Unlock className="w-5 h-5" />
+                </div>
                 <h3 className="font-bold text-sm">Apertura de Turno de Caja (POS)</h3>
               </div>
               <button onClick={() => setShowAperturaModal(false)} className="text-slate-400 hover:text-white text-xs font-bold">✕</button>
             </div>
 
             <form onSubmit={handleAbrirCaja} className="p-6 space-y-4 text-xs">
-              <p className="text-slate-500">
+              <p className="text-slate-600">
                 Inicia un nuevo turno de caja registradora en el almacén <strong>{almacenes.find(a => a.id === almacenId)?.nombre}</strong>.
               </p>
 
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Fondo Inicial de Caja en Efectivo ($) *</label>
+                <label className="block font-bold text-slate-700 mb-1">Fondo Inicial de Caja en Efectivo ($ MXN) *</label>
                 <input
                   type="number"
                   min="0"
@@ -756,7 +1074,7 @@ export default function PosPage() {
                   required
                   value={montoApertura}
                   onChange={(e) => setMontoApertura(Number(e.target.value))}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 font-mono text-base font-bold text-slate-900"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 font-mono text-base font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
 
@@ -766,22 +1084,22 @@ export default function PosPage() {
                   value={notasApertura}
                   onChange={(e) => setNotasApertura(e.target.value)}
                   placeholder="Ej. Fondo para cambio billetes chicos"
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs outline-none"
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs outline-none focus:ring-2 focus:ring-blue-500"
                   rows={2}
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-2">
+              <div className="flex justify-end gap-2.5 pt-2 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setShowAperturaModal(false)}
-                  className="px-4 py-2 font-bold text-slate-600 hover:bg-slate-100 rounded-xl"
+                  className="px-4 py-2 font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-md"
+                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-md transition-all active:scale-95"
                 >
                   Confirmar Apertura
                 </button>
@@ -791,35 +1109,39 @@ export default function PosPage() {
         </div>
       )}
 
-      {/* MODAL CORTE Z / CIERRE DE CAJA */}
+      {/* MODAL CORTE Z / CIERRE DE CAJA (The Sovereign Lift) */}
       {showCierreModal && (
-        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in">
-          <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl border border-slate-200 overflow-hidden">
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="px-6 py-4 bg-rose-600 text-white flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <Lock className="w-5 h-5 text-white" />
+                <div className="p-1.5 bg-white/20 text-white rounded-xl">
+                  <Lock className="w-5 h-5" />
+                </div>
                 <h3 className="font-bold text-sm">Corte Z / Arqueo Diario de Caja</h3>
               </div>
               <button onClick={() => setShowCierreModal(false)} className="text-white text-xs font-bold">✕</button>
             </div>
 
             <form onSubmit={handleCerrarCaja} className="p-6 space-y-4 text-xs">
-              <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
-                <p className="text-slate-500">Cajero: <strong className="text-slate-900">{turnoActivo?.usuarioNombre}</strong></p>
-                <p className="text-slate-500">Fondo Inicial: <strong className="font-mono">${turnoActivo?.montoApertura.toFixed(2)}</strong></p>
-                <p className="text-slate-500">Ventas en Efectivo: <strong className="font-mono text-emerald-600">+${turnoActivo?.totalEfectivo.toFixed(2)}</strong></p>
-                <p className="text-slate-500">Total Esperado en Caja: <strong className="font-mono text-slate-900 font-bold">${((turnoActivo?.montoApertura || 0) + (turnoActivo?.totalEfectivo || 0)).toFixed(2)} MXN</strong></p>
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-1.5">
+                <p className="text-slate-600">Cajero: <strong className="text-slate-900">{turnoActivo?.usuarioNombre || user?.nombre}</strong></p>
+                <p className="text-slate-600">Fondo Inicial: <strong className="font-mono text-slate-900">${turnoActivo?.montoApertura.toFixed(2)}</strong></p>
+                <p className="text-slate-600">Ventas en Efectivo: <strong className="font-mono text-emerald-600 font-bold">+${turnoActivo?.totalEfectivo.toFixed(2)}</strong></p>
+                <p className="text-slate-600 border-t border-slate-200 pt-1.5">
+                  Total Esperado en Caja: <strong className="font-mono text-slate-900 font-bold">${((turnoActivo?.montoApertura || 0) + (turnoActivo?.totalEfectivo || 0)).toFixed(2)} MXN</strong>
+                </p>
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Efectivo Físico Contado en Caja ($) *</label>
+                <label className="block font-bold text-slate-700 mb-1">Efectivo Físico Contado en Caja ($ MXN) *</label>
                 <input
                   type="number"
                   step="0.5"
                   required
                   value={montoCierreEfectivo}
                   onChange={(e) => setMontoCierreEfectivo(Number(e.target.value))}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 font-mono text-base font-bold text-slate-900"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 font-mono text-base font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-rose-500"
                 />
               </div>
 
@@ -828,23 +1150,23 @@ export default function PosPage() {
                 <textarea
                   value={notasCierre}
                   onChange={(e) => setNotasCierre(e.target.value)}
-                  placeholder="Ej. Caja cuadrada sin faltantes"
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs outline-none"
+                  placeholder="Ej. Caja cuadrada sin faltantes ni sobrantes"
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs outline-none focus:ring-2 focus:ring-rose-500"
                   rows={2}
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-2">
+              <div className="flex justify-end gap-2.5 pt-2 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setShowCierreModal(false)}
-                  className="px-4 py-2 font-bold text-slate-600 hover:bg-slate-100 rounded-xl"
+                  className="px-4 py-2 font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl shadow-md"
+                  className="px-5 py-2 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl shadow-md transition-all active:scale-95"
                 >
                   Cerrar Caja & Generar Corte Z
                 </button>
