@@ -550,25 +550,25 @@ export default function OrdenesCompraPage() {
     switch (estado) {
       case 'RECIBIDA_TOTAL':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-950/60 text-emerald-400 border border-emerald-800/80">
-            <CheckCircle2 className="w-3 h-3" /> Surtida Completa
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Surtida Completa
           </span>
         );
       case 'RECIBIDA_PARCIAL':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-950/60 text-amber-400 border border-amber-800/80">
-            <Clock className="w-3 h-3" /> Entrega Parcial
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+            <Clock className="w-3.5 h-3.5 text-amber-600" /> Entrega Parcial
           </span>
         );
       case 'AUTORIZADA':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-950/60 text-blue-400 border border-blue-800/80">
-            <PackageCheck className="w-3 h-3" /> Autorizada (Por Recibir)
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+            <PackageCheck className="w-3.5 h-3.5 text-blue-600" /> Autorizada (Por Recibir)
           </span>
         );
       default:
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-800 text-slate-300">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
             {estado}
           </span>
         );
@@ -578,18 +578,18 @@ export default function OrdenesCompraPage() {
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
       {/* HEADER */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-900/60 p-6 rounded-2xl border border-slate-800/80 backdrop-blur-md">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-black tracking-tight text-white flex items-center gap-3">
-              <Truck className="w-7 h-7 text-blue-400" />
+            <h1 className="text-2xl font-black tracking-tight text-slate-900 flex items-center gap-3">
+              <Truck className="w-7 h-7 text-blue-600" />
               Órdenes de Compra & Cadena de Suministro
             </h1>
-            <span className="bg-blue-950 text-blue-400 text-xs px-2.5 py-0.5 rounded-full font-bold border border-blue-800">
+            <span className="bg-blue-50 text-blue-700 text-xs px-2.5 py-0.5 rounded-full font-bold border border-blue-200">
               3-Way Matching
             </span>
           </div>
-          <p className="text-slate-400 text-sm mt-1">
+          <p className="text-slate-500 text-sm mt-1">
             Gestión de abastecimiento, autorización de compras a proveedores, control de lotes y trazabilidad física vs contable.
           </p>
         </div>
@@ -601,7 +601,7 @@ export default function OrdenesCompraPage() {
               setSuccessMsg('');
               setShowModal(true);
             }}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold px-4 py-2.5 rounded-xl shadow-lg shadow-blue-600/20 transition-all hover:-translate-y-0.5"
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2.5 rounded-xl shadow-sm transition-all hover:-translate-y-0.5"
           >
             <Plus className="w-4 h-4" />
             <span>Nueva Orden de Compra</span>
@@ -611,79 +611,79 @@ export default function OrdenesCompraPage() {
 
       {/* ALERTAS */}
       {errorMsg && (
-        <div className="p-4 rounded-xl bg-rose-950/40 border border-rose-800 text-rose-300 flex items-center gap-3 text-sm">
-          <AlertTriangle className="w-5 h-5 shrink-0" />
+        <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 flex items-center gap-3 text-sm">
+          <AlertTriangle className="w-5 h-5 shrink-0 text-rose-600" />
           <span>{errorMsg}</span>
         </div>
       )}
       {successMsg && (
-        <div className="p-4 rounded-xl bg-emerald-950/40 border border-emerald-800 text-emerald-300 flex items-center gap-3 text-sm">
-          <CheckCircle2 className="w-5 h-5 shrink-0" />
+        <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center gap-3 text-sm">
+          <CheckCircle2 className="w-5 h-5 shrink-0 text-emerald-600" />
           <span>{successMsg}</span>
         </div>
       )}
 
       {/* TARJETAS KPI (THE FINTECH LEDGER) */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-slate-900/60 p-5 rounded-2xl border border-slate-800/80 shadow-md shadow-slate-950/40 hover:shadow-xl hover:-translate-y-0.5 transition-all">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm shadow-slate-200/50 hover:shadow-md hover:-translate-y-0.5 transition-all">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Por Recibir</span>
-            <span className="p-2 rounded-xl bg-blue-950/70 text-blue-400 border border-blue-800/60">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Por Recibir</span>
+            <span className="p-2 rounded-xl bg-blue-50 text-blue-600 border border-blue-100">
               <PackageCheck className="w-4 h-4" />
             </span>
           </div>
           <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl font-black text-white font-mono">{kpiPendientes.length}</span>
-            <span className="text-xs text-slate-400">órdenes autorizadas</span>
+            <span className="text-2xl font-black text-slate-900 font-mono">{kpiPendientes.length}</span>
+            <span className="text-xs text-slate-500">órdenes autorizadas</span>
           </div>
-          <div className="mt-2 text-xs text-blue-400 font-mono font-semibold">
+          <div className="mt-2 text-xs text-blue-700 font-mono font-semibold">
             ${totalMontoPendiente.toLocaleString('es-MX', { minimumFractionDigits: 2 })} en tránsito
           </div>
         </div>
 
-        <div className="bg-slate-900/60 p-5 rounded-2xl border border-slate-800/80 shadow-md shadow-slate-950/40 hover:shadow-xl hover:-translate-y-0.5 transition-all">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm shadow-slate-200/50 hover:shadow-md hover:-translate-y-0.5 transition-all">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Entregas Parciales</span>
-            <span className="p-2 rounded-xl bg-amber-950/70 text-amber-400 border border-amber-800/60">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Entregas Parciales</span>
+            <span className="p-2 rounded-xl bg-amber-50 text-amber-600 border border-amber-100">
               <Clock className="w-4 h-4" />
             </span>
           </div>
           <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl font-black text-white font-mono">{kpiParciales.length}</span>
-            <span className="text-xs text-slate-400">con saldo pendiente</span>
+            <span className="text-2xl font-black text-slate-900 font-mono">{kpiParciales.length}</span>
+            <span className="text-xs text-slate-500">con saldo pendiente</span>
           </div>
-          <div className="mt-2 text-xs text-amber-400">
+          <div className="mt-2 text-xs text-amber-700 font-medium">
             Requieren seguimiento de remisión
           </div>
         </div>
 
-        <div className="bg-slate-900/60 p-5 rounded-2xl border border-slate-800/80 shadow-md shadow-slate-950/40 hover:shadow-xl hover:-translate-y-0.5 transition-all">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm shadow-slate-200/50 hover:shadow-md hover:-translate-y-0.5 transition-all">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Total Compras Registradas</span>
-            <span className="p-2 rounded-xl bg-emerald-950/70 text-emerald-400 border border-emerald-800/60">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Total Compras Registradas</span>
+            <span className="p-2 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100">
               <CheckCircle2 className="w-4 h-4" />
             </span>
           </div>
           <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl font-black text-white font-mono">{ordenes.length}</span>
-            <span className="text-xs text-slate-400">({kpiSurtidas.length} surtidas 100%)</span>
+            <span className="text-2xl font-black text-slate-900 font-mono">{ordenes.length}</span>
+            <span className="text-xs text-slate-500">({kpiSurtidas.length} surtidas 100%)</span>
           </div>
-          <div className="mt-2 text-xs text-emerald-400 font-mono font-semibold">
+          <div className="mt-2 text-xs text-emerald-700 font-mono font-semibold">
             ${totalMontoCompras.toLocaleString('es-MX', { minimumFractionDigits: 2 })} total histórico
           </div>
         </div>
       </div>
 
       {/* PESTAÑAS DE ESTADO Y BUSCADOR */}
-      <div className="flex flex-col md:flex-row gap-4 justify-between items-stretch md:items-center bg-slate-900/40 p-4 rounded-xl border border-slate-800">
-        <div className="flex items-center gap-1.5 p-1 bg-slate-950 rounded-xl border border-slate-800/80 overflow-x-auto">
+      <div className="flex flex-col md:flex-row gap-4 justify-between items-stretch md:items-center bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+        <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl border border-slate-200 overflow-x-auto">
           <button
             type="button"
             onClick={() => setActiveTab('TODAS')}
             className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${
               activeTab === 'TODAS'
-                ? 'bg-blue-600 text-white shadow-sm'
-                : 'text-slate-400 hover:text-white hover:bg-slate-900'
+                ? 'bg-white text-slate-900 shadow-sm'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
             }`}
           >
             Todas ({ordenes.length})
@@ -694,7 +694,7 @@ export default function OrdenesCompraPage() {
             className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${
               activeTab === 'PENDIENTES'
                 ? 'bg-blue-600 text-white shadow-sm'
-                : 'text-slate-400 hover:text-white hover:bg-slate-900'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
             }`}
           >
             Por Recibir ({kpiPendientes.length})
@@ -705,7 +705,7 @@ export default function OrdenesCompraPage() {
             className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-amber-500/50 ${
               activeTab === 'PARCIALES'
                 ? 'bg-amber-600 text-white shadow-sm'
-                : 'text-slate-400 hover:text-white hover:bg-slate-900'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
             }`}
           >
             Parciales ({kpiParciales.length})
@@ -716,7 +716,7 @@ export default function OrdenesCompraPage() {
             className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500/50 ${
               activeTab === 'SURTIDAS'
                 ? 'bg-emerald-600 text-white shadow-sm'
-                : 'text-slate-400 hover:text-white hover:bg-slate-900'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
             }`}
           >
             Surtidas ({kpiSurtidas.length})
@@ -730,16 +730,16 @@ export default function OrdenesCompraPage() {
             placeholder="Buscar por folio, proveedor o almacén..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500 font-mono"
+            className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-300 rounded-lg text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:bg-white font-mono transition-colors"
           />
         </div>
       </div>
 
       {/* TABLA PRINCIPAL DE ORDENES */}
-      <div className="bg-slate-900/60 rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
+      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-slate-300">
-            <thead className="bg-slate-950/80 text-xs font-semibold uppercase tracking-wider text-slate-400 border-b border-slate-800">
+          <table className="w-full text-left text-sm text-slate-800">
+            <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wider text-slate-600 border-b border-slate-200">
               <tr>
                 <th className="py-3.5 px-4">Folio Orden</th>
                 <th className="py-3.5 px-4">Fecha Emisión</th>
@@ -750,38 +750,38 @@ export default function OrdenesCompraPage() {
                 <th className="py-3.5 px-4 text-center">Acciones</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60">
+            <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="py-8 text-center text-slate-500">
+                  <td colSpan={7} className="py-8 text-center text-slate-400">
                     Cargando órdenes de compra...
                   </td>
                 </tr>
               ) : filteredOrdenes.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-10 text-center text-slate-500">
+                  <td colSpan={7} className="py-10 text-center text-slate-400">
                     No se encontraron órdenes de compra registradas.
                   </td>
                 </tr>
               ) : (
                 filteredOrdenes.map((oc) => (
-                  <tr key={oc.id} className="hover:bg-slate-800/40 transition-colors">
-                    <td className="py-3.5 px-4 font-mono font-bold text-white">
+                  <tr key={oc.id} className="hover:bg-slate-50/80 transition-colors">
+                    <td className="py-3.5 px-4 font-mono font-bold text-blue-700">
                       {oc.folio}
                     </td>
-                    <td className="py-3.5 px-4 text-slate-400 text-xs">
+                    <td className="py-3.5 px-4 text-slate-500 text-xs">
                       {new Date(oc.fecha).toLocaleDateString()}
                     </td>
-                    <td className="py-3.5 px-4 font-medium text-slate-200">
+                    <td className="py-3.5 px-4 font-medium text-slate-900">
                       {oc.proveedor?.razonSocial}
                     </td>
-                    <td className="py-3.5 px-4 text-slate-400">
+                    <td className="py-3.5 px-4 text-slate-600">
                       {oc.almacenDestino?.nombre}
                     </td>
                     <td className="py-3.5 px-4">
                       {getStatusBadge(oc.estado)}
                     </td>
-                    <td className="py-3.5 px-4 text-right font-mono font-bold text-emerald-400">
+                    <td className="py-3.5 px-4 text-right font-mono font-bold text-slate-900">
                       ${Number(oc.total).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
                     </td>
                     <td className="py-3.5 px-4">
@@ -790,7 +790,7 @@ export default function OrdenesCompraPage() {
                           onClick={() => handlePrintOrdenCompra(oc)}
                           title="Imprimir Orden de Compra"
                           aria-label={`Imprimir Orden de Compra ${oc.folio}`}
-                          className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                          className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-slate-800 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/50"
                         >
                           <Printer className="w-4 h-4" />
                         </button>
@@ -799,9 +799,9 @@ export default function OrdenesCompraPage() {
                           <button
                             onClick={() => handleOpenRecibir(oc)}
                             aria-label={`Recibir partidas 3-Way Matching para ${oc.folio}`}
-                            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white text-xs font-semibold transition-all border border-emerald-700/50 focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold transition-all border border-emerald-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 shadow-sm"
                           >
-                            <Truck className="w-3.5 h-3.5" />
+                            <Truck className="w-3.5 h-3.5 text-emerald-600" />
                             <span>Recibir (3-Way)</span>
                           </button>
                         )}
@@ -817,38 +817,42 @@ export default function OrdenesCompraPage() {
 
       {/* MODAL: NUEVA ORDEN DE COMPRA */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
-            <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-950/50">
-              <div>
-                <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-blue-400" />
-                  Nueva Orden de Compra (OC)
-                </h2>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  Autorización previa de abastecimiento a proveedores con costeo unitario garantizado.
-                </p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+            <div className="px-6 py-4 bg-slate-900 text-white flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-blue-600 flex items-center justify-center">
+                  <FileText className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-white">
+                    Nueva Orden de Compra (OC)
+                  </h2>
+                  <p className="text-xs text-slate-400">
+                    Autorización previa de abastecimiento a proveedores con costeo unitario garantizado.
+                  </p>
+                </div>
               </div>
               <button
                 onClick={() => setShowModal(false)}
                 aria-label="Cerrar modal de nueva orden"
-                className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-colors"
+                className="w-8 h-8 rounded-full bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center font-bold transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/50"
               >
-                <X className="w-5 h-5" />
+                ✕
               </button>
             </div>
 
-            <form onSubmit={handleSaveOC} className="flex-1 overflow-y-auto p-6 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <form onSubmit={handleSaveOC} className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50/50">
+              <div className="bg-white p-4 rounded-2xl border border-slate-200 grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
                     Proveedor *
                   </label>
                   <select
                     value={proveedorId}
                     onChange={(e) => setProveedorId(e.target.value)}
                     required
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
+                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                   >
                     {proveedores.map((p) => (
                       <option key={p.id} value={p.id}>
@@ -859,14 +863,14 @@ export default function OrdenesCompraPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
                     Almacén de Entrega *
                   </label>
                   <select
                     value={almacenDestinoId}
                     onChange={(e) => setAlmacenDestinoId(e.target.value)}
                     required
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
+                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                   >
                     {almacenes.map((a) => (
                       <option key={a.id} value={a.id}>
@@ -877,32 +881,32 @@ export default function OrdenesCompraPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
                     Fecha Prometida de Entrega
                   </label>
                   <input
                     type="date"
                     value={fechaEsperada}
                     onChange={(e) => setFechaEsperada(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
+                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                   />
                 </div>
               </div>
 
               {/* Selector de Partidas */}
-              <div className="bg-slate-950/70 p-4 rounded-xl border border-slate-800/80 space-y-3">
-                <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
-                  <Boxes className="w-4 h-4 text-blue-400" />
+              <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-3">
+                <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+                  <Boxes className="w-4 h-4 text-blue-600" />
                   Agregar Partidas a la Orden
                 </h3>
 
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end bg-slate-50 p-3 rounded-xl border border-slate-200">
                   <div className="md:col-span-6">
-                    <label className="block text-xs text-slate-400 mb-1">Producto</label>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Producto</label>
                     <select
                       value={selectedProdId}
                       onChange={(e) => handleProductSelectChange(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500"
+                      className="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-sm text-slate-900 focus:outline-none focus:border-blue-500"
                     >
                       {productos.map((prod) => (
                         <option key={prod.id} value={prod.id}>
@@ -913,25 +917,25 @@ export default function OrdenesCompraPage() {
                   </div>
 
                   <div className="md:col-span-2">
-                    <label className="block text-xs text-slate-400 mb-1">Cantidad</label>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Cantidad</label>
                     <input
                       type="number"
                       min="1"
                       value={addQty}
                       onChange={(e) => setAddQty(Number(e.target.value))}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-white text-right font-mono"
+                      className="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-sm text-slate-900 text-right font-mono focus:outline-none focus:border-blue-500"
                     />
                   </div>
 
                   <div className="md:col-span-2">
-                    <label className="block text-xs text-slate-400 mb-1">Costo Unitario ($)</label>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Costo Unitario ($)</label>
                     <input
                       type="number"
                       step="0.01"
                       min="0"
                       value={addCost}
                       onChange={(e) => setAddCost(Number(e.target.value))}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-white text-right font-mono"
+                      className="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-sm text-slate-900 text-right font-mono focus:outline-none focus:border-blue-500"
                     />
                   </div>
 
@@ -939,7 +943,7 @@ export default function OrdenesCompraPage() {
                     <button
                       type="button"
                       onClick={handleAddToCart}
-                      className="w-full bg-blue-600 hover:bg-blue-500 text-white font-medium py-1.5 rounded-lg text-sm flex items-center justify-center gap-1 transition-colors"
+                      className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-1.5 rounded-lg text-sm flex items-center justify-center gap-1 transition-colors shadow-sm"
                     >
                       <Plus className="w-4 h-4" /> Agregar
                     </button>
@@ -948,9 +952,9 @@ export default function OrdenesCompraPage() {
               </div>
 
               {/* Partidas en el Carrito */}
-              <div className="border border-slate-800 rounded-xl overflow-hidden">
-                <table className="w-full text-left text-xs text-slate-300">
-                  <thead className="bg-slate-950 text-slate-400 uppercase font-semibold">
+              <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                <table className="w-full text-left text-xs text-slate-700">
+                  <thead className="bg-slate-50 text-slate-600 uppercase font-semibold border-b border-slate-200">
                     <tr>
                       <th className="p-3">SKU</th>
                       <th className="p-3">Producto</th>
@@ -960,28 +964,28 @@ export default function OrdenesCompraPage() {
                       <th className="p-3 text-center">Quitar</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-800">
+                  <tbody className="divide-y divide-slate-100">
                     {cart.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="p-4 text-center text-slate-500">
+                        <td colSpan={6} className="p-4 text-center text-slate-400">
                           No has agregado partidas a esta orden de compra.
                         </td>
                       </tr>
                     ) : (
                       cart.map((item, idx) => (
-                        <tr key={idx} className="hover:bg-slate-800/30">
-                          <td className="p-3 font-mono font-semibold text-white">{item.sku}</td>
-                          <td className="p-3">{item.nombre}</td>
-                          <td className="p-3 text-right font-mono font-bold text-white">{item.cantidad} {item.unidadMedida}</td>
+                        <tr key={idx} className="hover:bg-slate-50/70">
+                          <td className="p-3 font-mono font-semibold text-slate-900">{item.sku}</td>
+                          <td className="p-3 font-medium text-slate-900">{item.nombre}</td>
+                          <td className="p-3 text-right font-mono font-bold text-slate-900">{item.cantidad} {item.unidadMedida}</td>
                           <td className="p-3 text-right font-mono">${item.costoUnitario.toFixed(2)}</td>
-                          <td className="p-3 text-right font-mono font-bold text-emerald-400">
+                          <td className="p-3 text-right font-mono font-bold text-slate-900">
                             ${item.subtotal.toFixed(2)}
                           </td>
                           <td className="p-3 text-center">
                             <button
                               type="button"
                               onClick={() => handleRemoveFromCart(idx)}
-                              className="text-rose-400 hover:text-rose-300 p-1"
+                              className="text-rose-500 hover:text-rose-700 p-1 rounded hover:bg-rose-50 transition-colors"
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
@@ -995,7 +999,7 @@ export default function OrdenesCompraPage() {
 
               <div className="flex flex-col md:flex-row gap-4 items-start justify-between">
                 <div className="w-full md:w-1/2">
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">
                     Instrucciones / Observaciones
                   </label>
                   <textarea
@@ -1003,36 +1007,36 @@ export default function OrdenesCompraPage() {
                     value={observaciones}
                     onChange={(e) => setObservaciones(e.target.value)}
                     placeholder="Instrucciones especiales de entrega, condiciones comerciales, etc."
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-blue-500"
+                    className="w-full bg-white border border-slate-300 rounded-xl p-3 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                   />
                 </div>
 
-                <div className="w-full md:w-1/3 bg-slate-950/80 p-4 rounded-xl border border-slate-800 flex flex-col gap-2">
-                  <div className="flex justify-between text-xs text-slate-400">
+                <div className="w-full md:w-1/3 bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-2">
+                  <div className="flex justify-between text-xs text-slate-600">
                     <span>Partidas:</span>
-                    <span className="font-mono text-white">{cart.length}</span>
+                    <span className="font-mono font-semibold text-slate-900">{cart.length}</span>
                   </div>
-                  <div className="flex justify-between text-base font-bold text-white border-t border-slate-800 pt-2">
+                  <div className="flex justify-between text-base font-bold text-slate-900 border-t border-slate-200 pt-2">
                     <span>Total Estimado:</span>
-                    <span className="font-mono text-emerald-400">
+                    <span className="font-mono text-blue-700">
                       ${totalCart.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
                     </span>
                   </div>
                 </div>
               </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-800">
+              <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-4 py-2 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 transition-colors"
+                  className="px-4 py-2 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={saving || cart.length === 0}
-                  className="px-5 py-2 rounded-xl text-sm font-semibold bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/20 disabled:opacity-50 transition-all"
+                  className="px-5 py-2 rounded-xl text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-sm disabled:opacity-50 transition-all"
                 >
                   {saving ? 'Autorizando OC...' : 'Autorizar y Generar OC'}
                 </button>
@@ -1044,12 +1048,12 @@ export default function OrdenesCompraPage() {
 
       {/* MODAL: RECEPCION 3-WAY MATCHING */}
       {showRecibirModal && selectedOC && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md">
-          <div className="bg-slate-900 border border-emerald-800/60 rounded-2xl w-full max-w-5xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden">
-            <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-950/70">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-5xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden">
+            <div className="px-6 py-4 bg-slate-900 text-white flex justify-between items-center">
               <div>
                 <div className="flex items-center gap-2">
-                  <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                  <h2 className="text-base font-bold text-white flex items-center gap-2">
                     <PackageCheck className="w-5 h-5 text-emerald-400" />
                     Recepción 3-Way Matching: {selectedOC.folio}
                   </h2>
@@ -1064,16 +1068,16 @@ export default function OrdenesCompraPage() {
               <button
                 onClick={() => setShowRecibirModal(false)}
                 aria-label="Cerrar modal de recepción 3-Way"
-                className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-colors"
+                className="w-8 h-8 rounded-full bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center font-bold transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
               >
-                <X className="w-5 h-5" />
+                ✕
               </button>
             </div>
 
-            <form onSubmit={handleSubmitRecibir} className="flex-1 overflow-y-auto p-6 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-950/60 p-4 rounded-xl border border-slate-800">
+            <form onSubmit={handleSubmitRecibir} className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50/50">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">
                     Folio Factura / Remisión del Proveedor
                   </label>
                   <input
@@ -1081,7 +1085,7 @@ export default function OrdenesCompraPage() {
                     placeholder="Ej. FAC-99482 o REM-1049"
                     value={folioFacturaProveedor}
                     onChange={(e) => setFolioFacturaProveedor(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white font-mono placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                    className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 font-mono placeholder-slate-400 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
                   />
                   <span className="text-xs text-slate-500 mt-1 block">
                     Se vinculará directamente a la Cuenta por Pagar (CxP).
@@ -1089,13 +1093,13 @@ export default function OrdenesCompraPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">
                     Términos de Pago *
                   </label>
                   <select
                     value={tipoPago}
                     onChange={(e) => setTipoPago(e.target.value as any)}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
+                    className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
                   >
                     <option value="CREDITO">Crédito (Afecta CxP y Días de Gracia)</option>
                     <option value="CONTADO">Contado / Liquidado Inmediato</option>
@@ -1103,29 +1107,29 @@ export default function OrdenesCompraPage() {
                 </div>
               </div>
 
-              <div className="border border-slate-800 rounded-xl overflow-hidden">
-                <table className="w-full text-left text-xs text-slate-300">
-                  <thead className="bg-slate-950 text-slate-400 uppercase font-semibold">
+              <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                <table className="w-full text-left text-xs text-slate-700">
+                  <thead className="bg-slate-50 text-slate-600 uppercase font-semibold border-b border-slate-200">
                     <tr>
                       <th className="p-3">SKU & Producto</th>
                       <th className="p-3 text-center">Pedidas</th>
                       <th className="p-3 text-center">Recibidas Previas</th>
                       <th className="p-3 text-center">Pendientes</th>
-                      <th className="p-3 text-center text-emerald-400">Recibiendo Ahora *</th>
+                      <th className="p-3 text-center text-emerald-700">Recibiendo Ahora *</th>
                       <th className="p-3">No. Lote (Opcional)</th>
                       <th className="p-3">Caducidad</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-800">
+                  <tbody className="divide-y divide-slate-100">
                     {itemsRecibir.map((item, idx) => (
-                      <tr key={idx} className="hover:bg-slate-800/30">
+                      <tr key={idx} className="hover:bg-slate-50/70">
                         <td className="p-3">
-                          <span className="font-mono font-bold text-white block">{item.sku}</span>
-                          <span className="text-slate-400 text-xs">{item.nombre}</span>
+                          <span className="font-mono font-bold text-slate-900 block">{item.sku}</span>
+                          <span className="text-slate-500 text-xs">{item.nombre}</span>
                         </td>
-                        <td className="p-3 text-center font-mono font-medium">{item.cantidadSolicitada}</td>
-                        <td className="p-3 text-center font-mono text-slate-400">{item.cantidadRecibidaPrevia}</td>
-                        <td className="p-3 text-center font-mono font-bold text-amber-400">{item.cantidadPendiente}</td>
+                        <td className="p-3 text-center font-mono font-semibold text-slate-800">{item.cantidadSolicitada}</td>
+                        <td className="p-3 text-center font-mono text-slate-500">{item.cantidadRecibidaPrevia}</td>
+                        <td className="p-3 text-center font-mono font-bold text-amber-700">{item.cantidadPendiente}</td>
                         <td className="p-3 text-center">
                           <input
                             type="number"
@@ -1133,7 +1137,7 @@ export default function OrdenesCompraPage() {
                             max={item.cantidadPendiente}
                             value={item.cantidadARecibir}
                             onChange={(e) => handleUpdateItemRecibir(idx, 'cantidadARecibir', Number(e.target.value))}
-                            className="w-24 bg-slate-950 border border-emerald-700/80 rounded-lg px-2 py-1 text-sm text-center font-mono font-bold text-emerald-300 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                            className="w-24 bg-white border border-emerald-500 rounded-lg px-2 py-1 text-sm text-center font-mono font-bold text-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 shadow-sm"
                           />
                         </td>
                         <td className="p-3">
@@ -1142,7 +1146,7 @@ export default function OrdenesCompraPage() {
                             placeholder="Ej. LOT-2026-X"
                             value={item.numeroLote}
                             onChange={(e) => handleUpdateItemRecibir(idx, 'numeroLote', e.target.value)}
-                            className="w-32 bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-xs font-mono text-white placeholder-slate-500"
+                            className="w-32 bg-white border border-slate-300 rounded-lg px-2 py-1 text-xs font-mono text-slate-900 placeholder-slate-400 focus:outline-none focus:border-slate-500"
                           />
                         </td>
                         <td className="p-3">
@@ -1150,7 +1154,7 @@ export default function OrdenesCompraPage() {
                             type="date"
                             value={item.fechaCaducidad}
                             onChange={(e) => handleUpdateItemRecibir(idx, 'fechaCaducidad', e.target.value)}
-                            className="bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-xs text-white"
+                            className="bg-white border border-slate-300 rounded-lg px-2 py-1 text-xs text-slate-900 focus:outline-none focus:border-slate-500"
                           />
                         </td>
                       </tr>
@@ -1159,18 +1163,18 @@ export default function OrdenesCompraPage() {
                 </table>
               </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-800">
+              <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
                 <button
                   type="button"
                   onClick={() => setShowRecibirModal(false)}
-                  className="px-4 py-2 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 transition-colors"
+                  className="px-4 py-2 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="px-5 py-2 rounded-xl text-sm font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/20 disabled:opacity-50 transition-all flex items-center gap-2"
+                  className="px-5 py-2 rounded-xl text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm disabled:opacity-50 transition-all flex items-center gap-2"
                 >
                   <PackageCheck className="w-4 h-4" />
                   {saving ? 'Procesando 3-Way Matching...' : 'Confirmar Recepción y Afectar Kárdex'}
@@ -1183,22 +1187,22 @@ export default function OrdenesCompraPage() {
 
       {/* MODAL / VISTA DE IMPRESION */}
       {showPrintModal && printOC && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-sm">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-3xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden">
-            <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-950">
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-3xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden">
+            <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-900 text-white">
+              <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">
                 Documento de Orden de Abastecimiento
               </span>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => window.print()}
-                  className="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-medium flex items-center gap-1.5"
+                  className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium flex items-center gap-1.5 shadow-sm"
                 >
                   <Printer className="w-3.5 h-3.5" /> Imprimir
                 </button>
                 <button
                   onClick={() => setShowPrintModal(false)}
-                  className="text-slate-400 hover:text-white px-2 py-1 text-sm rounded hover:bg-slate-800"
+                  className="text-slate-300 hover:text-white px-2 py-1 text-sm rounded hover:bg-slate-800"
                 >
                   ✕
                 </button>
