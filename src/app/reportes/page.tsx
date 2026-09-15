@@ -71,35 +71,55 @@ Valuacion Total de Inventario,${data.valuacionTotal},Costo Promedio Ponderado CF
     window.print();
   };
 
+  if (loading) {
+    return (
+      <div className="space-y-6 animate-pulse">
+        <div className="h-28 bg-slate-200 rounded-2xl"></div>
+        <div className="h-14 bg-slate-200 rounded-xl"></div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="h-28 bg-slate-200 rounded-2xl"></div>
+          <div className="h-28 bg-slate-200 rounded-2xl"></div>
+          <div className="h-28 bg-slate-200 rounded-2xl"></div>
+          <div className="h-28 bg-slate-200 rounded-2xl"></div>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="h-72 bg-slate-200 rounded-2xl"></div>
+          <div className="h-72 bg-slate-200 rounded-2xl"></div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* Header Soberano Ejecutivo */}
+      <div className="bg-slate-900 border border-slate-800 text-white p-6 rounded-2xl shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <span className="bg-blue-100 text-blue-800 text-xs px-2.5 py-0.5 rounded-full font-bold">
-              Balanza de Operación & CFF Art. 28
+            <span className="bg-blue-500/20 text-blue-300 border border-blue-400/30 text-xs px-2.5 py-0.5 rounded-full font-semibold flex items-center gap-1.5">
+              <BarChart3 className="w-3.5 h-3.5 text-blue-400" /> Balanza de Operación & CFF Art. 28
             </span>
           </div>
-          <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2 mt-1">
-            <BarChart3 className="w-6 h-6 text-blue-600" />
+          <h1 className="text-2xl font-bold tracking-tight text-white mt-2 flex items-center gap-2">
             Reportes Ejecutivos & Cierre de Balanza
-          </h2>
-          <p className="text-sm text-slate-500 mt-1">
+          </h1>
+          <p className="text-slate-400 text-sm mt-1">
             Monitoreo consolidado de ventas, compras, cobranza, pasivos circulantes y valuación de existencias.
           </p>
         </div>
 
-        <div className="flex items-center gap-2 self-start sm:self-auto">
+        <div className="flex items-center gap-2.5 self-start sm:self-auto flex-wrap">
           <button
+            type="button"
             onClick={handleExportCSV}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow-sm transition-all flex items-center gap-1.5"
+            className="bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs px-3.5 py-2.5 rounded-xl shadow-sm transition-all flex items-center gap-1.5"
           >
             <FileSpreadsheet className="w-4 h-4" /> Exportar Balanza (CSV)
           </button>
           <button
+            type="button"
             onClick={handlePrint}
-            className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow-sm transition-all flex items-center gap-1.5"
+            className="bg-slate-800 hover:bg-slate-700 active:scale-95 border border-slate-700 text-white font-bold text-xs px-3.5 py-2.5 rounded-xl shadow-sm transition-all flex items-center gap-1.5"
           >
             <Printer className="w-4 h-4" /> Imprimir Estado
           </button>
@@ -138,65 +158,65 @@ Valuacion Total de Inventario,${data.valuacionTotal},Costo Promedio Ponderado CF
         </select>
       </div>
 
-      {/* Bloque 1: Resumen de Flujo Comercial */}
+      {/* Bloque 1: Resumen de Flujo Comercial (Card Float Principle) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-md shadow-slate-900/5 hover:shadow-xl hover:-translate-y-0.5 transition-all">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase text-slate-500">Ventas Registradas</span>
-            <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Ventas Registradas</span>
+            <div className="p-2 bg-blue-50 text-blue-600 rounded-xl">
               <ShoppingCart className="w-4 h-4" />
             </div>
           </div>
-          <p className="text-2xl font-bold text-slate-900 mt-2">
+          <p className="text-2xl font-bold font-mono text-slate-900 mt-2">
             ${(data?.totalVendido || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
           </p>
-          <p className="text-xs text-slate-500 mt-1">{data?.ventasCount || 0} operaciones comerciales</p>
+          <p className="text-xs text-slate-400 mt-1">{data?.ventasCount || 0} operaciones comerciales</p>
         </div>
 
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-md shadow-slate-900/5 hover:shadow-xl hover:-translate-y-0.5 transition-all">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase text-slate-500">Cobranza Recaudada</span>
-            <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Cobranza Recaudada</span>
+            <div className="p-2 bg-emerald-50 text-emerald-600 rounded-xl">
               <CreditCard className="w-4 h-4" />
             </div>
           </div>
-          <p className="text-2xl font-bold text-emerald-600 mt-2">
+          <p className="text-2xl font-bold font-mono text-emerald-700 mt-2">
             ${(data?.cobranzaMes || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
           </p>
-          <p className="text-xs text-emerald-700 font-semibold mt-1">Abonos recibidos de clientes</p>
+          <p className="text-xs text-emerald-700 font-medium mt-1">Abonos recibidos de clientes</p>
         </div>
 
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-md shadow-slate-900/5 hover:shadow-xl hover:-translate-y-0.5 transition-all">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase text-slate-500">Compras Recibidas</span>
-            <div className="p-2 bg-purple-50 text-purple-600 rounded-lg">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Compras Recibidas</span>
+            <div className="p-2 bg-purple-50 text-purple-600 rounded-xl">
               <Truck className="w-4 h-4" />
             </div>
           </div>
-          <p className="text-2xl font-bold text-slate-900 mt-2">
+          <p className="text-2xl font-bold font-mono text-slate-900 mt-2">
             ${(data?.totalComprado || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
           </p>
-          <p className="text-xs text-slate-500 mt-1">{data?.comprasCount || 0} órdenes de proveedores</p>
+          <p className="text-xs text-slate-400 mt-1">{data?.comprasCount || 0} órdenes de proveedores</p>
         </div>
 
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-md shadow-slate-900/5 hover:shadow-xl hover:-translate-y-0.5 transition-all">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase text-slate-500">Pagos a Proveedores</span>
-            <div className="p-2 bg-amber-50 text-amber-600 rounded-lg">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Pagos a Proveedores</span>
+            <div className="p-2 bg-amber-50 text-amber-600 rounded-xl">
               <Receipt className="w-4 h-4" />
             </div>
           </div>
-          <p className="text-2xl font-bold text-amber-600 mt-2">
+          <p className="text-2xl font-bold font-mono text-amber-700 mt-2">
             ${(data?.pagosProveedoresMes || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
           </p>
-          <p className="text-xs text-amber-700 font-semibold mt-1">Egresos liquidados en bancos</p>
+          <p className="text-xs text-amber-700 font-medium mt-1">Egresos liquidados en bancos</p>
         </div>
       </div>
 
       {/* Bloque 2: Balance de Activos y Pasivos */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Antigüedad de Saldos CxC */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-4">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-md shadow-slate-900/5 p-6 space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="font-bold text-slate-900 text-base">Cartera de Clientes & Antigüedad de Saldos</h3>
@@ -253,7 +273,7 @@ Valuacion Total de Inventario,${data.valuacionTotal},Costo Promedio Ponderado CF
         </div>
 
         {/* Valuación Fiscal de Inventarios (CFF Art. 28) */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-4 flex flex-col justify-between">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-md shadow-slate-900/5 p-6 space-y-4 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-3">
               <div>
