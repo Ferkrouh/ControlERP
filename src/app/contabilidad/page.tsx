@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import AppShell from '@/components/layout/AppShell';
 import { useAuth } from '@/lib/auth-context';
 import { 
   BookOpen, 
@@ -162,8 +161,7 @@ export default function ContabilidadPage() {
   };
 
   return (
-    <AppShell>
-      <div className="space-y-6 pb-12">
+    <div className="p-6 space-y-6 max-w-7xl mx-auto">
         {/* Encabezado Principal */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white border border-slate-200 p-6 rounded-2xl shadow-sm">
           <div>
@@ -682,6 +680,5 @@ export default function ContabilidadPage() {
           </div>
         )}
       </div>
-    </AppShell>
-  );
-}
+    );
+  }
