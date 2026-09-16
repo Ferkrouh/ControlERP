@@ -98,17 +98,19 @@ model Tenant {
 }
 
 model Usuario {
-  id                String      @id @default(uuid())
-  tenantId          String?     // NULL únicamente para el SUPERADMIN de plataforma
-  nombre            String
-  email             String      @unique
-  passwordHash      String
-  rol               String      @default("ENCARGADO") // SUPERADMIN, ADMIN, ENCARGADO, ALMACENISTA, AUDITOR
-  activo            Boolean     @default(true)
-  almacenAsignadoId String?
-  createdAt         DateTime    @default(now())
+  id                    String      @id @default(uuid())
+  tenantId              String?     // NULL únicamente para el SUPERADMIN de plataforma
+  nombre                String
+  email                 String      @unique
+  passwordHash          String
+  rol                   String      @default("ENCARGADO") // SUPERADMIN, ADMIN, ENCARGADO, ALMACENISTA, AUDITOR
+  activo                Boolean     @default(true)
+  almacenAsignadoId     String?
+  comisionPct           Float       @default(3.0)   // % comisión sobre ventas para reportes de cumplimiento
+  metaVentasMensual     Float       @default(0)     // Meta de ventas mensual en MXN configurada por ADMIN
+  createdAt             DateTime    @default(now())
 
-  tenant            Tenant?     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant                Tenant?     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, rol])
 }

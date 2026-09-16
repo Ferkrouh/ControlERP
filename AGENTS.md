@@ -39,4 +39,7 @@
 7. **CRM Comercial & Pipeline (Fase 7):** Tablero visual Kanban con 6 etapas de ventas (`/crm`), pronóstico ponderado de ventas (Sales Forecasting) y registro de oportunidades (`OportunidadCRM`).
 8. **Contabilidad Electrónica & Pólizas Automáticas (Fase 8 - SAT Anexo 24):** Catálogo de cuentas estructurado con códigos agrupadores del SAT (`/contabilidad`), motor transaccional de pólizas automáticas de partida doble (Ventas, Compras, CxC, CxP, Nómina), balanza de comprobación y exportación de XMLs oficiales para el SAT (`CuentaContable`, `PolizaContable`, `PartidaPoliza`).
 9. **Recursos Humanos & Nómina Digital (Fase 9 - CFDI 1.2):** Expediente digital del colaborador (`/nomina`), cálculo fiscal de ISR Art. 96 y cuotas obrero-patronales IMSS, prenómina quincenal, timbrado digital de recibos con QR oficial, archivo layout de dispersión bancaria y póliza contable automática (`Empleado`, `PeriodoNomina`, `ReciboNomina`, `IncidenciaNomina`).
+10. **Suite de Reportes Avanzados & Analítica Financiera (Fase 10):** Centro de inteligencia financiera y comercial (`/reportes`) estructurado en 4 pestañas ejecutivas: Balanza CxC, Antigüedad de Saldos por Rangos, Ingresos y Recaudación Real, Conciliación Cotización/Venta vs Facturas, Pronóstico Ponderado CRM (Forecasting), Lifetime Value (LTV), Ventas por Producto y Márgenes, Comisiones de Vendedores con Liquidación e Impresión de Ticket Térmico, Cumplimiento de Cuotas Mensuales y Control de Notas de Crédito / Descuentos. Navegación directa simplificada en el Sidebar.
+
+
 

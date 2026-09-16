@@ -47,6 +47,7 @@ interface MenuItem {
 interface MenuGroup {
   id: string;
   title: string;
+  href?: string;
   icon: React.ComponentType<{ className?: string }>;
   color: string;
   items: MenuItem[];
@@ -235,22 +236,6 @@ export default function Sidebar() {
           icon: UserCheck,
           color: 'text-pink-400',
           requiresModule: 'moduloNomina'
-        }
-      ]
-    },
-    {
-      id: 'reportes',
-      title: 'Reportes',
-      icon: BarChart3,
-      color: 'text-rose-400',
-      allowedRoles: ['ADMIN', 'AUDITOR'],
-      requiresModule: 'moduloReportes',
-      items: [
-        {
-          title: 'Reportes',
-          href: '/reportes',
-          icon: BarChart3,
-          color: 'text-rose-400'
         },
         {
           title: 'Bitácora de Auditoría',
@@ -260,6 +245,16 @@ export default function Sidebar() {
           allowedRoles: ['AUDITOR']
         }
       ]
+    },
+    {
+      id: 'reportes',
+      title: 'Reportes',
+      href: '/reportes',
+      icon: BarChart3,
+      color: 'text-rose-400',
+      allowedRoles: ['ADMIN', 'AUDITOR'],
+      requiresModule: 'moduloReportes',
+      items: []
     },
     {
       id: 'configuracion',
@@ -287,7 +282,7 @@ export default function Sidebar() {
   // Mantener abierto automáticamente el grupo que contenga la ruta activa
   useEffect(() => {
     menuGroups.forEach(group => {
-      const hasActive = group.items.some(item => pathname === item.href);
+      const hasActive = group.items.some(item => pathname === item.href) || group.href === pathname;
       if (hasActive) {
         setOpenGroups(prev => ({ ...prev, [group.id]: true }));
       }
@@ -331,12 +326,19 @@ export default function Sidebar() {
           return true;
         });
 
+        if (group.href && searchTerm.trim()) {
+          const query = searchTerm.toLowerCase();
+          if (!group.title.toLowerCase().includes(query)) {
+            return null;
+          }
+        }
+
         return {
           ...group,
           items: filteredItems
         };
       })
-      .filter(group => group.items.length > 0);
+      .filter((group): group is MenuGroup => group !== null && (!!group.href || group.items.length > 0));
   }, [menuGroups, isSuperadmin, rol, tenant, searchTerm]);
 
   const toggleGroup = (groupId: string) => {
@@ -459,11 +461,58 @@ export default function Sidebar() {
                 </div>
               ) : (
                 visibleGroups.map(group => {
+                  const isDirectLink = !!group.href && group.items.length === 0;
                   const isOpen = searchTerm.trim() ? true : (openGroups[group.id] ?? true);
-                  const hasActiveChild = group.items.some(it => isActive(it.href));
+                  const hasActiveChild = isDirectLink 
+                    ? isActive(group.href!) 
+                    : group.items.some(it => isActive(it.href));
                   const GroupIcon = group.icon;
                   // Si tiene items, la primera opción es el enlace directo si se pulsa en colapsado
-                  const firstHref = group.items[0]?.href || '#';
+                  const firstHref = group.href || group.items[0]?.href || '#';
+
+                  if (isDirectLink) {
+                    const active = isActive(group.href!);
+                    return (
+                      <div key={group.id} className="rounded-xl transition-all duration-200">
+                        {!collapsed ? (
+                          <Link
+                            href={group.href!}
+                            className={`w-full flex items-center justify-between px-3 py-2 text-xs font-bold tracking-wide rounded-lg transition-colors group ${
+                              active 
+                                ? 'bg-blue-600 text-white shadow-md shadow-blue-900/20' 
+                                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/40'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5 truncate">
+                              <span className={`p-1 rounded-md bg-slate-900 border border-slate-800/80 ${group.color}`}>
+                                <GroupIcon className="w-3.5 h-3.5" />
+                              </span>
+                              <span className="truncate">{group.title}</span>
+                            </div>
+                            {rol === 'AUDITOR' && (
+                              <Eye className={`w-3.5 h-3.5 ${active ? 'text-white/90' : 'text-slate-500 group-hover:text-slate-300'}`} />
+                            )}
+                          </Link>
+                        ) : (
+                          <div className="flex justify-center my-1.5">
+                            <Link
+                              href={group.href!}
+                              title={group.title}
+                              className={`flex items-center justify-center w-10 h-10 rounded-xl transition-all duration-200 group relative ${
+                                active
+                                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40 ring-2 ring-blue-400/50'
+                                  : 'bg-slate-900/90 text-slate-400 hover:text-white hover:bg-slate-850 border border-slate-800 hover:border-slate-700'
+                              }`}
+                            >
+                              <GroupIcon className={`w-5 h-5 transition-transform group-hover:scale-110 ${
+                                active ? 'text-white' : group.color
+                              }`} />
+                            </Link>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }
 
                   return (
                     <div key={group.id} className="rounded-xl transition-all duration-200">
