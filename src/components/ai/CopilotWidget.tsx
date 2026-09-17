@@ -23,7 +23,14 @@ import {
   AlertTriangle,
   Loader2,
   Copy,
-  Check
+  Check,
+  HelpCircle,
+  TrendingUp,
+  PackageCheck,
+  ChevronRight,
+  ExternalLink,
+  MessageSquare,
+  ThumbsUp
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -31,7 +38,10 @@ interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
   content: string;
+  timestamp?: string;
 }
+
+type PromptCategory = 'recomendados' | 'stock' | 'credito' | 'pos' | 'balanza' | 'cotizacion';
 
 export default function CopilotWidget() {
   const { user } = useAuth();
@@ -40,13 +50,20 @@ export default function CopilotWidget() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [activeCategory, setActiveCategory] = useState<PromptCategory>('recomendados');
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  const formatTime = () => {
+    const d = new Date();
+    return d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+  };
 
   const initialGreeting: ChatMessage = {
     id: 'welcome',
     role: 'assistant',
-    content: `👋 ¡Hola **${user?.nombre || 'Usuario'}**! Soy **ControlBot**.\n\nPuedo consultar en tiempo real:\n• 📦 **Stock y Kárdex multialmacén** (identificar faltantes y existencias).\n• 💳 **Límites de crédito y mora de clientes** (validación de cartera CxC).\n• 💵 **Cortes Z y arqueos de caja POS** (sobrantes y faltantes).\n• 📊 **Balanza financiera ejecutiva** (CxC vs CxP).\n• 📝 **Borradores de cotización automáticos**.\n\n¿Qué deseas consultar o gestionar?`,
+    content: `¡Hola **${user?.nombre || 'amigo(a)'}**! ✨ Soy **ControlBot**, tu asistente inteligente y copiloto financiero de **ControlERP**.\n\nEstoy aquí para hacerte el día más fácil, rápido y sin complicaciones. ¿Qué deseas consultar hoy?\n\n- 📦 **Stock y Kárdex:** Existencias en almacenes o sucursales.\n- 💳 **Crédito y Cartera:** Saldo, límite y facturas vencidas de clientes.\n- 💵 **Cortes de Caja POS:** Arqueos de turnos Z, ventas y diferencias.\n- 📊 **Balanza Financiera:** Resumen ejecutivo de CxC vs CxP.\n- 📝 **Cotizaciones:** Creación rápida de presupuestos en borrador.\n\n💡 *¡Elige una sugerencia abajo o escribe tu pregunta con total libertad!*`,
+    timestamp: formatTime(),
   };
 
   const [messages, setMessages] = useState<ChatMessage[]>([initialGreeting]);
@@ -73,7 +90,7 @@ export default function CopilotWidget() {
     }
   }, [isOpen]);
 
-  // Scroll automático hacia el final de los mensajes
+  // Scroll automático suave hacia el final
   useEffect(() => {
     if (isOpen) {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -84,32 +101,61 @@ export default function CopilotWidget() {
     return null;
   }
 
-  // Chips de sugerencia rápida según el rol del usuario
-  const getPromptChips = () => {
-    switch (user.rol) {
-      case 'ADMIN':
-        return [
-          { label: '📊 Resumen de Balanza', prompt: 'Dame un resumen de la balanza comercial y financiera de este mes' },
-          { label: '⚠️ Clientes en Mora', prompt: '¿Cuáles clientes tienen facturas vencidas o saldo saturado?' },
-          { label: '💵 Cortes de Caja POS', prompt: 'Revisa los cortes de caja recientes y si hubo diferencias en arqueos' },
-        ];
-      case 'ENCARGADO':
-        return [
-          { label: '📦 Stock de Compresor', prompt: '¿Tenemos existencias del Compresor de 50L en alguna sucursal?' },
-          { label: '🔍 Consultar Cliente', prompt: '¿Cuál es el saldo y límite de crédito de Comercializadora San Pedro?' },
-          { label: '📝 Crear Cotización', prompt: 'Ayúdame a cotizar 5 taladros HER-001 para el cliente CLI-001' },
-        ];
-      case 'ALMACENISTA':
-        return [
-          { label: '🚨 Stock Bajo Mínimo', prompt: '¿Qué productos están por debajo del stock mínimo y requieren surtido?' },
-          { label: '🚚 Traspasos en Tránsito', prompt: '¿Qué órdenes de traspaso están despachadas y en tránsito?' },
-        ];
-      default:
-        return [
-          { label: '📊 Balanza Mensual', prompt: '¿Cómo van las ventas y cuentas por cobrar del mes?' },
-          { label: '📦 Existencias', prompt: 'Consulta el stock de los productos principales en almacén' },
-        ];
-    }
+  // Categorías de chips interactivos
+  const categoryChips: Record<PromptCategory, { icon: any; title: string; prompts: { label: string; text: string }[] }> = {
+    recomendados: {
+      icon: Zap,
+      title: 'Recomendados',
+      prompts: [
+        { label: '📊 Resumen del Mes', text: 'Dame un resumen ejecutivo de ventas y balance financiero del mes' },
+        { label: '⚠️ Clientes en Mora', text: '¿Cuáles clientes tienen facturas vencidas o saldo saturado?' },
+        { label: '📦 Existencias Generales', text: '¿Qué productos tienen bajo stock en almacén?' },
+        { label: '💵 Cortes de Caja POS', text: 'Revisa los cortes de caja recientes y si hubo faltantes en arqueos' },
+      ],
+    },
+    stock: {
+      icon: Boxes,
+      title: 'Inventario & Stock',
+      prompts: [
+        { label: '📦 Stock de Taladro', text: '¿Cuánto stock tenemos del Taladro HER-001 y en qué sucursales?' },
+        { label: '🚨 Alerta Bajo Mínimo', text: '¿Qué productos están por debajo de su stock mínimo de seguridad?' },
+        { label: '🚚 Traspasos en Tránsito', text: '¿Qué órdenes de traspaso entre almacenes están en tránsito?' },
+      ],
+    },
+    credito: {
+      icon: CreditCard,
+      title: 'Crédito & Clientes',
+      prompts: [
+        { label: '🔍 Consultar Cliente', text: '¿Cuál es el saldo, crédito disponible y estado de Comercializadora San Pedro?' },
+        { label: '🛑 Clientes Bloqueados', text: 'Muéstrame los clientes con venta bloqueada por mora o límite rebasado' },
+        { label: '⏳ Facturas Vencidas', text: '¿Cuál es el total de cartera vencida en cuentas por cobrar?' },
+      ],
+    },
+    pos: {
+      icon: Receipt,
+      title: 'Punto de Venta POS',
+      prompts: [
+        { label: '💵 Últimos Cortes Z', text: 'Consulta el último corte de caja POS y el total cobrado por método de pago' },
+        { label: '⚖️ Diferencias de Arqueo', text: '¿Ha habido sobrantes o faltantes en los cortes de caja del día?' },
+        { label: '📋 ¿Qué es un corte Z?', text: '¿Qué es un corte Z en el punto de venta y por qué es importante?' },
+      ],
+    },
+    balanza: {
+      icon: TrendingUp,
+      title: 'Balanza & Finanzas',
+      prompts: [
+        { label: '📈 Salud Financiera', text: '¿Cómo está la posición neta de liquidez (Cuentas por Cobrar vs Cuentas por Pagar)?' },
+        { label: '🏆 Top Clientes Deudores', text: 'Dame el ranking de los 5 clientes con mayor saldo pendiente' },
+      ],
+    },
+    cotizacion: {
+      icon: FileText,
+      title: 'Cotizaciones',
+      prompts: [
+        { label: '📝 Cotizar 5 Taladros', text: 'Ayúdame a generar una cotización borrador de 5 taladros HER-001 para el cliente CLI-001' },
+        { label: '📋 Ver Mis Cotizaciones', text: '¿Dónde puedo ver y autorizar las cotizaciones generadas?' },
+      ],
+    },
   };
 
   const handleSendMessage = async (textToSend?: string) => {
@@ -120,6 +166,7 @@ export default function CopilotWidget() {
       id: `user-${Date.now()}`,
       role: 'user',
       content: promptText,
+      timestamp: formatTime(),
     };
 
     const updatedMessages = [...messages, userMessage];
@@ -132,6 +179,7 @@ export default function CopilotWidget() {
       id: assistantMsgId,
       role: 'assistant',
       content: '',
+      timestamp: formatTime(),
     };
 
     setMessages((prev) => [...prev, initialAssistantMessage]);
@@ -181,7 +229,7 @@ export default function CopilotWidget() {
           msg.id === assistantMsgId
             ? {
                 ...msg,
-                content: `❌ **Error al consultar a ControlBot**: ${err.message || 'No se pudo conectar con el servicio de IA.'}\n\nPor favor verifica tu conexión o intenta nuevamente.`,
+                content: `❌ **¡Ups! Hubo un problema al consultar la información**:\n\n${err.message || 'No pude conectar con el servidor de IA.'}\n\nPor favor intenta nuevamente o pregúntame de otra forma. ¡Estoy para ayudarte! 😊`,
               }
             : msg
         )
@@ -191,47 +239,214 @@ export default function CopilotWidget() {
     }
   };
 
-  const handleChipClick = (promptText: string) => {
-    handleSendMessage(promptText);
-  };
-
-  const handleFormSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    handleSendMessage();
-  };
-
   const handleCopy = (id: string, text: string) => {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
   };
 
+  // Renderizado Inteligente de Markdown con Tablas, Listas y Bloques
+  const renderFormattedContent = (content: string) => {
+    const lines = content.split('\n');
+    const elements: React.ReactNode[] = [];
+    let inTable = false;
+    let tableRows: string[][] = [];
+    let tableHeader: string[] = [];
+
+    const flushTable = (key: number) => {
+      if (tableHeader.length > 0 || tableRows.length > 0) {
+        elements.push(
+          <div key={`table-${key}`} className="my-3 overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-xs">
+            <table className="w-full text-left text-[11px] border-collapse">
+              {tableHeader.length > 0 && (
+                <thead>
+                  <tr className="bg-slate-900 text-white font-semibold">
+                    {tableHeader.map((th, hIdx) => (
+                      <th key={hIdx} className="p-2.5 border-b border-slate-700 font-mono text-[10px] tracking-wider uppercase">
+                        {th.trim()}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+              )}
+              <tbody className="divide-y divide-slate-100 font-mono">
+                {tableRows.map((row, rIdx) => (
+                  <tr key={rIdx} className={rIdx % 2 === 0 ? 'bg-white hover:bg-slate-50' : 'bg-slate-50/50 hover:bg-slate-100/50'}>
+                    {row.map((cell, cIdx) => {
+                      const isMoney = cell.includes('$') || cell.includes('MXN');
+                      return (
+                        <td key={cIdx} className={`p-2 text-slate-800 ${isMoney ? 'font-bold text-emerald-700' : ''}`}>
+                          {cell.trim()}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+        tableHeader = [];
+        tableRows = [];
+        inTable = false;
+      }
+    };
+
+    lines.forEach((line, idx) => {
+      const trimmed = line.trim();
+
+      // Detección de tablas Markdown (| celda | celda |)
+      if (trimmed.startsWith('|') && trimmed.endsWith('|')) {
+        const cells = trimmed.split('|').filter((_, i, arr) => i > 0 && i < arr.length - 1);
+        if (cells.every((c) => c.trim().match(/^:?-+:?$/))) {
+          // Línea divisoria de tabla Markdown
+          inTable = true;
+          return;
+        }
+
+        if (!inTable && tableHeader.length === 0) {
+          tableHeader = cells;
+          inTable = true;
+        } else {
+          tableRows.push(cells);
+        }
+        return;
+      } else if (inTable) {
+        flushTable(idx);
+      }
+
+      // Encabezados
+      if (trimmed.startsWith('### ')) {
+        elements.push(
+          <h4 key={idx} className="font-bold text-sm text-slate-950 pt-2 pb-1 flex items-center gap-1.5 border-b border-slate-100">
+            <span className="w-1.5 h-3.5 bg-blue-600 rounded-full inline-block"></span>
+            {trimmed.replace('### ', '')}
+          </h4>
+        );
+        return;
+      }
+      if (trimmed.startsWith('## ')) {
+        elements.push(
+          <h3 key={idx} className="font-extrabold text-sm text-blue-950 pt-2 pb-0.5">
+            {trimmed.replace('## ', '')}
+          </h3>
+        );
+        return;
+      }
+
+      // Viñetas con estilo
+      if (trimmed.startsWith('- ') || trimmed.startsWith('• ') || trimmed.startsWith('* ')) {
+        const itemText = trimmed.replace(/^[-•*]\s+/, '');
+        elements.push(
+          <div key={idx} className="flex items-start gap-2 text-slate-700 py-0.5 pl-1">
+            <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0" />
+            <span className="leading-relaxed">{parseInlineStyles(itemText)}</span>
+          </div>
+        );
+        return;
+      }
+
+      // Citas o Tips
+      if (trimmed.startsWith('> ')) {
+        elements.push(
+          <div key={idx} className="my-2 p-2.5 bg-blue-50 border-l-3 border-blue-600 rounded-r-xl text-blue-950 text-[11px] font-medium italic">
+            {trimmed.replace('> ', '')}
+          </div>
+        );
+        return;
+      }
+
+      // Línea divisoria
+      if (trimmed === '---') {
+        elements.push(<hr key={idx} className="my-2 border-slate-200" />);
+        return;
+      }
+
+      // Párrafos regulares
+      if (trimmed.length > 0) {
+        elements.push(
+          <p key={idx} className="text-slate-800 leading-relaxed">
+            {parseInlineStyles(trimmed)}
+          </p>
+        );
+      } else {
+        elements.push(<div key={idx} className="h-1" />);
+      }
+    });
+
+    if (inTable) {
+      flushTable(lines.length);
+    }
+
+    return elements;
+  };
+
+  // Formato en línea (negritas, código, moneda)
+  const parseInlineStyles = (text: string) => {
+    const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`|\$[0-9,]+(?:\.[0-9]{2})?(?:\s*MXN)?)/g);
+    return parts.map((part, i) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return (
+          <strong key={i} className="font-bold text-slate-900">
+            {part.slice(2, -2)}
+          </strong>
+        );
+      }
+      if (part.startsWith('`') && part.endsWith('`')) {
+        return (
+          <code key={i} className="px-1.5 py-0.5 bg-slate-100 text-blue-700 font-mono text-[11px] rounded-md border border-slate-200">
+            {part.slice(1, -1)}
+          </code>
+        );
+      }
+      if (part.startsWith('$')) {
+        return (
+          <span key={i} className="font-mono font-bold text-emerald-700 bg-emerald-50 px-1 rounded">
+            {part}
+          </span>
+        );
+      }
+      return part;
+    });
+  };
+
   return (
     <>
-      {/* ─── Botón Flotante Global (FAB) ─────────────────────────────────── */}
+      {/* ─── Botón Flotante Global (FAB) con Brillo & Status ─────────────── */}
       {!isOpen && (
         <button
           type="button"
           onClick={() => setIsOpen(true)}
-          className="fixed bottom-6 right-6 z-40 bg-slate-900 hover:bg-slate-800 text-white p-3.5 sm:px-4 sm:py-3 rounded-2xl shadow-2xl border border-slate-700/80 flex items-center gap-2.5 transition-all duration-200 hover:scale-105 active:scale-95 group shadow-slate-950/40"
+          className="fixed bottom-6 right-6 z-40 bg-slate-950 hover:bg-slate-900 text-white pl-3.5 pr-4.5 py-3 rounded-2xl shadow-2xl border border-slate-800 flex items-center gap-3 transition-all duration-300 hover:scale-105 active:scale-95 group shadow-slate-950/50 cursor-pointer"
           title="Abrir ControlBot (Ctrl + K)"
         >
+          {/* Avatar con aura pulsante */}
           <div className="relative">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-500 to-emerald-400 p-0.5 flex items-center justify-center shadow-inner">
-              <div className="w-full h-full bg-slate-900 rounded-[10px] flex items-center justify-center">
-                <Sparkles className="w-4 h-4 text-emerald-400 group-hover:rotate-12 transition-transform duration-300" />
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-500 to-emerald-400 p-0.5 flex items-center justify-center shadow-lg group-hover:rotate-6 transition-transform duration-300">
+              <div className="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center">
+                <Sparkles className="w-4 h-4 text-emerald-400 animate-pulse" />
               </div>
             </div>
-            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-slate-900 animate-pulse"></span>
+            <span className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full border-2 border-slate-950 shadow-sm animate-ping"></span>
+            <span className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full border-2 border-slate-950 shadow-sm"></span>
           </div>
-          <div className="hidden sm:block text-left">
-            <span className="text-xs font-bold text-white block leading-tight">ControlBot</span>
-            <span className="text-[10px] text-slate-400 font-mono">Ctrl + K</span>
+
+          <div className="text-left">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-black tracking-wide text-white block">ControlBot</span>
+              <span className="bg-emerald-500/20 text-emerald-400 text-[9px] font-mono px-1.5 py-0.2 rounded-full border border-emerald-500/30">
+                IA
+              </span>
+            </div>
+            <span className="text-[10px] text-slate-400 font-mono flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+              Ctrl + K
+            </span>
           </div>
         </button>
       )}
 
-      {/* ─── Panel Flotante / Modal del Asistente ────────────────────────── */}
+      {/* ─── Ventana Modal de ControlBot ──────────────────────────────────── */}
       {isOpen && (
         <div className="fixed inset-0 z-50 pointer-events-none sm:p-6 flex items-end sm:items-end justify-end">
           {/* Backdrop sutil en móvil */}
@@ -241,38 +456,44 @@ export default function CopilotWidget() {
           />
 
           <div
-            className={`pointer-events-auto bg-white border border-slate-200/90 rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden transition-all duration-200 animate-in slide-in-from-bottom-5 ${
+            className={`pointer-events-auto bg-white border border-slate-200/90 rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden transition-all duration-300 animate-in slide-in-from-bottom-5 ${
               isExpanded
-                ? 'w-full sm:w-[680px] h-[90vh] sm:h-[85vh]'
-                : 'w-full sm:w-[460px] h-[85vh] sm:h-[620px]'
+                ? 'w-full sm:w-[760px] h-[92vh] sm:h-[88vh]'
+                : 'w-full sm:w-[500px] h-[88vh] sm:h-[680px]'
             }`}
           >
-            {/* Header del Asistente */}
+            {/* 1. Header Premium con Estado en Vivo */}
             <div className="bg-slate-950 text-white p-4 flex items-center justify-between border-b border-slate-800 shrink-0">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-emerald-400 p-0.5 flex items-center justify-center shadow-inner">
-                  <div className="w-full h-full bg-slate-900 rounded-[9px] flex items-center justify-center">
-                    <Sparkles className="w-4 h-4 text-emerald-400" />
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 to-emerald-400 p-0.5 flex items-center justify-center shadow-lg">
+                    <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center">
+                      <Bot className="w-5 h-5 text-emerald-400" />
+                    </div>
                   </div>
+                  <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 rounded-full border-2 border-slate-950"></span>
                 </div>
+
                 <div>
                   <div className="flex items-center gap-2">
-                    <h3 className="font-bold text-sm text-white">ControlBot</h3>
-                    <span className="bg-emerald-500/20 text-emerald-400 text-[10px] font-mono px-2 py-0.5 rounded-full border border-emerald-500/30">
-                      Groq Llama 3.3
+                    <h3 className="font-extrabold text-sm text-white tracking-wide">ControlBot</h3>
+                    <span className="bg-gradient-to-r from-blue-500/20 to-emerald-500/20 text-emerald-400 text-[10px] font-mono px-2 py-0.5 rounded-full border border-emerald-500/30">
+                      ⚡ Groq 120B
                     </span>
                   </div>
-                  <p className="text-[11px] text-slate-400">
-                    {user?.tenant?.nombreComercial || 'ControlERP'} • Rol: {user?.rol}
+                  <p className="text-[11px] text-slate-400 flex items-center gap-1.5 mt-0.5">
+                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    {user?.tenant?.nombreComercial || 'ControlERP'} • {user?.nombre} ({user?.rol})
                   </p>
                 </div>
               </div>
 
+              {/* Controles de Ventana */}
               <div className="flex items-center gap-1">
                 <button
                   type="button"
                   onClick={() => setMessages([initialGreeting])}
-                  className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
+                  className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-colors cursor-pointer"
                   title="Reiniciar conversación"
                 >
                   <RotateCcw className="w-4 h-4" />
@@ -280,15 +501,15 @@ export default function CopilotWidget() {
                 <button
                   type="button"
                   onClick={() => setIsExpanded((prev) => !prev)}
-                  className="hidden sm:block p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
-                  title={isExpanded ? 'Contraer' : 'Expandir'}
+                  className="hidden sm:block p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-colors cursor-pointer"
+                  title={isExpanded ? 'Contraer vista' : 'Expandir a pantalla ancha'}
                 >
                   {isExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
                 </button>
                 <button
                   type="button"
                   onClick={() => setIsOpen(false)}
-                  className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
+                  className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-colors cursor-pointer"
                   title="Cerrar (Esc)"
                 >
                   <X className="w-4 h-4" />
@@ -296,42 +517,75 @@ export default function CopilotWidget() {
               </div>
             </div>
 
-            {/* Contenedor de Mensajes */}
-            <div className="flex-1 p-4 overflow-y-auto space-y-4 bg-slate-50/50 text-xs">
+            {/* 2. Barra de Categorías / Módulos de Ayuda Rápida */}
+            <div className="bg-slate-900/95 border-b border-slate-800 p-2 flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0 text-[11px]">
+              {(Object.keys(categoryChips) as PromptCategory[]).map((cat) => {
+                const item = categoryChips[cat];
+                const IconComponent = item.icon;
+                const isActive = activeCategory === cat;
+
+                return (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setActiveCategory(cat)}
+                    className={`px-3 py-1.5 rounded-xl font-semibold flex items-center gap-1.5 whitespace-nowrap transition-all duration-200 cursor-pointer ${
+                      isActive
+                        ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30 font-bold'
+                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/80'
+                    }`}
+                  >
+                    <IconComponent className="w-3.5 h-3.5" />
+                    <span>{item.title}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* 3. Contenedor de Mensajes con Formato Rico */}
+            <div className="flex-1 p-4 overflow-y-auto space-y-4 bg-slate-50/70 text-xs">
               {messages.map((m) => {
                 const isUser = m.role === 'user';
 
                 return (
                   <div
                     key={m.id}
-                    className={`flex items-start gap-2.5 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}
+                    className={`flex items-start gap-2.5 ${isUser ? 'flex-row-reverse' : 'flex-row'} animate-in fade-in duration-200`}
                   >
                     {/* Avatar */}
                     <div
-                      className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 text-white font-bold text-xs ${
+                      className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 font-bold text-xs shadow-sm ${
                         isUser
-                          ? 'bg-blue-600 shadow-sm'
-                          : 'bg-slate-900 border border-slate-800 text-emerald-400 shadow-sm'
+                          ? 'bg-blue-600 text-white shadow-blue-600/20'
+                          : 'bg-slate-950 border border-slate-800 text-emerald-400 shadow-slate-950/20'
                       }`}
                     >
-                      {isUser ? <User className="w-3.5 h-3.5" /> : <Bot className="w-3.5 h-3.5" />}
+                      {isUser ? <User className="w-4 h-4" /> : <Sparkles className="w-4 h-4" />}
                     </div>
 
                     {/* Burbuja de Mensaje */}
                     <div
-                      className={`relative group max-w-[85%] rounded-2xl p-3.5 space-y-2 leading-relaxed shadow-xs ${
+                      className={`relative group max-w-[88%] rounded-2xl p-4 space-y-2 leading-relaxed shadow-sm transition-all ${
                         isUser
-                          ? 'bg-blue-600 text-white rounded-tr-xs font-medium'
+                          ? 'bg-blue-600 text-white rounded-tr-xs font-medium shadow-blue-600/10'
                           : 'bg-white border border-slate-200 text-slate-800 rounded-tl-xs shadow-slate-900/5'
                       }`}
                     >
-                      {/* Botón copiar en asistente */}
+                      {/* Cabecera de la burbuja */}
+                      <div className="flex items-center justify-between gap-4 text-[10px] opacity-70 pb-1 border-b border-black/5">
+                        <span className="font-semibold">
+                          {isUser ? user?.nombre || 'Tú' : 'ControlBot'}
+                        </span>
+                        <span>{m.timestamp || formatTime()}</span>
+                      </div>
+
+                      {/* Botón copiar en respuestas del bot */}
                       {!isUser && m.content && (
                         <button
                           type="button"
                           onClick={() => handleCopy(m.id, m.content)}
-                          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1 text-slate-400 hover:text-slate-700 bg-slate-100 rounded-md"
-                          title="Copiar texto"
+                          className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 text-slate-400 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 rounded-lg cursor-pointer"
+                          title="Copiar respuesta"
                         >
                           {copiedId === m.id ? (
                             <Check className="w-3.5 h-3.5 text-emerald-600" />
@@ -341,88 +595,89 @@ export default function CopilotWidget() {
                         </button>
                       )}
 
-                      {/* Contenido con formateo de saltos y viñetas */}
-                      <div className="whitespace-pre-wrap space-y-1">
-                        {m.content.split('\n').map((line: string, idx: number) => {
-                          if (line.startsWith('### ')) {
-                            return (
-                              <h4 key={idx} className="font-bold text-sm text-slate-900 pt-1.5 border-b border-slate-100 pb-0.5">
-                                {line.replace('### ', '')}
-                              </h4>
-                            );
-                          }
-                          if (line.startsWith('## ')) {
-                            return (
-                              <h3 key={idx} className="font-bold text-sm text-blue-900 pt-1">
-                                {line.replace('## ', '')}
-                              </h3>
-                            );
-                          }
-                          if (line.startsWith('**') && line.endsWith('**')) {
-                            return (
-                              <strong key={idx} className="font-bold text-slate-900 block">
-                                {line.replace(/\*\*/g, '')}
-                              </strong>
-                            );
-                          }
-                          return <p key={idx}>{line}</p>;
-                        })}
+                      {/* Contenido Renderizado */}
+                      <div className="space-y-1.5">
+                        {renderFormattedContent(m.content)}
                       </div>
                     </div>
                   </div>
                 );
               })}
 
+              {/* Indicador de Pensando / Consultando */}
               {isLoading && messages[messages.length - 1]?.role === 'user' && (
-                <div className="flex items-center gap-2.5 text-slate-400 text-xs">
-                  <div className="w-7 h-7 rounded-xl bg-slate-900 text-emerald-400 flex items-center justify-center">
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <div className="flex items-center gap-3 p-3 bg-white border border-slate-200 rounded-2xl shadow-xs w-fit animate-pulse">
+                  <div className="w-7 h-7 rounded-xl bg-slate-950 text-emerald-400 flex items-center justify-center">
+                    <Loader2 className="w-4 h-4 animate-spin" />
                   </div>
-                  <span className="animate-pulse">ControlBot está consultando la base de datos de ControlERP...</span>
+                  <div className="text-xs text-slate-700 font-medium">
+                    <span>ControlBot está consultando la base de datos de ControlERP...</span>
+                  </div>
                 </div>
               )}
 
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Chips de Sugerencia Rápida */}
-            <div className="p-2.5 bg-slate-100/70 border-t border-slate-200 flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0">
-              {getPromptChips().map((chip, idx) => (
+            {/* 4. Sugerencias Rápidas según la Categoría Seleccionada */}
+            <div className="p-2.5 bg-slate-100/90 border-t border-slate-200 flex items-center gap-2 overflow-x-auto no-scrollbar shrink-0">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider pl-1 shrink-0">
+                Sugerencias:
+              </span>
+              {categoryChips[activeCategory].prompts.map((chip, idx) => (
                 <button
                   key={idx}
                   type="button"
-                  onClick={() => handleChipClick(chip.prompt)}
+                  onClick={() => handleSendMessage(chip.text)}
                   disabled={isLoading}
-                  className="bg-white hover:bg-slate-200 disabled:opacity-50 text-slate-700 border border-slate-300/80 px-2.5 py-1 rounded-xl text-[11px] font-medium whitespace-nowrap transition-all active:scale-95 shadow-2xs cursor-pointer"
+                  className="bg-white hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 disabled:opacity-50 text-slate-700 border border-slate-200 px-3 py-1.5 rounded-xl text-[11px] font-medium whitespace-nowrap transition-all duration-150 active:scale-95 shadow-2xs cursor-pointer flex items-center gap-1.5"
                 >
-                  {chip.label}
+                  <span>{chip.label}</span>
+                  <ChevronRight className="w-3 h-3 opacity-40" />
                 </button>
               ))}
             </div>
 
-            {/* Formulario de Input */}
-            <form
-              onSubmit={handleFormSubmit}
-              className="p-3 bg-white border-t border-slate-200 flex items-center gap-2 shrink-0"
-            >
-              <input
-                ref={inputRef}
-                type="text"
-                placeholder="Escribe una pregunta o instrucción..."
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                disabled={isLoading}
-                className="flex-1 bg-slate-100 border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium disabled:opacity-50"
-              />
-              <button
-                type="submit"
-                disabled={isLoading || !input.trim()}
-                className="bg-slate-900 hover:bg-slate-800 disabled:opacity-40 active:scale-95 text-white p-2 sm:px-3 sm:py-2 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1 cursor-pointer"
+            {/* 5. Formulario de Entrada Multilínea con Enviar Rápido */}
+            <div className="p-3 bg-white border-t border-slate-200 shrink-0">
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleSendMessage();
+                }}
+                className="flex items-end gap-2"
               >
-                <Send className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Enviar</span>
-              </button>
-            </form>
+                <div className="flex-1 relative">
+                  <textarea
+                    ref={inputRef}
+                    rows={1}
+                    placeholder="Hazme una pregunta sobre stock, clientes, cortes Z, balanza..."
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSendMessage();
+                      }
+                    }}
+                    disabled={isLoading}
+                    className="w-full bg-slate-100/80 border border-slate-300 rounded-2xl px-4 py-2.5 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all font-medium disabled:opacity-50 resize-none max-h-24"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isLoading || !input.trim()}
+                  className="bg-slate-950 hover:bg-slate-800 disabled:opacity-40 active:scale-95 text-white p-2.5 sm:px-4 sm:py-2.5 rounded-2xl text-xs font-bold transition-all shadow-md flex items-center gap-1.5 cursor-pointer shrink-0"
+                >
+                  <Send className="w-4 h-4 text-emerald-400" />
+                  <span className="hidden sm:inline">Enviar</span>
+                </button>
+              </form>
+              <p className="text-[10px] text-slate-400 text-center mt-1.5">
+                Presiona <kbd className="font-mono bg-slate-100 px-1 py-0.5 rounded border border-slate-200">Enter</kbd> para enviar • <kbd className="font-mono bg-slate-100 px-1 py-0.5 rounded border border-slate-200">Shift + Enter</kbd> para nueva línea
+              </p>
+            </div>
           </div>
         </div>
       )}
