@@ -4,12 +4,15 @@ import { requireAuth } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
   try {
-    const auth = await requireAuth(req, ['SUPERADMIN', 'ADMIN', 'AUDITOR']);
+    const auth = await requireAuth(req, ['SUPERADMIN', 'ADMIN', 'AUDITOR', 'ENCARGADO']);
     if (auth.errorResponse) return auth.errorResponse;
 
     const { user } = auth;
     const { searchParams } = new URL(req.url);
     const tenantParam = searchParams.get('tenantId');
+    const mesParam = searchParams.get('mes');
+    const anioParam = searchParams.get('anio');
+
     const effectiveTenantId = user.rol === 'SUPERADMIN' ? (tenantParam || undefined) : user.tenantId;
 
     if (!effectiveTenantId && user.rol !== 'SUPERADMIN') {
@@ -18,7 +21,23 @@ export async function GET(req: NextRequest) {
 
     const whereTenant = effectiveTenantId ? { tenantId: effectiveTenantId } : {};
 
-    // Consultas agregadas simultáneas
+    // Construcción del rango de fechas si se especifica mes y año
+    let dateFilter: any = undefined;
+    let fechaCorte = new Date();
+
+    if (mesParam && anioParam) {
+      const m = parseInt(mesParam);
+      const a = parseInt(anioParam);
+      const inicioMes = new Date(a, m - 1, 1, 0, 0, 0, 0);
+      const finMes = new Date(a, m, 0, 23, 59, 59, 999);
+      dateFilter = {
+        gte: inicioMes,
+        lte: finMes,
+      };
+      fechaCorte = finMes;
+    }
+
+    // Consultas agregadas simultáneas filtradas por período
     const [
       cxcList,
       cxpList,
@@ -29,14 +48,20 @@ export async function GET(req: NextRequest) {
       pagosEmitidos,
       ajustesMes,
     ] = await Promise.all([
-      // CxC
+      // CxC (Cuentas activas con saldo o emitidas hasta la fecha de corte)
       prisma.cuentaPorCobrar.findMany({
-        where: whereTenant,
+        where: {
+          ...whereTenant,
+          ...(dateFilter ? { fechaEmision: { lte: fechaCorte } } : {}),
+        },
         include: { cliente: true },
       }),
-      // CxP
+      // CxP (Cuentas activas con saldo o emitidas hasta la fecha de corte)
       prisma.cuentaPorPagar.findMany({
-        where: whereTenant,
+        where: {
+          ...whereTenant,
+          ...(dateFilter ? { fechaEmision: { lte: fechaCorte } } : {}),
+        },
         include: { proveedor: true },
       }),
       // Stock y Valuación
@@ -44,33 +69,46 @@ export async function GET(req: NextRequest) {
         where: effectiveTenantId ? { producto: { tenantId: effectiveTenantId } } : {},
         include: { producto: true, almacen: true },
       }),
-      // Ventas
+      // Ventas en el período seleccionado
       prisma.venta.findMany({
-        where: whereTenant,
+        where: {
+          ...whereTenant,
+          ...(dateFilter ? { fecha: dateFilter } : {}),
+        },
         include: { cliente: true },
       }),
-      // Compras
+      // Compras en el período seleccionado
       prisma.compra.findMany({
-        where: whereTenant,
+        where: {
+          ...whereTenant,
+          ...(dateFilter ? { fecha: dateFilter } : {}),
+        },
         include: { proveedor: true },
       }),
-      // Cobranza CxC
+      // Cobranza CxC en el período seleccionado
       prisma.pagoCxC.findMany({
-        where: effectiveTenantId ? { cxc: { tenantId: effectiveTenantId } } : {},
+        where: {
+          ...(effectiveTenantId ? { cxc: { tenantId: effectiveTenantId } } : {}),
+          ...(dateFilter ? { fecha: dateFilter } : {}),
+        },
       }),
-      // Pagos CxP
+      // Pagos CxP en el período seleccionado
       prisma.pagoCxP.findMany({
-        where: effectiveTenantId ? { cxp: { tenantId: effectiveTenantId } } : {},
+        where: {
+          ...(effectiveTenantId ? { cxp: { tenantId: effectiveTenantId } } : {}),
+          ...(dateFilter ? { fecha: dateFilter } : {}),
+        },
       }),
-      // Ajustes
+      // Ajustes en el período seleccionado
       prisma.ajusteInventario.findMany({
-        where: whereTenant,
+        where: {
+          ...whereTenant,
+          ...(dateFilter ? { fecha: dateFilter } : {}),
+        },
       }),
     ]);
 
-    const now = new Date();
-
-    // Análisis de CxC y Antigüedad de saldos
+    // Análisis de CxC y Antigüedad de saldos relativo a la fecha de corte del período
     let totalPorCobrar = 0;
     let totalVencido = 0;
     const antiguedad = {
@@ -84,7 +122,7 @@ export async function GET(req: NextRequest) {
     cxcList.forEach((c) => {
       totalPorCobrar += c.saldoPendiente;
       const vencimiento = new Date(c.fechaVencimiento);
-      const diffDias = Math.floor((now.getTime() - vencimiento.getTime()) / (1000 * 60 * 60 * 24));
+      const diffDias = Math.floor((fechaCorte.getTime() - vencimiento.getTime()) / (1000 * 60 * 60 * 24));
 
       if (diffDias > 0 && c.saldoPendiente > 0) {
         totalVencido += c.saldoPendiente;
@@ -118,13 +156,17 @@ export async function GET(req: NextRequest) {
       valuacionPorAlmacen[almNombre].piezas += e.cantidad;
     });
 
-    // Totales comerciales
+    // Totales comerciales en el período
     const totalVendido = ventasMes.reduce((acc, v) => acc + v.total, 0);
     const totalComprado = comprasMes.reduce((acc, c) => acc + c.total, 0);
     const cobranzaMesTotal = pagosCobrados.reduce((acc, p) => acc + p.monto, 0);
     const pagosProveedoresMesTotal = pagosEmitidos.reduce((acc, p) => acc + p.monto, 0);
 
     return NextResponse.json({
+      periodo: {
+        mes: mesParam,
+        anio: anioParam,
+      },
       // Balance Financiero
       totalPorCobrar,
       totalVencido,

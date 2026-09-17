@@ -10,6 +10,9 @@ export async function GET(req: NextRequest) {
     const { user } = auth;
     const { searchParams } = new URL(req.url);
     const tenantParam = searchParams.get('tenantId');
+    const mesParam = searchParams.get('mes');
+    const anioParam = searchParams.get('anio');
+
     const effectiveTenantId = user.rol === 'SUPERADMIN' ? (tenantParam || undefined) : user.tenantId;
 
     if (!effectiveTenantId && user.rol !== 'SUPERADMIN') {
@@ -17,10 +20,18 @@ export async function GET(req: NextRequest) {
     }
 
     const whereTenant = effectiveTenantId ? { tenantId: effectiveTenantId } : {};
-    const now = new Date();
+    
+    let fechaCorte = new Date();
+    if (mesParam && anioParam) {
+      fechaCorte = new Date(parseInt(anioParam), parseInt(mesParam), 0, 23, 59, 59, 999);
+    }
 
     const cxcList = await prisma.cuentaPorCobrar.findMany({
-      where: { ...whereTenant, saldoPendiente: { gt: 0 } },
+      where: { 
+        ...whereTenant, 
+        saldoPendiente: { gt: 0 },
+        fechaEmision: { lte: fechaCorte }
+      },
       include: { cliente: true },
       orderBy: { fechaVencimiento: 'asc' },
     });
@@ -54,7 +65,7 @@ export async function GET(req: NextRequest) {
       }
 
       const venc = new Date(c.fechaVencimiento);
-      const diff = Math.floor((now.getTime() - venc.getTime()) / (1000 * 60 * 60 * 24));
+      const diff = Math.floor((fechaCorte.getTime() - venc.getTime()) / (1000 * 60 * 60 * 24));
       const saldo = c.saldoPendiente;
 
       porCliente[cId].total += saldo;
@@ -82,6 +93,10 @@ export async function GET(req: NextRequest) {
     const totalGeneral = rows.reduce((s, r) => s + r.total, 0);
 
     return NextResponse.json({
+      periodo: {
+        mes: mesParam,
+        anio: anioParam,
+      },
       rows,
       totales: {
         vigente: totVigente,

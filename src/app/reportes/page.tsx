@@ -111,7 +111,7 @@ export default function ReportesPage() {
   const fetchReportes = async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/reportes/mensual');
+      const res = await fetch(`/api/reportes/mensual?mes=${mes}&anio=${anio}`);
       if (res.ok) {
         const rep = await res.json();
         setData(rep);
@@ -125,13 +125,11 @@ export default function ReportesPage() {
 
   const getBalanzaPayload = async (): Promise<BalanzaExportData | null> => {
     let currentData = data;
-    if (!currentData) {
-      try {
-        const res = await fetch('/api/reportes/mensual');
-        if (res.ok) currentData = await res.json();
-      } catch (e) {
-        console.error(e);
-      }
+    try {
+      const res = await fetch(`/api/reportes/mensual?mes=${mes}&anio=${anio}`);
+      if (res.ok) currentData = await res.json();
+    } catch (e) {
+      console.error(e);
     }
 
     let balanzaClientes = [];

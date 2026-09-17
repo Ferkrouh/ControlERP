@@ -89,7 +89,7 @@ export default function BalanzaCxCReport({ mes, anio }: Props) {
     let valuacionPorAlmacen = {};
 
     try {
-      const resMes = await fetch('/api/reportes/mensual');
+      const resMes = await fetch(`/api/reportes/mensual?mes=${mes}&anio=${anio}`);
       if (resMes.ok) {
         const jsonMes = await resMes.json();
         monthlyKpis = {

@@ -35,12 +35,12 @@ export default function AntiguedadSaldosReport({ mes, anio }: Props) {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/reportes/antiguedad-saldos');
+      const res = await fetch(`/api/reportes/antiguedad-saldos?mes=${mes}&anio=${anio}`);
       if (res.ok) setData(await res.json());
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [mes, anio]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
