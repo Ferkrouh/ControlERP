@@ -46,7 +46,7 @@ export default function CopilotWidget() {
   const initialGreeting: ChatMessage = {
     id: 'welcome',
     role: 'assistant',
-    content: `👋 ¡Hola **${user?.nombre || 'Usuario'}**! Soy el **Copilot Inteligente de ControlERP**.\n\nPuedo consultar en tiempo real:\n• 📦 **Stock y Kárdex multialmacén** (identificar faltantes y existencias).\n• 💳 **Límites de crédito y mora de clientes** (validación de cartera CxC).\n• 💵 **Cortes Z y arqueos de caja POS** (sobrantes y faltantes).\n• 📊 **Balanza financiera ejecutiva** (CxC vs CxP).\n• 📝 **Borradores de cotización automáticos**.\n\n¿Qué deseas consultar o gestionar?`,
+    content: `👋 ¡Hola **${user?.nombre || 'Usuario'}**! Soy **ControlBot**.\n\nPuedo consultar en tiempo real:\n• 📦 **Stock y Kárdex multialmacén** (identificar faltantes y existencias).\n• 💳 **Límites de crédito y mora de clientes** (validación de cartera CxC).\n• 💵 **Cortes Z y arqueos de caja POS** (sobrantes y faltantes).\n• 📊 **Balanza financiera ejecutiva** (CxC vs CxP).\n• 📝 **Borradores de cotización automáticos**.\n\n¿Qué deseas consultar o gestionar?`,
   };
 
   const [messages, setMessages] = useState<ChatMessage[]>([initialGreeting]);
@@ -175,13 +175,13 @@ export default function CopilotWidget() {
         );
       }
     } catch (err: any) {
-      console.error('Error al comunicarse con Copilot AI:', err);
+      console.error('Error al comunicarse con ControlBot:', err);
       setMessages((prev) =>
         prev.map((msg) =>
           msg.id === assistantMsgId
             ? {
                 ...msg,
-                content: `❌ **Error al consultar el asistente**: ${err.message || 'No se pudo conectar con el servicio de IA.'}\n\nPor favor verifica tu conexión o intenta nuevamente.`,
+                content: `❌ **Error al consultar a ControlBot**: ${err.message || 'No se pudo conectar con el servicio de IA.'}\n\nPor favor verifica tu conexión o intenta nuevamente.`,
               }
             : msg
         )
@@ -214,7 +214,7 @@ export default function CopilotWidget() {
           type="button"
           onClick={() => setIsOpen(true)}
           className="fixed bottom-6 right-6 z-40 bg-slate-900 hover:bg-slate-800 text-white p-3.5 sm:px-4 sm:py-3 rounded-2xl shadow-2xl border border-slate-700/80 flex items-center gap-2.5 transition-all duration-200 hover:scale-105 active:scale-95 group shadow-slate-950/40"
-          title="Abrir Copilot de IA (Ctrl + K)"
+          title="Abrir ControlBot (Ctrl + K)"
         >
           <div className="relative">
             <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-500 to-emerald-400 p-0.5 flex items-center justify-center shadow-inner">
@@ -225,7 +225,7 @@ export default function CopilotWidget() {
             <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-slate-900 animate-pulse"></span>
           </div>
           <div className="hidden sm:block text-left">
-            <span className="text-xs font-bold text-white block leading-tight">Copilot IA</span>
+            <span className="text-xs font-bold text-white block leading-tight">ControlBot</span>
             <span className="text-[10px] text-slate-400 font-mono">Ctrl + K</span>
           </div>
         </button>
@@ -247,7 +247,7 @@ export default function CopilotWidget() {
                 : 'w-full sm:w-[460px] h-[85vh] sm:h-[620px]'
             }`}
           >
-            {/* Header del Copilot */}
+            {/* Header del Asistente */}
             <div className="bg-slate-950 text-white p-4 flex items-center justify-between border-b border-slate-800 shrink-0">
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-emerald-400 p-0.5 flex items-center justify-center shadow-inner">
@@ -257,7 +257,7 @@ export default function CopilotWidget() {
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h3 className="font-bold text-sm text-white">ControlBot Copilot</h3>
+                    <h3 className="font-bold text-sm text-white">ControlBot</h3>
                     <span className="bg-emerald-500/20 text-emerald-400 text-[10px] font-mono px-2 py-0.5 rounded-full border border-emerald-500/30">
                       Groq Llama 3.3
                     </span>

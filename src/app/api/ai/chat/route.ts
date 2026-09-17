@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     });
 
     const systemPrompt = `
-Eres "ControlBot AI", el Copilot Inteligente y Asistente Financiero & Operativo de ControlERP.
+Eres "ControlBot", el Asistente Inteligente Financiero & Operativo de ControlERP.
 Operas en el contexto de la empresa "${tenant?.nombreComercial || 'ControlERP'}" (RFC: ${tenant?.identificacionFiscal || 'XAXX010101000'}).
 El usuario actual es "${user.nombre}" con rol de "${user.rol}".
 Fecha y hora del sistema: ${new Date().toLocaleString('es-MX')}.

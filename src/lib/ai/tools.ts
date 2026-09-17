@@ -402,7 +402,7 @@ export function getAITools(context: { tenantId: string; userRol: string; userId:
               estado: 'BORRADOR',
               vigenciaDias: 15,
               fechaVencimiento,
-              observaciones: observaciones || `Generada automáticamente vía Asistente ControlBot AI por ${userNombre}`,
+              observaciones: observaciones || `Generada automáticamente vía Asistente ControlBot por ${userNombre}`,
               detalles: {
                 create: detallesParaInsertar,
               },
