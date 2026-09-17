@@ -73,6 +73,12 @@ const TABS: { id: TabGroup; label: string; icon: React.FC<any>; subTabs?: SubTab
   },
 ];
 
+import { 
+  exportarBalanzaCsvEnriquecido, 
+  imprimirDictamenBalanza, 
+  BalanzaExportData 
+} from '@/lib/balanza-export-service';
+
 const fmt = (n: number) => n.toLocaleString('es-MX', { minimumFractionDigits: 2 });
 
 export default function ReportesPage() {
@@ -83,6 +89,11 @@ export default function ReportesPage() {
   const [anio, setAnio] = useState('2026');
   const [activeTab, setActiveTab] = useState<TabGroup>('resumen');
   const [activeSubTab, setActiveSubTab] = useState<string>('balanza-cxc');
+
+  const MESES_NOMBRES = [
+    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+  ];
 
   useEffect(() => {
     if (user?.tenantId || user?.rol === 'SUPERADMIN') {
@@ -105,28 +116,72 @@ export default function ReportesPage() {
     }
   };
 
-  const handleExportCSV = () => {
-    if (!data) return;
-    const csvContent = `data:text/csv;charset=utf-8,Indicador Financiero / Contable,Monto MXN,Notas
-Total Ventas Emitidas,${data.totalVendido},${data.ventasCount} operaciones
-Total Compras a Proveedores,${data.totalComprado},${data.comprasCount} recepciones
-Cobranza Efectiva de Clientes,${data.cobranzaMes},Abonos recaudados
-Liquidaciones a Proveedores,${data.pagosProveedoresMes},Egresos liquidados
-Cartera Pendiente por Cobrar,${data.totalPorCobrar},Suma de saldos de clientes
-Cartera Vencida (En Mora),${data.totalVencido},Riesgo de cartera
-Pasivo Pendiente a Proveedores,${data.totalPorPagar},Suma de facturas por pagar
-Valuacion Total de Inventario,${data.valuacionTotal},Costo Promedio Ponderado CFF Art. 28
-`;
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `Cierre_Contable_ERP_${anio}_${mes}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const getBalanzaPayload = async (): Promise<BalanzaExportData | null> => {
+    if (!data) return null;
+
+    let balanzaClientes = [];
+    try {
+      const resCxC = await fetch(`/api/reportes/balanza-cxc?mes=${mes}&anio=${anio}`);
+      if (resCxC.ok) {
+        const cxcJson = await resCxC.json();
+        balanzaClientes = cxcJson.rows || [];
+      }
+    } catch (err) {
+      console.error('Error fetching balanza CxC details:', err);
+    }
+
+    const mesIndex = parseInt(mes) - 1;
+    const mesNombre = MESES_NOMBRES[mesIndex] || 'Septiembre';
+
+    return {
+      tenant: {
+        nombreComercial: user?.tenant?.nombreComercial,
+        razonSocial: user?.tenant?.razonSocial,
+        identificacionFiscal: user?.tenant?.identificacionFiscal,
+        regimenFiscal: user?.tenant?.regimenFiscal || undefined,
+        codigoPostal: user?.tenant?.codigoPostal || undefined,
+        colorPrimario: user?.tenant?.colorPrimario,
+      },
+      periodo: {
+        mesNombre,
+        mesNumero: mes,
+        anio,
+      },
+      kpis: {
+        totalVendido: data.totalVendido || 0,
+        ventasCount: data.ventasCount || 0,
+        totalComprado: data.totalComprado || 0,
+        comprasCount: data.comprasCount || 0,
+        cobranzaMes: data.cobranzaMes || 0,
+        pagosProveedoresMes: data.pagosProveedoresMes || 0,
+        totalPorCobrar: data.totalPorCobrar || 0,
+        totalVencido: data.totalVencido || 0,
+        totalPorPagar: data.totalPorPagar || 0,
+        valuacionTotal: data.valuacionTotal || 0,
+      },
+      antiguedad: data.antiguedad || {
+        vigente: 0,
+        dias1a30: 0,
+        dias31a60: 0,
+        dias61a90: 0,
+        mas90: 0,
+      },
+      valuacionPorAlmacen: data.valuacionPorAlmacen || {},
+      balanzaClientes,
+    };
   };
 
-  const handlePrint = () => { window.print(); };
+  const handleExportCSV = async () => {
+    const payload = await getBalanzaPayload();
+    if (!payload) return;
+    exportarBalanzaCsvEnriquecido(payload);
+  };
+
+  const handlePrint = async () => {
+    const payload = await getBalanzaPayload();
+    if (!payload) return;
+    imprimirDictamenBalanza(payload);
+  };
 
   // ─── Skeleton loader ─────────────────────────────────────────────────────
   const SkeletonResumen = () => (
