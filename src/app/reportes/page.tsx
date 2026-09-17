@@ -76,8 +76,10 @@ const TABS: { id: TabGroup; label: string; icon: React.FC<any>; subTabs?: SubTab
 import { 
   exportarBalanzaCsvEnriquecido, 
   imprimirDictamenBalanza, 
+  generarDictamenBalanzaHtml,
   BalanzaExportData 
 } from '@/lib/balanza-export-service';
+import { Eye, X } from 'lucide-react';
 
 const fmt = (n: number) => n.toLocaleString('es-MX', { minimumFractionDigits: 2 });
 
@@ -89,6 +91,11 @@ export default function ReportesPage() {
   const [anio, setAnio] = useState('2026');
   const [activeTab, setActiveTab] = useState<TabGroup>('resumen');
   const [activeSubTab, setActiveSubTab] = useState<string>('balanza-cxc');
+  
+  // Modal de Previsualización Ejecutiva
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [previewHtml, setPreviewHtml] = useState<string>('');
+  const [previewPayload, setPreviewPayload] = useState<BalanzaExportData | null>(null);
 
   const MESES_NOMBRES = [
     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -117,7 +124,15 @@ export default function ReportesPage() {
   };
 
   const getBalanzaPayload = async (): Promise<BalanzaExportData | null> => {
-    if (!data) return null;
+    let currentData = data;
+    if (!currentData) {
+      try {
+        const res = await fetch('/api/reportes/mensual');
+        if (res.ok) currentData = await res.json();
+      } catch (e) {
+        console.error(e);
+      }
+    }
 
     let balanzaClientes = [];
     try {
@@ -148,25 +163,25 @@ export default function ReportesPage() {
         anio,
       },
       kpis: {
-        totalVendido: data.totalVendido || 0,
-        ventasCount: data.ventasCount || 0,
-        totalComprado: data.totalComprado || 0,
-        comprasCount: data.comprasCount || 0,
-        cobranzaMes: data.cobranzaMes || 0,
-        pagosProveedoresMes: data.pagosProveedoresMes || 0,
-        totalPorCobrar: data.totalPorCobrar || 0,
-        totalVencido: data.totalVencido || 0,
-        totalPorPagar: data.totalPorPagar || 0,
-        valuacionTotal: data.valuacionTotal || 0,
+        totalVendido: currentData?.totalVendido || 0,
+        ventasCount: currentData?.ventasCount || 0,
+        totalComprado: currentData?.totalComprado || 0,
+        comprasCount: currentData?.comprasCount || 0,
+        cobranzaMes: currentData?.cobranzaMes || 0,
+        pagosProveedoresMes: currentData?.pagosProveedoresMes || 0,
+        totalPorCobrar: currentData?.totalPorCobrar || 0,
+        totalVencido: currentData?.totalVencido || 0,
+        totalPorPagar: currentData?.totalPorPagar || 0,
+        valuacionTotal: currentData?.valuacionTotal || 0,
       },
-      antiguedad: data.antiguedad || {
+      antiguedad: currentData?.antiguedad || {
         vigente: 0,
         dias1a30: 0,
         dias31a60: 0,
         dias61a90: 0,
         mas90: 0,
       },
-      valuacionPorAlmacen: data.valuacionPorAlmacen || {},
+      valuacionPorAlmacen: currentData?.valuacionPorAlmacen || {},
       balanzaClientes,
     };
   };
@@ -180,6 +195,11 @@ export default function ReportesPage() {
   const handlePrint = async () => {
     const payload = await getBalanzaPayload();
     if (!payload) return;
+    const html = generarDictamenBalanzaHtml(payload);
+    setPreviewHtml(html);
+    setPreviewPayload(payload);
+    setShowPreviewModal(true);
+    // Disparar además la orden directa de impresión
     imprimirDictamenBalanza(payload);
   };
 
@@ -223,17 +243,16 @@ export default function ReportesPage() {
           <button
             type="button"
             onClick={handleExportCSV}
-            disabled={activeTab !== 'resumen'}
-            className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 active:scale-95 text-white font-bold text-xs px-3.5 py-2.5 rounded-xl shadow-sm transition-all flex items-center gap-1.5"
+            className="bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs px-3.5 py-2.5 rounded-xl shadow-sm transition-all flex items-center gap-1.5"
           >
             <FileSpreadsheet className="w-4 h-4" /> Exportar Balanza (CSV)
           </button>
           <button
             type="button"
             onClick={handlePrint}
-            className="bg-slate-800 hover:bg-slate-700 active:scale-95 border border-slate-700 text-white font-bold text-xs px-3.5 py-2.5 rounded-xl shadow-sm transition-all flex items-center gap-1.5"
+            className="bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-bold text-xs px-3.5 py-2.5 rounded-xl shadow-sm transition-all flex items-center gap-1.5"
           >
-            <Printer className="w-4 h-4" /> Imprimir Estado
+            <Printer className="w-4 h-4" /> Imprimir Dictamen (PDF)
           </button>
         </div>
       </div>
@@ -451,6 +470,79 @@ export default function ReportesPage() {
             </p>
           </div>
           <ActiveComponent mes={mes} anio={anio} />
+        </div>
+      )}
+
+      {/* ─── Modal de Previsualización Ejecutiva de Balanza ────────────── */}
+      {showPreviewModal && previewPayload && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full max-h-[92vh] flex flex-col border border-slate-200 overflow-hidden">
+            {/* Header Modal */}
+            <div className="bg-slate-900 text-white p-4 sm:p-5 flex items-center justify-between border-b border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-500/20 rounded-xl border border-blue-400/30 text-blue-400">
+                  <Printer className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base sm:text-lg font-bold">Dictamen Ejecutivo de Balanza</h3>
+                  <p className="text-xs text-slate-400">
+                    Período: {previewPayload.periodo.mesNombre} {previewPayload.periodo.anio} • {previewPayload.tenant.nombreComercial || 'ControlERP'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => imprimirDictamenBalanza(previewPayload)}
+                  className="bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow-sm transition-all flex items-center gap-1.5"
+                >
+                  <Printer className="w-4 h-4" /> Imprimir / PDF
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowPreviewModal(false)}
+                  className="text-slate-400 hover:text-white p-1.5 rounded-xl hover:bg-slate-800 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Contenedor con Iframe de Visualización */}
+            <div className="flex-1 bg-slate-100 p-2 sm:p-4 overflow-y-auto">
+              <div className="bg-white shadow-lg mx-auto rounded-xl overflow-hidden max-w-3xl border border-slate-200">
+                <iframe
+                  srcDoc={previewHtml}
+                  title="Vista Previa Balanza"
+                  className="w-full h-[65vh] border-0"
+                />
+              </div>
+            </div>
+
+            {/* Footer Modal */}
+            <div className="bg-slate-50 p-3 sm:p-4 border-t border-slate-200 flex items-center justify-between text-xs">
+              <span className="text-slate-500 font-medium">
+                Listo para guardar como PDF o imprimir en papel membretado
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => exportarBalanzaCsvEnriquecido(previewPayload)}
+                  className="bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 font-bold px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" /> Descargar CSV
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowPreviewModal(false)}
+                  className="bg-slate-900 text-white font-bold px-4 py-1.5 rounded-xl hover:bg-slate-800 transition-all"
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -498,20 +498,52 @@ export function generarDictamenBalanzaHtml(data: BalanzaExportData): string {
 }
 
 /**
- * Abre una ventana emergente de alta fidelidad con el documento renderizado y dispara la impresión/guardado en PDF.
+ * Imprime el documento de alta fidelidad utilizando un iframe invisible para evitar bloqueadores de popups.
  */
 export function imprimirDictamenBalanza(data: BalanzaExportData): void {
   const html = generarDictamenBalanzaHtml(data);
-  const printWindow = window.open('', '_blank', 'width=950,height=800');
-  if (!printWindow) return;
 
-  printWindow.document.open();
-  printWindow.document.write(html);
-  printWindow.document.close();
-  printWindow.focus();
-  setTimeout(() => {
-    printWindow.print();
-  }, 400);
+  if (typeof window === 'undefined') return;
+
+  // Crear o reutilizar un iframe invisible dedicado para la impresión
+  let iframe = document.getElementById('balanza-print-frame') as HTMLIFrameElement;
+  if (!iframe) {
+    iframe = document.createElement('iframe');
+    iframe.id = 'balanza-print-frame';
+    iframe.style.position = 'fixed';
+    iframe.style.right = '-9999px';
+    iframe.style.bottom = '-9999px';
+    iframe.style.width = '0px';
+    iframe.style.height = '0px';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+  }
+
+  const doc = iframe.contentWindow?.document || iframe.contentDocument;
+  if (doc) {
+    doc.open();
+    doc.write(html);
+    doc.close();
+
+    // Esperar a que los estilos se apliquen y disparar impresión
+    setTimeout(() => {
+      try {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+      } catch (err) {
+        console.error('Error al imprimir mediante iframe:', err);
+        // Fallback popup
+        const printWindow = window.open('', '_blank', 'width=950,height=800');
+        if (printWindow) {
+          printWindow.document.open();
+          printWindow.document.write(html);
+          printWindow.document.close();
+          printWindow.focus();
+          setTimeout(() => printWindow.print(), 300);
+        }
+      }
+    }, 300);
+  }
 }
 
 /**
