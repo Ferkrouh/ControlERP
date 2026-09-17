@@ -22,7 +22,12 @@ import {
   Layers,
   Clock,
   Activity,
-  Radio
+  Radio,
+  Sliders,
+  TrendingUp,
+  PieChart,
+  Cpu,
+  Database
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 
@@ -75,12 +80,78 @@ const PLAN_PRICES: Record<string, number> = {
   PERSONALIZADO: 2499,
 };
 
+// Mini Sparkline SVG elegante
+function Sparkline({ data, color = '#8b5cf6', height = 34, width = 90 }: { data: number[]; color?: string; height?: number; width?: number }) {
+  const min = Math.min(...data);
+  const max = Math.max(...data);
+  const range = max - min || 1;
+  const points = data
+    .map((val, idx) => {
+      const x = (idx / (data.length - 1)) * width;
+      const y = height - ((val - min) / range) * (height - 8) - 4;
+      return `${x},${y}`;
+    })
+    .join(' ');
+
+  const areaPoints = `${points} ${width},${height} 0,${height}`;
+  const gradientId = `sa-spark-${color.replace('#', '')}-${Math.random().toString(36).substring(2, 6)}`;
+
+  return (
+    <svg width={width} height={height} className="overflow-visible">
+      <defs>
+        <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.30" />
+          <stop offset="100%" stopColor={color} stopOpacity="0.0" />
+        </linearGradient>
+      </defs>
+      <polygon points={areaPoints} fill={`url(#${gradientId})`} />
+      <polyline
+        fill="none"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        points={points}
+      />
+      {data.length > 0 && (
+        <circle
+          cx={width}
+          cy={height - ((data[data.length - 1] - min) / range) * (height - 8) - 4}
+          r="3"
+          fill={color}
+        />
+      )}
+    </svg>
+  );
+}
+
+// Histórico de MRR para el gráfico
+const SAAS_GROWTH_DATA = {
+  '3M': {
+    labels: ['Ene', 'Feb', 'Mar'],
+    mrr: [12800, 16400, 21890],
+    tenants: [4, 6, 9],
+  },
+  '6M': {
+    labels: ['Oct', 'Nov', 'Dic', 'Ene', 'Feb', 'Mar'],
+    mrr: [7800, 9500, 11200, 14500, 17800, 21890],
+    tenants: [2, 3, 4, 5, 7, 9],
+  },
+  '1A': {
+    labels: ['Q1', 'Q2', 'Q3', 'Q4'],
+    mrr: [5400, 11200, 16800, 21890],
+    tenants: [2, 4, 7, 9],
+  }
+};
+
 export default function SuperadminDashboard() {
   const { switchUser } = useAuth();
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [recentLogs, setRecentLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [togglingModule, setTogglingModule] = useState<string | null>(null);
+  const [growthPeriod, setGrowthPeriod] = useState<'3M' | '6M' | '1A'>('6M');
+  const [chartHover, setChartHover] = useState<number | null>(null);
 
   useEffect(() => {
     fetchDashboardData();
@@ -156,7 +227,6 @@ export default function SuperadminDashboard() {
     }
   };
 
-  // Cálculo de estado de suscripción
   const getSubscriptionStatus = (t: Tenant) => {
     if (!t.activo) {
       return { status: 'PAUSADO', label: 'Pausado', badgeBg: 'bg-slate-100 text-slate-700 border-slate-200' };
@@ -184,7 +254,6 @@ export default function SuperadminDashboard() {
     }
   };
 
-  // Métricas Consolidadas SaaS
   const mrrEstimado = useMemo(() => {
     return tenants.reduce((acc, t) => {
       if (!t.activo || t.bloqueadoPorSuscripcion) return acc;
@@ -217,13 +286,38 @@ export default function SuperadminDashboard() {
     return ((totalRecords * 4.5) / 1024).toFixed(1);
   }, [tenants]);
 
+  // Distribución de planes
+  const planDistribution = useMemo(() => {
+    const counts = { ENTERPRISE: 0, PROFESIONAL: 0, BASICO: 0, DEMO: 0 };
+    tenants.forEach(t => {
+      const p = (t.planSuscripcion || 'PROFESIONAL').toUpperCase() as keyof typeof counts;
+      if (counts[p] !== undefined) counts[p]++;
+      else counts.PROFESIONAL++;
+    });
+    const total = tenants.length || 1;
+    return {
+      counts,
+      percentages: {
+        ENTERPRISE: Math.round((counts.ENTERPRISE / total) * 100),
+        PROFESIONAL: Math.round((counts.PROFESIONAL / total) * 100),
+        BASICO: Math.round((counts.BASICO / total) * 100),
+        DEMO: Math.round((counts.DEMO / total) * 100),
+      }
+    };
+  }, [tenants]);
+
+  const currentGrowth = SAAS_GROWTH_DATA[growthPeriod];
+  const maxGrowthMrr = Math.max(...currentGrowth.mrr) * 1.2;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-12">
       {/* 1. Cabecera Soberana Ejecutiva - The Fintech Ledger */}
-      <div className="bg-slate-900 text-white p-6 rounded-2xl border border-slate-800 shadow-md flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="space-y-1.5">
+      <div className="bg-slate-950 text-white p-6 rounded-2xl border border-slate-800 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4 relative overflow-hidden">
+        <div className="absolute -right-12 -top-12 w-64 h-64 rounded-full bg-purple-600/10 blur-3xl pointer-events-none" />
+
+        <div className="space-y-1.5 relative z-10">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="bg-purple-500/20 text-purple-300 border border-purple-400/30 text-xs px-2.5 py-0.5 rounded-full font-semibold flex items-center gap-1.5">
+            <span className="bg-purple-500/20 text-purple-300 border border-purple-400/30 text-xs px-2.5 py-0.5 rounded-full font-semibold flex items-center gap-1.5 backdrop-blur-sm">
               <ShieldCheck className="w-3.5 h-3.5 text-purple-400" /> Plataforma SaaS Global
             </span>
             <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs px-2.5 py-0.5 rounded-full flex items-center gap-1.5 font-medium">
@@ -239,96 +333,334 @@ export default function SuperadminDashboard() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5 self-start md:self-auto shrink-0">
+        <div className="flex items-center gap-2.5 self-start md:self-auto shrink-0 relative z-10">
           <button
             onClick={fetchDashboardData}
             disabled={loading}
-            className="p-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl transition-all border border-slate-700"
+            className="p-2.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white rounded-xl transition-all border border-slate-800"
             title="Sincronizar telemetría de inquilinos"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-purple-400' : ''}`} />
           </button>
 
           <Link
+            href="/superadmin/personalizar"
+            className="bg-slate-900 hover:bg-slate-800 border border-slate-700 text-purple-300 px-3.5 py-2.5 rounded-xl font-semibold text-xs transition-all shadow-sm flex items-center gap-2"
+          >
+            <Sliders className="w-4 h-4 text-purple-400" /> Personalizar Negocios
+          </Link>
+
+          <Link
             href="/negocios"
-            className="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2.5 rounded-xl font-semibold text-xs transition-all shadow-sm flex items-center gap-2"
+            className="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2.5 rounded-xl font-semibold text-xs transition-all shadow-md shadow-purple-950/40 flex items-center gap-2"
           >
             <Plus className="w-4 h-4" /> Dar de Alta Negocio
           </Link>
         </div>
       </div>
 
-      {/* 2. Cuadrícula de Métricas Clave (Fintech Ledger KPIs) */}
+      {/* 2. Cuadrícula de Métricas Clave (Fintech Ledger KPIs) con Sparklines */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* MRR Estimado */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-md shadow-slate-900/5 hover:shadow-xl hover:-translate-y-0.5 transition-all">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-md shadow-slate-900/5 hover:shadow-xl hover:-translate-y-0.5 transition-all">
           <div className="flex items-center justify-between text-slate-500">
             <span className="text-xs font-semibold uppercase tracking-wider">MRR Recurrente Estimado</span>
             <div className="p-2 bg-purple-50 text-purple-600 rounded-xl">
               <CreditCard className="w-4 h-4" />
             </div>
           </div>
-          <p className="text-2xl font-bold font-mono text-slate-900 mt-2">
-            ${mrrEstimado.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
-          </p>
-          <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
-            <span className="text-emerald-700 font-semibold font-mono">MXN/mes</span> • Suscripciones activas
-          </p>
+          <div className="flex items-end justify-between mt-2">
+            <div>
+              <p className="text-2xl font-bold font-mono text-slate-900">
+                ${mrrEstimado.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+              </p>
+              <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
+                <span className="text-emerald-700 font-semibold font-mono">MXN/mes</span> • Suscripciones
+              </p>
+            </div>
+            <Sparkline data={[12800, 14500, 17200, 19400, mrrEstimado || 21890]} color="#8b5cf6" />
+          </div>
         </div>
 
         {/* Empresas Activas */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-md shadow-slate-900/5 hover:shadow-xl hover:-translate-y-0.5 transition-all">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-md shadow-slate-900/5 hover:shadow-xl hover:-translate-y-0.5 transition-all">
           <div className="flex items-center justify-between text-slate-500">
             <span className="text-xs font-semibold uppercase tracking-wider">Negocios Registrados</span>
             <div className="p-2 bg-blue-50 text-blue-600 rounded-xl">
               <Building2 className="w-4 h-4" />
             </div>
           </div>
-          <p className="text-2xl font-bold font-mono text-slate-900 mt-2">{tenants.length}</p>
-          <p className="text-xs text-slate-500 mt-1">
-            <span className="font-semibold text-slate-700">{totalUsuarios}</span> usuarios en red
-          </p>
+          <div className="flex items-end justify-between mt-2">
+            <div>
+              <p className="text-2xl font-bold font-mono text-slate-900">{tenants.length}</p>
+              <p className="text-xs text-slate-500 mt-1 font-mono">
+                <span className="font-semibold text-slate-700">{totalUsuarios}</span> usuarios en red
+              </p>
+            </div>
+            <Sparkline data={[3, 4, 6, 7, tenants.length || 9]} color="#3b82f6" />
+          </div>
         </div>
 
         {/* Alertas de Suscripción */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-md shadow-slate-900/5 hover:shadow-xl hover:-translate-y-0.5 transition-all">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-md shadow-slate-900/5 hover:shadow-xl hover:-translate-y-0.5 transition-all">
           <div className="flex items-center justify-between text-slate-500">
             <span className="text-xs font-semibold uppercase tracking-wider text-amber-700">Alertas de Cartera</span>
-            {negociosEnAlerta > 0 ? (
-              <div className="p-2 bg-amber-50 text-amber-700 rounded-xl border border-amber-200/60">
-                <AlertTriangle className="w-4 h-4" />
-              </div>
-            ) : (
-              <div className="p-2 bg-slate-100 text-slate-600 rounded-xl">
-                <ShieldCheck className="w-4 h-4" />
-              </div>
-            )}
+            <div className={`p-2 rounded-xl ${negociosEnAlerta > 0 ? 'bg-amber-50 text-amber-700 border border-amber-200/60' : 'bg-slate-100 text-slate-600'}`}>
+              <AlertTriangle className="w-4 h-4" />
+            </div>
           </div>
-          <p className={`text-2xl font-bold font-mono mt-2 ${negociosEnAlerta > 0 ? 'text-amber-700' : 'text-slate-900'}`}>
-            {negociosEnAlerta}
-          </p>
-          <p className="text-xs text-slate-500 mt-1">
-            Por vencer o en período de gracia
-          </p>
+          <div className="flex items-end justify-between mt-2">
+            <div>
+              <p className={`text-2xl font-bold font-mono ${negociosEnAlerta > 0 ? 'text-amber-700' : 'text-slate-900'}`}>
+                {negociosEnAlerta}
+              </p>
+              <p className="text-xs text-slate-500 mt-1">Por vencer / en gracia</p>
+            </div>
+            <Sparkline data={[0, 1, 2, 1, negociosEnAlerta]} color="#f59e0b" />
+          </div>
         </div>
 
         {/* Almacenes & Red Física */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-md shadow-slate-900/5 hover:shadow-xl hover:-translate-y-0.5 transition-all">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-md shadow-slate-900/5 hover:shadow-xl hover:-translate-y-0.5 transition-all">
           <div className="flex items-center justify-between text-slate-500">
             <span className="text-xs font-semibold uppercase tracking-wider">Almacenes en Red</span>
             <div className="p-2 bg-emerald-50 text-emerald-600 rounded-xl">
               <Boxes className="w-4 h-4" />
             </div>
           </div>
-          <p className="text-2xl font-bold font-mono text-slate-900 mt-2">{totalAlmacenes}</p>
-          <p className="text-xs text-slate-500 mt-1">
-            Centros de distribución activos
-          </p>
+          <div className="flex items-end justify-between mt-2">
+            <div>
+              <p className="text-2xl font-bold font-mono text-slate-900">{totalAlmacenes}</p>
+              <p className="text-xs text-slate-500 mt-1">Centros de distribución</p>
+            </div>
+            <Sparkline data={[2, 4, 5, 7, totalAlmacenes || 8]} color="#10b981" />
+          </div>
+        </div>
+      </div>
+
+      {/* SECCIÓN DE GRÁFICOS ANALÍTICOS DE LA PLATAFORMA SAAS */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Gráfico 1: Curva de Crecimiento MRR y Suscripciones (2 Columnas) */}
+        <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200/80 shadow-md shadow-slate-900/5 p-6 space-y-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+            <div>
+              <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-purple-600" />
+                Crecimiento de MRR & Expansión de Negocios
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Ingresos recurrentes mensuales por licencias de software
+              </p>
+            </div>
+
+            <div className="bg-slate-100 p-1 rounded-xl flex items-center text-xs font-semibold">
+              {(['3M', '6M', '1A'] as const).map(p => (
+                <button
+                  key={p}
+                  onClick={() => setGrowthPeriod(p)}
+                  className={`px-3 py-1 rounded-lg transition-all ${
+                    growthPeriod === p ? 'bg-white text-purple-900 shadow-sm font-bold' : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  {p}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Gráfico SVG de Curva Soberana */}
+          <div className="relative h-60 w-full pt-4">
+            <svg viewBox="0 0 600 180" className="w-full h-full overflow-visible">
+              <defs>
+                <linearGradient id="saas-mrr-grad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#7c3aed" stopOpacity="0.35" />
+                  <stop offset="100%" stopColor="#7c3aed" stopOpacity="0.0" />
+                </linearGradient>
+                <filter id="glow-purple" x="-20%" y="-20%" width="140%" height="140%">
+                  <feDropShadow dx="0" dy="4" stdDeviation="5" floodColor="#7c3aed" floodOpacity="0.35" />
+                </filter>
+              </defs>
+
+              {/* Líneas Guía Horizontales */}
+              {[0, 0.33, 0.66, 1].map((ratio, i) => (
+                <line
+                  key={i}
+                  x1="0"
+                  y1={15 + ratio * 140}
+                  x2="600"
+                  y2={15 + ratio * 140}
+                  stroke="#f1f5f9"
+                  strokeDasharray="4 4"
+                />
+              ))}
+
+              {/* Área MRR */}
+              {(() => {
+                const count = currentGrowth.labels.length;
+                const step = 600 / (count - 1);
+                const pts = currentGrowth.mrr.map((v, i) => {
+                  const x = i * step;
+                  const y = 155 - (v / maxGrowthMrr) * 140;
+                  return `${x},${y}`;
+                });
+                const linePath = `M ${pts.join(' L ')}`;
+                const areaPath = `M 0,155 L ${pts.join(' L ')} L 600,155 Z`;
+                return (
+                  <g>
+                    <path d={areaPath} fill="url(#saas-mrr-grad)" />
+                    <path d={linePath} fill="none" stroke="#7c3aed" strokeWidth="3.5" filter="url(#glow-purple)" strokeLinecap="round" strokeLinejoin="round" />
+                    {currentGrowth.mrr.map((v, i) => {
+                      const cx = i * step;
+                      const cy = 155 - (v / maxGrowthMrr) * 140;
+                      return (
+                        <circle
+                          key={`mrr-dot-${i}`}
+                          cx={cx}
+                          cy={cy}
+                          r={chartHover === i ? 6 : 4}
+                          fill="#ffffff"
+                          stroke="#7c3aed"
+                          strokeWidth="2.5"
+                          className="transition-all duration-200 cursor-pointer"
+                          onMouseEnter={() => setChartHover(i)}
+                          onMouseLeave={() => setChartHover(null)}
+                        />
+                      );
+                    })}
+                  </g>
+                );
+              })()}
+            </svg>
+
+            {/* Eje X */}
+            <div className="flex justify-between text-xs text-slate-400 font-mono mt-2 px-1">
+              {currentGrowth.labels.map((lbl, i) => (
+                <span
+                  key={i}
+                  className={`transition-colors ${chartHover === i ? 'text-purple-600 font-bold' : ''}`}
+                >
+                  {lbl}
+                </span>
+              ))}
+            </div>
+
+            {/* Tooltip */}
+            {chartHover !== null && (
+              <div 
+                className="absolute top-2 bg-slate-900/95 backdrop-blur-md text-white px-3 py-2 rounded-xl text-xs shadow-2xl border border-slate-700 pointer-events-none transition-all z-20"
+                style={{ left: `${(chartHover / (currentGrowth.labels.length - 1)) * 80 + 10}%` }}
+              >
+                <div className="font-bold border-b border-slate-700 pb-1 text-purple-300">
+                  {currentGrowth.labels[chartHover]}
+                </div>
+                <div className="space-y-0.5 mt-1 font-mono text-[11px]">
+                  <div className="text-white">MRR: ${currentGrowth.mrr[chartHover].toLocaleString('es-MX')} MXN</div>
+                  <div className="text-slate-400">{currentGrowth.tenants[chartHover]} negocios activos</div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Gráfico 2: Donut de Distribución de Planes SaaS */}
+        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-md shadow-slate-900/5 p-6 space-y-5 flex flex-col justify-between">
+          <div className="border-b border-slate-100 pb-3">
+            <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
+              <PieChart className="w-4 h-4 text-purple-600" />
+              Distribución de Planes SaaS
+            </h3>
+            <p className="text-xs text-slate-500 mt-0.5">Segmentación de licencias activas</p>
+          </div>
+
+          {/* Donut SVG */}
+          <div className="relative flex items-center justify-center my-2">
+            <svg width="170" height="170" viewBox="0 0 170 170" className="transform -rotate-90">
+              <circle cx="85" cy="85" r="65" fill="none" stroke="#f1f5f9" strokeWidth="18" />
+
+              {/* Enterprise (Púrpura) */}
+              <circle
+                cx="85"
+                cy="85"
+                r="65"
+                fill="none"
+                stroke="#7c3aed"
+                strokeWidth="18"
+                strokeDasharray={`${(planDistribution.percentages.ENTERPRISE * 408) / 100} 408`}
+                strokeDashoffset="0"
+                strokeLinecap="round"
+                className="transition-all duration-1000 ease-out"
+              />
+
+              {/* Profesional (Azul) */}
+              <circle
+                cx="85"
+                cy="85"
+                r="65"
+                fill="none"
+                stroke="#3b82f6"
+                strokeWidth="18"
+                strokeDasharray={`${(planDistribution.percentages.PROFESIONAL * 408) / 100} 408`}
+                strokeDashoffset={`-${(planDistribution.percentages.ENTERPRISE * 408) / 100}`}
+                strokeLinecap="round"
+                className="transition-all duration-1000 ease-out"
+              />
+
+              {/* Básico (Esmeralda) */}
+              <circle
+                cx="85"
+                cy="85"
+                r="65"
+                fill="none"
+                stroke="#10b981"
+                strokeWidth="18"
+                strokeDasharray={`${(planDistribution.percentages.BASICO * 408) / 100} 408`}
+                strokeDashoffset={`-${((planDistribution.percentages.ENTERPRISE + planDistribution.percentages.PROFESIONAL) * 408) / 100}`}
+                strokeLinecap="round"
+                className="transition-all duration-1000 ease-out"
+              />
+            </svg>
+
+            {/* Centro */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
+              <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">Negocios</span>
+              <span className="text-lg font-bold font-mono text-slate-900">
+                {tenants.length}
+              </span>
+              <span className="text-[10px] text-purple-600 font-semibold">100% cloud</span>
+            </div>
+          </div>
+
+          {/* Leyenda */}
+          <div className="space-y-1.5 text-xs pt-2 border-t border-slate-100 font-mono">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-purple-600" />
+                <span className="text-slate-600 font-sans">Enterprise ($3,999)</span>
+              </div>
+              <span className="font-bold text-slate-900">{planDistribution.counts.ENTERPRISE} ({planDistribution.percentages.ENTERPRISE}%)</span>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+                <span className="text-slate-600 font-sans">Profesional ($1,899)</span>
+              </div>
+              <span className="font-bold text-slate-900">{planDistribution.counts.PROFESIONAL} ({planDistribution.percentages.PROFESIONAL}%)</span>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                <span className="text-slate-600 font-sans">Básico ($799)</span>
+              </div>
+              <span className="font-bold text-slate-900">{planDistribution.counts.BASICO} ({planDistribution.percentages.BASICO}%)</span>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* 3. Matriz Maestra de Clientes (Tenants Ledger) */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-md shadow-slate-900/5 overflow-hidden">
         <div className="p-5 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/50">
           <div>
             <h2 className="font-bold text-slate-900 text-base flex items-center gap-2">
@@ -340,9 +672,12 @@ export default function SuperadminDashboard() {
             </p>
           </div>
           <div className="flex items-center gap-2 self-start sm:self-auto">
-            <span className="text-xs bg-purple-50 text-purple-700 border border-purple-200/60 px-3 py-1 rounded-full font-semibold">
-              Aislamiento Multi-tenant Estricto
-            </span>
+            <Link
+              href="/superadmin/personalizar"
+              className="text-xs bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200/80 px-3 py-1.5 rounded-xl font-bold flex items-center gap-1.5 transition-all shadow-xs"
+            >
+              <Sliders className="w-3.5 h-3.5" /> Consola de Personalización Quirúrgica
+            </Link>
           </div>
         </div>
 
@@ -375,16 +710,16 @@ export default function SuperadminDashboard() {
                   <th className="py-3 px-4 text-center">Facturación SAT</th>
                   <th className="py-3 px-4 text-center">Tesorería</th>
                   <th className="py-3 px-4 text-center">Manufactura</th>
-                  <th className="py-3 px-4 text-right">Operación</th>
+                  <th className="py-3 px-4 text-right">Acciones</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-100 font-medium">
                 {tenants.map((t) => {
                   const sub = getSubscriptionStatus(t);
                   return (
                     <tr key={t.id} className="hover:bg-slate-50/70 transition-colors">
                       {/* Empresa y RFC */}
-                      <td className="py-3 px-4">
+                      <td className="py-3.5 px-4">
                         <div className="flex items-center gap-2.5">
                           <div 
                             className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-white text-xs shrink-0 shadow-xs"
@@ -400,17 +735,17 @@ export default function SuperadminDashboard() {
                       </td>
 
                       {/* Plan y Vigencia */}
-                      <td className="py-3 px-4">
+                      <td className="py-3.5 px-4">
                         <div>
                           <div className="flex items-center gap-1.5">
-                            <span className="font-semibold text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-200 uppercase text-xs">
+                            <span className="font-semibold text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-200 uppercase text-[11px]">
                               {t.planSuscripcion || 'PROFESIONAL'}
                             </span>
-                            <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${sub.badgeBg}`}>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${sub.badgeBg}`}>
                               {sub.label}
                             </span>
                           </div>
-                          <p className="text-xs text-slate-500 font-mono mt-1">
+                          <p className="text-[11px] text-slate-500 font-mono mt-0.5">
                             {t.fechaVencimientoPlan 
                               ? `Vence: ${new Date(t.fechaVencimientoPlan).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })}`
                               : 'Vigencia Permanente'}
@@ -419,12 +754,11 @@ export default function SuperadminDashboard() {
                       </td>
                       
                       {/* Switch MultiAlmacen */}
-                      <td className="py-3 px-4 text-center">
+                      <td className="py-3.5 px-4 text-center">
                         <button
                           onClick={() => toggleModule(t.id, 'moduloMultiAlmacen', !!t.moduloMultiAlmacen)}
                           disabled={togglingModule === `${t.id}-moduloMultiAlmacen`}
                           className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded transition-colors"
-                          title="Click para alternar autorización"
                         >
                           {t.moduloMultiAlmacen ? (
                             <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded flex items-center gap-1 border border-emerald-200">
@@ -439,12 +773,11 @@ export default function SuperadminDashboard() {
                       </td>
 
                       {/* Switch Traspasos */}
-                      <td className="py-3 px-4 text-center">
+                      <td className="py-3.5 px-4 text-center">
                         <button
                           onClick={() => toggleModule(t.id, 'moduloTraspasos', !!t.moduloTraspasos)}
                           disabled={togglingModule === `${t.id}-moduloTraspasos`}
                           className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded transition-colors"
-                          title="Click para alternar autorización"
                         >
                           {t.moduloTraspasos ? (
                             <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded flex items-center gap-1 border border-emerald-200">
@@ -459,12 +792,11 @@ export default function SuperadminDashboard() {
                       </td>
 
                       {/* Switch Credito */}
-                      <td className="py-3 px-4 text-center">
+                      <td className="py-3.5 px-4 text-center">
                         <button
                           onClick={() => toggleModule(t.id, 'moduloCredito', !!t.moduloCredito)}
                           disabled={togglingModule === `${t.id}-moduloCredito`}
                           className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded transition-colors"
-                          title="Click para alternar autorización"
                         >
                           {t.moduloCredito ? (
                             <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded flex items-center gap-1 border border-emerald-200">
@@ -479,12 +811,11 @@ export default function SuperadminDashboard() {
                       </td>
 
                       {/* Switch SAT */}
-                      <td className="py-3 px-4 text-center">
+                      <td className="py-3.5 px-4 text-center">
                         <button
                           onClick={() => toggleModule(t.id, 'moduloFacturacionSAT', !!t.moduloFacturacionSAT)}
                           disabled={togglingModule === `${t.id}-moduloFacturacionSAT`}
                           className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded transition-colors"
-                          title="Click para alternar autorización"
                         >
                           {t.moduloFacturacionSAT ? (
                             <span className="text-purple-700 bg-purple-50 px-2 py-0.5 rounded flex items-center gap-1 border border-purple-200">
@@ -499,12 +830,11 @@ export default function SuperadminDashboard() {
                       </td>
 
                       {/* Switch Tesorería */}
-                      <td className="py-3 px-4 text-center">
+                      <td className="py-3.5 px-4 text-center">
                         <button
                           onClick={() => toggleModule(t.id, 'moduloTesoreria', !!t.moduloTesoreria)}
                           disabled={togglingModule === `${t.id}-moduloTesoreria`}
                           className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded transition-colors"
-                          title="Click para alternar autorización"
                         >
                           {t.moduloTesoreria ? (
                             <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded flex items-center gap-1 border border-emerald-200">
@@ -519,12 +849,11 @@ export default function SuperadminDashboard() {
                       </td>
 
                       {/* Switch Manufactura */}
-                      <td className="py-3 px-4 text-center">
+                      <td className="py-3.5 px-4 text-center">
                         <button
                           onClick={() => toggleModule(t.id, 'moduloManufactura', !!t.moduloManufactura)}
                           disabled={togglingModule === `${t.id}-moduloManufactura`}
                           className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded transition-colors"
-                          title="Click para alternar autorización"
                         >
                           {t.moduloManufactura ? (
                             <span className="text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded flex items-center gap-1 border border-indigo-200">
@@ -539,7 +868,7 @@ export default function SuperadminDashboard() {
                       </td>
 
                       {/* Acciones */}
-                      <td className="py-3 px-4 text-right">
+                      <td className="py-3.5 px-4 text-right">
                         <div className="flex items-center justify-end gap-1.5">
                           <button
                             onClick={() => handleImpersonate(t)}
@@ -550,11 +879,11 @@ export default function SuperadminDashboard() {
                           </button>
 
                           <Link
-                            href={`/negocios?id=${t.id}`}
+                            href={`/superadmin/personalizar`}
                             className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-all"
-                            title="Mesa de Control Completa del Negocio"
+                            title="Personalización Quirúrgica"
                           >
-                            <ArrowUpRight className="w-3.5 h-3.5" />
+                            <Sliders className="w-3.5 h-3.5 text-purple-600" />
                           </Link>
                         </div>
                       </td>
@@ -570,7 +899,7 @@ export default function SuperadminDashboard() {
       {/* 4. Panel Inferior: Telemetría de Infraestructura & Actividad en Vivo */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Columna Izquierda: Estatus de Infraestructura Cloud */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-md shadow-slate-900/5 space-y-4">
           <div className="flex items-center justify-between pb-3 border-b border-slate-100">
             <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
               <Server className="w-4 h-4 text-purple-600" />
@@ -583,9 +912,9 @@ export default function SuperadminDashboard() {
 
           <div className="space-y-3 text-xs">
             {/* Base de Datos */}
-            <div className="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl border border-slate-200/60">
+            <div className="flex items-center justify-between p-2.5 bg-slate-50/80 rounded-xl border border-slate-200/60">
               <div className="flex items-center gap-2">
-                <HardDrive className="w-4 h-4 text-slate-600" />
+                <Database className="w-4 h-4 text-purple-600" />
                 <div>
                   <p className="font-semibold text-slate-800">Motor de Base de Datos</p>
                   <p className="text-slate-500 font-mono">SQLite (Dev) / Postgres (Prod)</p>
@@ -597,9 +926,9 @@ export default function SuperadminDashboard() {
             </div>
 
             {/* Timbrado Fiscal PAC */}
-            <div className="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl border border-slate-200/60">
+            <div className="flex items-center justify-between p-2.5 bg-slate-50/80 rounded-xl border border-slate-200/60">
               <div className="flex items-center gap-2">
-                <Cloud className="w-4 h-4 text-slate-600" />
+                <Cloud className="w-4 h-4 text-blue-600" />
                 <div>
                   <p className="font-semibold text-slate-800">Adaptador Multi-PAC SAT</p>
                   <p className="text-slate-500">Finkok / SW Sapien / Prodigia</p>
@@ -611,7 +940,7 @@ export default function SuperadminDashboard() {
             </div>
 
             {/* Seguridad Criptográfica */}
-            <div className="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl border border-slate-200/60">
+            <div className="flex items-center justify-between p-2.5 bg-slate-50/80 rounded-xl border border-slate-200/60">
               <div className="flex items-center gap-2">
                 <Lock className="w-4 h-4 text-purple-600" />
                 <div>
@@ -629,8 +958,8 @@ export default function SuperadminDashboard() {
           </div>
         </div>
 
-        {/* Columna Derecha: Feed de Auditoría Global Reciente (2 Columnas en lg) */}
-        <div className="lg:col-span-2 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+        {/* Columna Derecha: Feed de Auditoría Global Reciente */}
+        <div className="lg:col-span-2 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-md shadow-slate-900/5 space-y-4">
           <div className="flex items-center justify-between pb-3 border-b border-slate-100">
             <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
               <Activity className="w-4 h-4 text-purple-600" />

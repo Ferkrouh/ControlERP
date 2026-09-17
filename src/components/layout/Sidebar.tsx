@@ -104,13 +104,15 @@ export default function Sidebar() {
           href: '/pos',
           icon: Zap,
           color: 'text-emerald-400',
-          badge: 'Rápido'
+          badge: 'Rápido',
+          requiresModule: 'moduloPos'
         },
         {
           title: 'Cotizaciones',
           href: '/cotizaciones',
           icon: FileText,
-          color: 'text-sky-400'
+          color: 'text-sky-400',
+          requiresModule: 'moduloCotizaciones'
         },
         {
           title: 'Ventas y Facturación',
@@ -145,7 +147,8 @@ export default function Sidebar() {
           href: '/ordenes-compra',
           icon: FileText,
           color: 'text-amber-400',
-          allowedRoles: ['ADMIN', 'ENCARGADO', 'AUDITOR']
+          allowedRoles: ['ADMIN', 'ENCARGADO', 'AUDITOR'],
+          requiresModule: 'moduloOrdenesCompra'
         },
         {
           title: 'Recepción de Compras',
@@ -435,6 +438,18 @@ export default function Sidebar() {
                 >
                   <Building2 className="w-5 h-5 shrink-0" />
                   {!collapsed && <span>Negocios & Inquilinos</span>}
+                </Link>
+                <Link
+                  href="/superadmin/personalizar"
+                  title="Personalizar Negocio"
+                  className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+                    isActive('/superadmin/personalizar') 
+                      ? 'bg-purple-600 text-white shadow-md shadow-purple-900/20' 
+                      : 'hover:bg-slate-900 text-slate-300 hover:text-white'
+                  } ${collapsed ? 'justify-center px-0 w-10 h-10 mx-auto' : ''}`}
+                >
+                  <Sliders className="w-5 h-5 shrink-0 text-amber-400" />
+                  {!collapsed && <span>Personalizar Negocio</span>}
                 </Link>
                 <Link
                   href="/auditoria"

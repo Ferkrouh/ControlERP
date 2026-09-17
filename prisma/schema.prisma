@@ -37,12 +37,17 @@ model Tenant {
   notasSuperadmin       String?   // Notas privadas del Superadmin sobre facturación, cobro o acuerdos
 
   // Módulos autorizados por el Superadmin
+  moduloPos             Boolean   @default(true)
+  moduloCotizaciones    Boolean   @default(true)
   moduloCredito         Boolean   @default(true)
   moduloCxC             Boolean   @default(true)
+  moduloListasPrecio    Boolean   @default(true)
+  moduloOrdenesCompra   Boolean   @default(true)
   moduloProveedores     Boolean   @default(true)
   moduloCxP             Boolean   @default(true)
   moduloMultiAlmacen    Boolean   @default(true)
   moduloTraspasos       Boolean   @default(true)
+  moduloLotes           Boolean   @default(true)
   moduloReportes        Boolean   @default(true)
   moduloFacturacionSAT  Boolean   @default(false)
   moduloTesoreria       Boolean   @default(true)
@@ -50,6 +55,7 @@ model Tenant {
   moduloCrm             Boolean   @default(true)
   moduloContabilidad    Boolean   @default(true)
   moduloNomina          Boolean   @default(true)
+  funcionesHabilitadas  String?   // JSON estructurado con flags granulares de sub-funciones del Tenant
 
   // Configuración PAC / Timbrado Fiscal CFDI 4.0
   pacProveedor          String?   @default("FINKOK") // FINKOK, SW_SAPIEN, PRODIGIA, SIMULADOR

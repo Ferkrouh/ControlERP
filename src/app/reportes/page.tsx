@@ -16,6 +16,7 @@ const BalanzaCxCReport = dynamic(() => import('@/components/reportes/BalanzaCxCR
 const AntiguedadSaldosReport = dynamic(() => import('@/components/reportes/AntiguedadSaldosReport'), { ssr: false });
 const IngresosRecaudacionReport = dynamic(() => import('@/components/reportes/IngresosRecaudacionReport'), { ssr: false });
 const ConciliacionFacturasReport = dynamic(() => import('@/components/reportes/ConciliacionFacturasReport'), { ssr: false });
+const CortesCajaReport = dynamic(() => import('@/components/reportes/CortesCajaReport'), { ssr: false });
 const ForecastingReport = dynamic(() => import('@/components/reportes/ForecastingReport'), { ssr: false });
 const LtvClientesReport = dynamic(() => import('@/components/reportes/LtvClientesReport'), { ssr: false });
 const VentasProductoReport = dynamic(() => import('@/components/reportes/VentasProductoReport'), { ssr: false });
@@ -46,6 +47,7 @@ const TABS: { id: TabGroup; label: string; icon: React.FC<any>; subTabs?: SubTab
       { id: 'balanza-cxc', label: 'Balanza de Clientes', component: BalanzaCxCReport },
       { id: 'antiguedad', label: 'Antigüedad de Saldos', component: AntiguedadSaldosReport },
       { id: 'ingresos', label: 'Ingresos y Recaudación', component: IngresosRecaudacionReport },
+      { id: 'cortes-caja', label: 'Cortes de Caja POS', component: CortesCajaReport },
       { id: 'conciliacion', label: 'Conciliación de Facturas', component: ConciliacionFacturasReport },
     ],
   },

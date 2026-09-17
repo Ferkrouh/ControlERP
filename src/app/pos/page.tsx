@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import { 
   Zap, 
@@ -29,7 +30,8 @@ import {
   User,
   Package,
   Layers,
-  Check
+  Check,
+  History
 } from 'lucide-react';
 
 interface CartPosItem {
@@ -493,6 +495,14 @@ export default function PosPage() {
             </div>
 
             {/* Acciones de Caja */}
+            <Link
+              href="/reportes"
+              className="bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white font-bold text-xs px-3.5 py-2 rounded-xl transition-all inline-flex items-center gap-1.5 border border-slate-700 active:scale-95 shadow-xs"
+              title="Consultar concentrado de cortes y arqueos"
+            >
+              <History className="w-3.5 h-3.5 text-blue-400" /> Historial de Cortes
+            </Link>
+
             {turnoActivo ? (
               <button
                 onClick={() => {
