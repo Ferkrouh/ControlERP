@@ -24,15 +24,15 @@ import {
   Loader2,
   Copy,
   Check,
-  HelpCircle,
   TrendingUp,
-  PackageCheck,
   ChevronRight,
   ExternalLink,
-  MessageSquare,
-  ThumbsUp
+  Terminal,
+  CornerDownLeft,
+  Sparkle
 } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 interface ChatMessage {
   id: string;
@@ -45,12 +45,14 @@ type PromptCategory = 'recomendados' | 'stock' | 'credito' | 'pos' | 'balanza' |
 
 export default function CopilotWidget() {
   const { user } = useAuth();
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState<PromptCategory>('recomendados');
+  const [showSlashMenu, setShowSlashMenu] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -62,11 +64,20 @@ export default function CopilotWidget() {
   const initialGreeting: ChatMessage = {
     id: 'welcome',
     role: 'assistant',
-    content: `¡Hola **${user?.nombre || 'amigo(a)'}**! ✨ Soy **ControlBot**, tu asistente inteligente y copiloto financiero de **ControlERP**.\n\nEstoy aquí para hacerte el día más fácil, rápido y sin complicaciones. ¿Qué deseas consultar hoy?\n\n- 📦 **Stock y Kárdex:** Existencias en almacenes o sucursales.\n- 💳 **Crédito y Cartera:** Saldo, límite y facturas vencidas de clientes.\n- 💵 **Cortes de Caja POS:** Arqueos de turnos Z, ventas y diferencias.\n- 📊 **Balanza Financiera:** Resumen ejecutivo de CxC vs CxP.\n- 📝 **Cotizaciones:** Creación rápida de presupuestos en borrador.\n\n💡 *¡Elige una sugerencia abajo o escribe tu pregunta con total libertad!*`,
+    content: `👋 ¡Hola **${user?.nombre || 'Colega'}**! Soy **ControlBot**, tu asesor ejecutivo y copiloto de ControlERP.\n\nEstoy listo para consultar datos en tiempo real con precisión financiera. ¿Qué deseas revisar?\n\n- 📦 **Stock y Kárdex:** Existencias en almacenes o productos bajo mínimo.\n- 💳 **Crédito y Cobranza:** Límites de crédito, facturas en mora y saldos de clientes.\n- 💵 **Arqueos de Caja POS:** Turnos Z, ventas por método de pago y diferencias.\n- 📊 **Balanza Financiera:** Resumen ejecutivo de CxC vs CxP y liquidez.\n- 📝 **Cotizaciones:** Generación ágil de presupuestos en borrador.\n\n💡 *Tip: Puedes escribir \`/stock\`, \`/cliente\`, \`/corte\` o \`/balanza\` para consultas ultra rápidas.*`,
     timestamp: formatTime(),
   };
 
   const [messages, setMessages] = useState<ChatMessage[]>([initialGreeting]);
+
+  // Lista de comandos rápidos /slash
+  const slashCommands = [
+    { cmd: '/stock', desc: 'Consultar existencias de un producto', template: '¿Cuánto stock tenemos del producto ' },
+    { cmd: '/cliente', desc: 'Revisar saldo, crédito y mora de cliente', template: 'Consulta el estado de cuenta y crédito del cliente ' },
+    { cmd: '/corte', desc: 'Auditar arqueo y corte Z reciente', template: 'Revisa los cortes de caja POS recientes y si hubo diferencias de arqueo' },
+    { cmd: '/balanza', desc: 'Resumen financiero de CxC vs CxP', template: 'Dame un resumen ejecutivo de la balanza comercial y posición neta de liquidez' },
+    { cmd: '/cotizar', desc: 'Crear borrador de cotización', template: 'Ayúdame a cotizar ' },
+  ];
 
   // Atajo de Teclado Global: Ctrl + K o Cmd + K
   useEffect(() => {
@@ -97,6 +108,16 @@ export default function CopilotWidget() {
     }
   }, [messages, isLoading, isOpen]);
 
+  // Monitoreo de '/' para desplegar slash menu
+  const handleInputChange = (val: string) => {
+    setInput(val);
+    if (val.startsWith('/')) {
+      setShowSlashMenu(true);
+    } else {
+      setShowSlashMenu(false);
+    }
+  };
+
   if (!user || (user.rol === 'SUPERADMIN' && !user.tenantId)) {
     return null;
   }
@@ -107,10 +128,10 @@ export default function CopilotWidget() {
       icon: Zap,
       title: 'Recomendados',
       prompts: [
-        { label: '📊 Resumen del Mes', text: 'Dame un resumen ejecutivo de ventas y balance financiero del mes' },
-        { label: '⚠️ Clientes en Mora', text: '¿Cuáles clientes tienen facturas vencidas o saldo saturado?' },
-        { label: '📦 Existencias Generales', text: '¿Qué productos tienen bajo stock en almacén?' },
-        { label: '💵 Cortes de Caja POS', text: 'Revisa los cortes de caja recientes y si hubo faltantes en arqueos' },
+        { label: '📊 Resumen del Mes', text: 'Dame un resumen ejecutivo de la balanza comercial y cuentas por cobrar' },
+        { label: '⚠️ Clientes en Mora', text: '¿Cuáles clientes tienen facturas vencidas o crédito bloqueado?' },
+        { label: '📦 Existencias Generales', text: '¿Qué productos tienen stock bajo el mínimo en almacén?' },
+        { label: '💵 Cortes de Caja POS', text: 'Revisa los cortes de caja recientes y si hubo diferencias de arqueo' },
       ],
     },
     stock: {
@@ -145,7 +166,7 @@ export default function CopilotWidget() {
       title: 'Balanza & Finanzas',
       prompts: [
         { label: '📈 Salud Financiera', text: '¿Cómo está la posición neta de liquidez (Cuentas por Cobrar vs Cuentas por Pagar)?' },
-        { label: '🏆 Top Clientes Deudores', text: 'Dame el ranking de los 5 clientes con mayor saldo pendiente' },
+        { label: '🏆 Top Clientes Deudores', text: 'Dame el ranking de los clientes con mayor saldo pendiente' },
       ],
     },
     cotizacion: {
@@ -161,6 +182,8 @@ export default function CopilotWidget() {
   const handleSendMessage = async (textToSend?: string) => {
     const promptText = (textToSend || input).trim();
     if (!promptText || isLoading) return;
+
+    setShowSlashMenu(false);
 
     const userMessage: ChatMessage = {
       id: `user-${Date.now()}`,
@@ -245,7 +268,14 @@ export default function CopilotWidget() {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  // Renderizado Inteligente de Markdown con Tablas, Listas y Bloques
+  const handleNavigate = (path: string) => {
+    router.push(path);
+    if (window.innerWidth < 640) {
+      setIsOpen(false);
+    }
+  };
+
+  // Renderizado Inteligente de Markdown con Tablas, Enlaces de Acción y Semáforos
   const renderFormattedContent = (content: string) => {
     const lines = content.split('\n');
     const elements: React.ReactNode[] = [];
@@ -260,9 +290,9 @@ export default function CopilotWidget() {
             <table className="w-full text-left text-[11px] border-collapse">
               {tableHeader.length > 0 && (
                 <thead>
-                  <tr className="bg-slate-900 text-white font-semibold">
+                  <tr className="bg-slate-950 text-white font-semibold">
                     {tableHeader.map((th, hIdx) => (
-                      <th key={hIdx} className="p-2.5 border-b border-slate-700 font-mono text-[10px] tracking-wider uppercase">
+                      <th key={hIdx} className="p-2.5 border-b border-slate-800 font-mono text-[10px] tracking-wider uppercase">
                         {th.trim()}
                       </th>
                     ))}
@@ -271,12 +301,24 @@ export default function CopilotWidget() {
               )}
               <tbody className="divide-y divide-slate-100 font-mono">
                 {tableRows.map((row, rIdx) => (
-                  <tr key={rIdx} className={rIdx % 2 === 0 ? 'bg-white hover:bg-slate-50' : 'bg-slate-50/50 hover:bg-slate-100/50'}>
+                  <tr key={rIdx} className={rIdx % 2 === 0 ? 'bg-white hover:bg-slate-50/80' : 'bg-slate-50/50 hover:bg-slate-100/50'}>
                     {row.map((cell, cIdx) => {
-                      const isMoney = cell.includes('$') || cell.includes('MXN');
+                      const trimmedCell = cell.trim();
+                      const isMoney = trimmedCell.includes('$') || trimmedCell.includes('MXN');
+                      const isGreen = trimmedCell.includes('🟢') || trimmedCell.includes('ÓPTIMO') || trimmedCell.includes('AL CORRIENTE');
+                      const isYellow = trimmedCell.includes('🟡') || trimmedCell.includes('PRECAUCIÓN') || trimmedCell.includes('ADVERTENCIA');
+                      const isRed = trimmedCell.includes('🔴') || trimmedCell.includes('CRÍTICO') || trimmedCell.includes('BLOQUEADO') || trimmedCell.includes('MORA');
+
                       return (
-                        <td key={cIdx} className={`p-2 text-slate-800 ${isMoney ? 'font-bold text-emerald-700' : ''}`}>
-                          {cell.trim()}
+                        <td
+                          key={cIdx}
+                          className={`p-2.5 text-slate-800 ${
+                            isMoney ? 'font-bold text-emerald-700' : ''
+                          } ${isGreen ? 'text-emerald-700 font-bold' : ''} ${
+                            isYellow ? 'text-amber-700 font-bold' : ''
+                          } ${isRed ? 'text-rose-700 font-bold' : ''}`}
+                        >
+                          {trimmedCell}
                         </td>
                       );
                     })}
@@ -299,7 +341,6 @@ export default function CopilotWidget() {
       if (trimmed.startsWith('|') && trimmed.endsWith('|')) {
         const cells = trimmed.split('|').filter((_, i, arr) => i > 0 && i < arr.length - 1);
         if (cells.every((c) => c.trim().match(/^:?-+:?$/))) {
-          // Línea divisoria de tabla Markdown
           inTable = true;
           return;
         }
@@ -315,6 +356,26 @@ export default function CopilotWidget() {
         flushTable(idx);
       }
 
+      // Enlaces de Acción del ERP: [👉 Nombre de Acción](/ruta)
+      const actionLinkMatch = trimmed.match(/^\[(.*?)(?:👉|\s*)(.*?)\]\((.*?)\)$/);
+      if (actionLinkMatch) {
+        const fullLabel = actionLinkMatch[1] + (actionLinkMatch[2] ? ' ' + actionLinkMatch[2] : '');
+        const targetPath = actionLinkMatch[3];
+        elements.push(
+          <div key={idx} className="my-2.5">
+            <button
+              type="button"
+              onClick={() => handleNavigate(targetPath)}
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-xs shadow-md shadow-blue-600/20 active:scale-95 transition-all cursor-pointer group"
+            >
+              <span>{fullLabel.trim()}</span>
+              <ExternalLink className="w-3.5 h-3.5 opacity-70 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+            </button>
+          </div>
+        );
+        return;
+      }
+
       // Encabezados
       if (trimmed.startsWith('### ')) {
         elements.push(
@@ -327,9 +388,25 @@ export default function CopilotWidget() {
       }
       if (trimmed.startsWith('## ')) {
         elements.push(
-          <h3 key={idx} className="font-extrabold text-sm text-blue-950 pt-2 pb-0.5">
+          <h3 key={idx} className="font-extrabold text-sm text-blue-950 pt-2.5 pb-0.5">
             {trimmed.replace('## ', '')}
           </h3>
+        );
+        return;
+      }
+
+      // Semáforos al inicio de línea
+      if (trimmed.startsWith('🟢 ') || trimmed.startsWith('🟡 ') || trimmed.startsWith('🔴 ')) {
+        const colorClass = trimmed.startsWith('🟢 ')
+          ? 'bg-emerald-50 border-emerald-300 text-emerald-950'
+          : trimmed.startsWith('🟡 ')
+          ? 'bg-amber-50 border-amber-300 text-amber-950'
+          : 'bg-rose-50 border-rose-300 text-rose-950';
+
+        elements.push(
+          <div key={idx} className={`my-2 p-3 rounded-xl border ${colorClass} text-xs font-medium shadow-2xs`}>
+            {parseInlineStyles(trimmed)}
+          </div>
         );
         return;
       }
@@ -349,7 +426,7 @@ export default function CopilotWidget() {
       // Citas o Tips
       if (trimmed.startsWith('> ')) {
         elements.push(
-          <div key={idx} className="my-2 p-2.5 bg-blue-50 border-l-3 border-blue-600 rounded-r-xl text-blue-950 text-[11px] font-medium italic">
+          <div key={idx} className="my-2 p-2.5 bg-blue-50/80 border-l-3 border-blue-600 rounded-r-xl text-blue-950 text-[11px] font-medium italic">
             {trimmed.replace('> ', '')}
           </div>
         );
@@ -381,9 +458,9 @@ export default function CopilotWidget() {
     return elements;
   };
 
-  // Formato en línea (negritas, código, moneda)
+  // Formato en línea (negritas, código, enlaces, moneda)
   const parseInlineStyles = (text: string) => {
-    const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`|\$[0-9,]+(?:\.[0-9]{2})?(?:\s*MXN)?)/g);
+    const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`|\[[^\]]+\]\([^)]+\)|\$[0-9,]+(?:\.[0-9]{2})?(?:\s*MXN)?)/g);
     return parts.map((part, i) => {
       if (part.startsWith('**') && part.endsWith('**')) {
         return (
@@ -404,6 +481,19 @@ export default function CopilotWidget() {
           <span key={i} className="font-mono font-bold text-emerald-700 bg-emerald-50 px-1 rounded">
             {part}
           </span>
+        );
+      }
+      const inlineLinkMatch = part.match(/^\[(.*?)\]\((.*?)\)$/);
+      if (inlineLinkMatch) {
+        return (
+          <button
+            key={i}
+            type="button"
+            onClick={() => handleNavigate(inlineLinkMatch[2])}
+            className="text-blue-600 hover:text-blue-800 font-semibold underline underline-offset-2 mx-1 cursor-pointer"
+          >
+            {inlineLinkMatch[1]}
+          </button>
         );
       }
       return part;
@@ -458,8 +548,8 @@ export default function CopilotWidget() {
           <div
             className={`pointer-events-auto bg-white border border-slate-200/90 rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden transition-all duration-300 animate-in slide-in-from-bottom-5 ${
               isExpanded
-                ? 'w-full sm:w-[760px] h-[92vh] sm:h-[88vh]'
-                : 'w-full sm:w-[500px] h-[88vh] sm:h-[680px]'
+                ? 'w-full sm:w-[780px] h-[92vh] sm:h-[88vh]'
+                : 'w-full sm:w-[520px] h-[88vh] sm:h-[700px]'
             }`}
           >
             {/* 1. Header Premium con Estado en Vivo */}
@@ -638,7 +728,40 @@ export default function CopilotWidget() {
               ))}
             </div>
 
-            {/* 5. Formulario de Entrada Multilínea con Enviar Rápido */}
+            {/* 5. Menú Desplegable de Slash Commands (/stock, /cliente, etc.) */}
+            {showSlashMenu && (
+              <div className="bg-slate-900 border-t border-slate-800 p-2 space-y-1 animate-in slide-in-from-bottom-2 text-xs shrink-0">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2 block">
+                  Comandos Rápidos (/):
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
+                  {slashCommands.map((sc, scIdx) => (
+                    <button
+                      key={scIdx}
+                      type="button"
+                      onClick={() => {
+                        setInput(sc.template);
+                        setShowSlashMenu(false);
+                        inputRef.current?.focus();
+                      }}
+                      className="text-left p-2 rounded-xl bg-slate-800/70 hover:bg-blue-600 text-slate-200 hover:text-white transition-all cursor-pointer flex items-center justify-between group"
+                    >
+                      <div>
+                        <span className="font-mono font-bold text-emerald-400 group-hover:text-white block">
+                          {sc.cmd}
+                        </span>
+                        <span className="text-[11px] text-slate-400 group-hover:text-blue-100">
+                          {sc.desc}
+                        </span>
+                      </div>
+                      <CornerDownLeft className="w-3.5 h-3.5 opacity-40 group-hover:opacity-100" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* 6. Formulario de Entrada Multilínea con Enviar Rápido */}
             <div className="p-3 bg-white border-t border-slate-200 shrink-0">
               <form
                 onSubmit={(e) => {
@@ -651,9 +774,9 @@ export default function CopilotWidget() {
                   <textarea
                     ref={inputRef}
                     rows={1}
-                    placeholder="Hazme una pregunta sobre stock, clientes, cortes Z, balanza..."
+                    placeholder="Escribe una pregunta o presiona '/' para ver comandos..."
                     value={input}
-                    onChange={(e) => setInput(e.target.value)}
+                    onChange={(e) => handleInputChange(e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault();
@@ -675,7 +798,7 @@ export default function CopilotWidget() {
                 </button>
               </form>
               <p className="text-[10px] text-slate-400 text-center mt-1.5">
-                Presiona <kbd className="font-mono bg-slate-100 px-1 py-0.5 rounded border border-slate-200">Enter</kbd> para enviar • <kbd className="font-mono bg-slate-100 px-1 py-0.5 rounded border border-slate-200">Shift + Enter</kbd> para nueva línea
+                Presiona <kbd className="font-mono bg-slate-100 px-1 py-0.5 rounded border border-slate-200">Enter</kbd> para enviar • <kbd className="font-mono bg-slate-100 px-1 py-0.5 rounded border border-slate-200">Shift + Enter</kbd> para salto de línea
               </p>
             </div>
           </div>

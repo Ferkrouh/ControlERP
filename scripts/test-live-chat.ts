@@ -19,7 +19,7 @@ async function testLiveApi() {
   const token = await signToken({
     id: user.id,
     email: user.email,
-    rol: user.rol,
+    rol: user.rol as any,
     tenantId: user.tenantId,
   });
 
