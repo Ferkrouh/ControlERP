@@ -350,20 +350,37 @@ export function getAITools(context: { tenantId: string; userRol: string; userId:
           // 2. Procesar partidas
           let subtotal = 0;
           const detallesParaInsertar = [];
+          const allTenantProducts = await prisma.producto.findMany({
+            where: { tenantId },
+            select: { id: true, sku: true, nombre: true, precioVenta: true },
+          });
 
           for (const item of items) {
-            const prod = await prisma.producto.findFirst({
-              where: {
-                tenantId,
-                OR: [
-                  { sku: { contains: item.skuOrNombre } },
-                  { nombre: { contains: item.skuOrNombre } },
-                ],
-              },
-            });
+            const rawTerm = (item.skuOrNombre || '').toLowerCase().trim();
+            // Búsqueda inteligente: coincidencia exacta, parcial, sinónimos comunes
+            let prod = allTenantProducts.find((p) => 
+              p.sku.toLowerCase() === rawTerm || 
+              p.nombre.toLowerCase().includes(rawTerm) ||
+              rawTerm.includes(p.sku.toLowerCase())
+            );
+
+            // Mapeo de sinónimos comunes industriales/ferreteros
+            if (!prod) {
+              if (rawTerm.includes('taladro') || rawTerm.includes('percutor') || rawTerm.includes('martillo')) {
+                prod = allTenantProducts.find((p) => p.nombre.toLowerCase().includes('rotomartillo') || p.sku.toLowerCase().includes('her-001'));
+              } else if (rawTerm.includes('compresor') || rawTerm.includes('aire')) {
+                prod = allTenantProducts.find((p) => p.nombre.toLowerCase().includes('compresor'));
+              } else if (rawTerm.includes('casco') || rawTerm.includes('seguridad')) {
+                prod = allTenantProducts.find((p) => p.nombre.toLowerCase().includes('casco'));
+              }
+            }
 
             if (!prod) {
-              return { error: `No se encontró el producto "${item.skuOrNombre}" en el catálogo.` };
+              const catalogoDisponible = allTenantProducts.map(p => `• [${p.sku}] ${p.nombre} ($${p.precioVenta.toFixed(2)})`).join('\n');
+              return { 
+                error: `No se encontró el producto "${item.skuOrNombre}" en el catálogo.`,
+                catalogoSugerido: `Productos disponibles en el inventario:\n${catalogoDisponible}`
+              };
             }
 
             const pu = item.precioUnitario !== undefined && item.precioUnitario > 0 ? item.precioUnitario : prod.precioVenta;

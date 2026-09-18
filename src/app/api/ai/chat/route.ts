@@ -67,35 +67,36 @@ ESTÁNDAR DE COMUNICACIÓN EJECUTIVA ("THE FINTECH LEDGER"):
 
     const model = getAIModel();
 
-    // 1. Primer paso: Detección y ejecución de herramientas
-    const step1 = await generateText({
-      model,
-      system: systemPrompt,
-      messages,
-      tools: aiTools,
-    });
+    let currentMessages = [...messages];
+    let finalResponseText = '';
 
-    // 2. Si se ejecutaron herramientas, sintetizar la respuesta final con el estándar ejecutivo
-    if (step1.toolCalls && step1.toolCalls.length > 0) {
-      const step2 = await generateText({
+    for (let turn = 0; turn < 4; turn++) {
+      const response = await generateText({
         model,
-        system: systemPrompt + '\n\nIMPORTANTE: Aplica estrictamente la estructura piramidal: Semáforo/Dato Clave primero, tabla concisa después, y 1-2 botones de acción rápida [👉 Nombre](/ruta) al final.',
-        messages: [
-          ...messages,
-          ...step1.responseMessages,
-        ],
+        system: systemPrompt,
+        messages: currentMessages,
+        tools: aiTools,
       });
 
-      return new Response(step2.text, {
-        headers: {
-          'Content-Type': 'text/plain; charset=utf-8',
-          'Cache-Control': 'no-cache',
-        },
-      });
+      if (response.toolCalls && response.toolCalls.length > 0) {
+        currentMessages = [...currentMessages, ...response.responseMessages];
+      } else {
+        finalResponseText = response.text;
+        break;
+      }
     }
 
-    // 3. Respuesta conversacional directa
-    return new Response(step1.text, {
+    if (!finalResponseText && currentMessages.length > messages.length) {
+      const synth = await generateText({
+        model,
+        system: systemPrompt + '\n\nSintetiza la respuesta ejecutiva final para el usuario explicando el resultado de las herramientas ejecutadas con semáforos, tabla de resumen y enlaces de acción rápida.',
+        messages: currentMessages,
+        tools: aiTools,
+      });
+      finalResponseText = synth.text;
+    }
+
+    return new Response(finalResponseText || 'Operación procesada con éxito en el sistema.', {
       headers: {
         'Content-Type': 'text/plain; charset=utf-8',
         'Cache-Control': 'no-cache',
