@@ -19,7 +19,8 @@ import {
   Building2,
   Send,
   Sparkles,
-  Mail
+  Mail,
+  Edit
 } from 'lucide-react';
 
 interface CartCotItem {
@@ -77,6 +78,20 @@ export default function CotizacionesPage() {
   const [emailAdjuntarPdf, setEmailAdjuntarPdf] = useState(true);
   const [sendingEmail, setSendingEmail] = useState(false);
   const [emailFeedback, setEmailFeedback] = useState<{ success?: string; error?: string } | null>(null);
+
+  // Modal Modificar Cotización
+  const [editingCot, setEditingCot] = useState<any>(null);
+  const [editClienteId, setEditClienteId] = useState('');
+  const [editVigenciaDias, setEditVigenciaDias] = useState(15);
+  const [editObservaciones, setEditObservaciones] = useState('');
+  const [editCondicionesPago, setEditCondicionesPago] = useState('Contado comercial / Sujeto a existencias');
+  const [editCart, setEditCart] = useState<CartCotItem[]>([]);
+  const [editSelectedProdId, setEditSelectedProdId] = useState('');
+  const [editAddQty, setEditAddQty] = useState(1);
+  const [editAddPrice, setEditAddPrice] = useState(0);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [editError, setEditError] = useState('');
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (user?.tenantId) {
@@ -310,6 +325,137 @@ export default function CotizacionesPage() {
     }
   };
 
+  const handleOpenEditCot = (cot: any) => {
+    setEditingCot(cot);
+    setEditClienteId(cot.clienteId || (clientes[0]?.id || ''));
+    setEditVigenciaDias(cot.vigenciaDias || 15);
+    setEditObservaciones(cot.observaciones || '');
+    setEditCondicionesPago(cot.condicionesPago || 'Contado comercial / Sujeto a existencias');
+    const items: CartCotItem[] = (cot.detalles || []).map((d: any) => ({
+      productoId: d.productoId || d.producto?.id,
+      sku: d.producto?.sku || 'SKU-00',
+      nombre: d.producto?.nombre || 'Artículo',
+      unidadMedida: d.producto?.unidadMedida || 'PZA',
+      cantidad: Number(d.cantidad || 1),
+      precioUnitario: Number(d.precioUnitario || 0),
+      descuento: Number(d.descuento || 0),
+      subtotal: Number(d.subtotal || d.cantidad * d.precioUnitario),
+    }));
+    setEditCart(items);
+    if (productos.length > 0) {
+      setEditSelectedProdId(productos[0].id);
+      setEditAddPrice(productos[0].precioVenta || 0);
+    }
+    setEditAddQty(1);
+    setEditError('');
+  };
+
+  const handleEditAddToCart = () => {
+    const prod = productos.find((p) => p.id === editSelectedProdId);
+    if (!prod) return;
+    if (editAddQty <= 0) return;
+
+    const existingIndex = editCart.findIndex((i) => i.productoId === editSelectedProdId);
+    if (existingIndex >= 0) {
+      const updated = [...editCart];
+      updated[existingIndex].cantidad += editAddQty;
+      updated[existingIndex].precioUnitario = editAddPrice;
+      updated[existingIndex].subtotal = updated[existingIndex].cantidad * editAddPrice;
+      setEditCart(updated);
+    } else {
+      setEditCart([
+        ...editCart,
+        {
+          productoId: prod.id,
+          sku: prod.sku,
+          nombre: prod.nombre,
+          unidadMedida: prod.unidadMedida,
+          cantidad: editAddQty,
+          precioUnitario: editAddPrice,
+          descuento: 0,
+          subtotal: editAddQty * editAddPrice,
+        },
+      ]);
+    }
+    setEditAddQty(1);
+  };
+
+  const handleEditRemoveFromCart = (index: number) => {
+    setEditCart(editCart.filter((_, i) => i !== index));
+  };
+
+  const editSubtotalCart = editCart.reduce((acc, i) => acc + i.subtotal, 0);
+  const editIvaCart = Math.round(editSubtotalCart * 0.16 * 100) / 100;
+  const editTotalCart = editSubtotalCart + editIvaCart;
+
+  const handleSaveEditCot = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingCot) return;
+    if (editCart.length === 0) {
+      setEditError('La cotización debe contener al menos un artículo.');
+      return;
+    }
+
+    setSavingEdit(true);
+    setEditError('');
+
+    try {
+      const res = await fetch(`/api/cotizaciones/${editingCot.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clienteId: editClienteId,
+          vigenciaDias: editVigenciaDias,
+          observaciones: editObservaciones,
+          condicionesPago: editCondicionesPago,
+          items: editCart.map((i) => ({
+            productoId: i.productoId,
+            cantidad: i.cantidad,
+            precioUnitario: i.precioUnitario,
+            descuento: i.descuento,
+          })),
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        setEditingCot(null);
+        loadData();
+      } else {
+        setEditError(data.error || 'Error al actualizar cotización.');
+      }
+    } catch (err) {
+      setEditError('Error de comunicación con el servidor.');
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const handleDeleteCot = async (cot: any) => {
+    if (!confirm(`¿Estás seguro de que deseas eliminar la cotización ${cot.folio} para "${cot.cliente?.razonSocial || 'Cliente'}"? Esta acción no se puede deshacer.`)) {
+      return;
+    }
+
+    setDeletingId(cot.id);
+    try {
+      const res = await fetch(`/api/cotizaciones/${cot.id}`, {
+        method: 'DELETE',
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        if (viewCot?.id === cot.id) setViewCot(null);
+        loadData();
+      } else {
+        alert(data.error || 'No se pudo eliminar la cotización.');
+      }
+    } catch (err) {
+      alert('Error de conexión al eliminar.');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   const isReadOnly = user?.rol === 'AUDITOR' || user?.rol === 'ALMACENISTA';
 
   return (
@@ -440,6 +586,29 @@ export default function CotizacionesPage() {
                           >
                             <Mail className="w-4 h-4" />
                           </button>
+
+                          {/* Modificar Cotización */}
+                          {!isReadOnly && c.estado !== 'CONVERTIDA' && (
+                            <button
+                              onClick={() => handleOpenEditCot(c)}
+                              className="p-1.5 rounded-lg text-slate-600 hover:text-amber-600 hover:bg-slate-100 transition-colors"
+                              title="Modificar cotización"
+                            >
+                              <Edit className="w-4 h-4 text-amber-600" />
+                            </button>
+                          )}
+
+                          {/* Eliminar Cotización */}
+                          {!isReadOnly && c.estado !== 'CONVERTIDA' && (
+                            <button
+                              onClick={() => handleDeleteCot(c)}
+                              disabled={deletingId === c.id}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-slate-100 transition-colors"
+                              title="Eliminar cotización"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
 
                           {/* Convertir a Venta */}
                           {!isReadOnly && c.estado !== 'CONVERTIDA' && (
@@ -835,6 +1004,28 @@ export default function CotizacionesPage() {
                   >
                     <Mail className="w-4 h-4 text-blue-600" /> Enviar por Correo
                   </button>
+                  {!isReadOnly && viewCot.estado !== 'CONVERTIDA' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const c = viewCot;
+                        setViewCot(null);
+                        handleOpenEditCot(c);
+                      }}
+                      className="px-3.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-xl font-bold flex items-center gap-1.5"
+                    >
+                      <Edit className="w-4 h-4 text-amber-600" /> Modificar
+                    </button>
+                  )}
+                  {!isReadOnly && viewCot.estado !== 'CONVERTIDA' && (
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteCot(viewCot)}
+                      className="px-3.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl font-bold flex items-center gap-1.5"
+                    >
+                      <Trash2 className="w-4 h-4 text-rose-600" /> Eliminar
+                    </button>
+                  )}
                 </div>
                 <div className="text-right">
                   <p className="text-slate-500">Total Presupuesto:</p>
@@ -962,6 +1153,234 @@ export default function CotizacionesPage() {
                       <Send className="w-4 h-4" /> Enviar Cotización
                     </>
                   )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL MODIFICAR COTIZACIÓN (The Sovereign Lift) */}
+      {editingCot && (
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in">
+          <div className="bg-white rounded-3xl w-full max-w-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]">
+            <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                  <Edit className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base">Modificar Cotización: {editingCot.folio}</h3>
+                  <p className="text-xs text-slate-400">Ajusta cliente, vigencia, condiciones o partidas presupuestadas</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setEditingCot(null)}
+                className="w-7 h-7 rounded-full bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center text-xs font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditCot} className="p-6 overflow-y-auto space-y-5 flex-1 text-xs">
+              {editError && (
+                <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl flex items-center gap-2 font-medium">
+                  <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span>{editError}</span>
+                </div>
+              )}
+
+              {/* Paso 1: Cliente y Vigencia */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Cliente Receptor *</label>
+                  <select
+                    value={editClienteId}
+                    onChange={(e) => setEditClienteId(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white font-medium focus:ring-2 focus:ring-blue-500"
+                    required
+                  >
+                    {clientes.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        [{c.codigo}] {c.razonSocial}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Vigencia de la Oferta *</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[7, 15, 30].map((d) => (
+                      <button
+                        key={d}
+                        type="button"
+                        onClick={() => setEditVigenciaDias(d)}
+                        className={`py-2 text-xs font-bold rounded-xl border transition-all ${
+                          editVigenciaDias === d
+                            ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                            : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                        }`}
+                      >
+                        {d} Días
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block font-bold text-slate-700 mb-1">Condiciones Comerciales / Forma de Pago</label>
+                  <input
+                    type="text"
+                    value={editCondicionesPago}
+                    onChange={(e) => setEditCondicionesPago(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white font-medium"
+                    placeholder="Ej. Contado comercial, 30 días crédito, etc."
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block font-bold text-slate-700 mb-1">Notas u Observaciones</label>
+                  <textarea
+                    rows={2}
+                    value={editObservaciones}
+                    onChange={(e) => setEditObservaciones(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white font-medium"
+                    placeholder="Notas adicionales..."
+                  />
+                </div>
+              </div>
+
+              {/* Paso 2: Partidas de la Cotización */}
+              <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-4">
+                <span className="text-xs font-bold uppercase tracking-wider text-blue-600">
+                  Partidas del Presupuesto
+                </span>
+
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end bg-slate-50 p-3 rounded-xl border border-slate-200">
+                  <div className="sm:col-span-6">
+                    <label className="block text-xs font-bold text-slate-600 mb-1">Artículo</label>
+                    <select
+                      value={editSelectedProdId}
+                      onChange={(e) => {
+                        const pId = e.target.value;
+                        setEditSelectedProdId(pId);
+                        const prod = productos.find((p) => p.id === pId);
+                        if (prod) setEditAddPrice(prod.precioVenta || 0);
+                      }}
+                      className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 bg-white font-medium"
+                    >
+                      {productos.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          [{p.sku}] {p.nombre} — ${p.precioVenta.toFixed(2)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-bold text-slate-600 mb-1">Cantidad</label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={editAddQty}
+                      onChange={(e) => setEditAddQty(Number(e.target.value))}
+                      className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 bg-white text-center font-bold"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-bold text-slate-600 mb-1">Precio Unit.</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={editAddPrice}
+                      onChange={(e) => setEditAddPrice(Number(e.target.value))}
+                      className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 bg-white text-right font-bold"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <button
+                      type="button"
+                      onClick={handleEditAddToCart}
+                      className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs py-1.5 rounded-lg shadow-sm flex items-center justify-center gap-1"
+                    >
+                      <Plus className="w-3.5 h-3.5" /> Añadir
+                    </button>
+                  </div>
+                </div>
+
+                {/* Tabla Carrito en Edición */}
+                <div className="border border-slate-200 rounded-xl overflow-hidden">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200">
+                      <tr>
+                        <th className="py-2 px-3">SKU</th>
+                        <th className="py-2 px-3">Producto</th>
+                        <th className="py-2 px-3 text-center">Cant.</th>
+                        <th className="py-2 px-3 text-right">Precio</th>
+                        <th className="py-2 px-3 text-right">Subtotal</th>
+                        <th className="py-2 px-3 text-center">Quitar</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {editCart.map((it, idx) => (
+                        <tr key={idx}>
+                          <td className="py-2 px-3 font-mono font-bold text-blue-700">{it.sku}</td>
+                          <td className="py-2 px-3">{it.nombre}</td>
+                          <td className="py-2 px-3 text-center font-bold">{it.cantidad}</td>
+                          <td className="py-2 px-3 text-right font-mono">${it.precioUnitario.toFixed(2)}</td>
+                          <td className="py-2 px-3 text-right font-mono font-bold text-slate-900">${it.subtotal.toFixed(2)}</td>
+                          <td className="py-2 px-3 text-center">
+                            <button
+                              type="button"
+                              onClick={() => handleEditRemoveFromCart(idx)}
+                              className="text-slate-400 hover:text-rose-600 p-1"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Totales Recalculados */}
+                <div className="flex justify-end pt-2">
+                  <div className="w-64 space-y-1 text-xs">
+                    <div className="flex justify-between text-slate-600">
+                      <span>Subtotal:</span>
+                      <span className="font-mono font-bold">${editSubtotalCart.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-600">
+                      <span>IVA (16%):</span>
+                      <span className="font-mono font-bold">${editIvaCart.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-900 font-bold text-sm pt-1 border-t border-slate-200">
+                      <span>Total:</span>
+                      <span className="font-mono text-blue-600">${editTotalCart.toFixed(2)} MXN</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Botones de Acción */}
+              <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setEditingCot(null)}
+                  className="px-4 py-2 font-bold text-slate-600 hover:bg-slate-100 rounded-xl"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingEdit || editCart.length === 0}
+                  className="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl shadow-md disabled:opacity-50 flex items-center gap-2"
+                >
+                  {savingEdit ? 'Guardando cambios...' : <><Edit className="w-4 h-4" /> Guardar Cambios</>}
                 </button>
               </div>
             </form>

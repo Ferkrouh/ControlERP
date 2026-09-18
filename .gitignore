@@ -39,3 +39,4 @@ prisma/*.db-journal
 # impeccable local configs / temp
 .impeccable/config.local.json
 .impeccable/critique/temp*.md
+scratch_pdfs/
