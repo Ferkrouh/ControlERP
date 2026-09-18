@@ -27,7 +27,9 @@ import {
   ArrowDown,
   Search,
   ShieldCheck,
-  PackageCheck
+  PackageCheck,
+  Mail,
+  Send
 } from 'lucide-react';
 
 interface CartItem {
@@ -85,6 +87,16 @@ export default function VentasPage() {
   const [editTipoPago, setEditTipoPago] = useState<'CONTADO' | 'CREDITO'>('CONTADO');
   const [savingEdit, setSavingEdit] = useState(false);
   const [editError, setEditError] = useState('');
+
+  // Estados para Enviar Comprobante / Factura por Correo
+  const [emailModalVenta, setEmailModalVenta] = useState<any>(null);
+  const [emailDestinatarios, setEmailDestinatarios] = useState('');
+  const [emailAsunto, setEmailAsunto] = useState('');
+  const [emailMensaje, setEmailMensaje] = useState('');
+  const [emailAdjuntarPdf, setEmailAdjuntarPdf] = useState(true);
+  const [emailAdjuntarXml, setEmailAdjuntarXml] = useState(true);
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const [emailFeedback, setEmailFeedback] = useState<{ success?: string; error?: string } | null>(null);
 
   useEffect(() => {
     if (user?.tenantId) {
@@ -543,6 +555,64 @@ export default function VentasPage() {
       setErrorMsg('Error de conexión.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleOpenEmailModal = (venta: any) => {
+    setEmailModalVenta(venta);
+    setEmailDestinatarios(venta.cliente?.email || '');
+    setEmailAsunto(`Factura Electrónica CFDI 4.0 - Folio: ${venta.folio}`);
+    setEmailMensaje(`Estimado(a) ${venta.cliente?.razonSocial || 'Cliente'},\n\nLe enviamos adjunto su comprobante fiscal digital CFDI 4.0 correspondiente a su compra.\n\nAgradecemos su preferencia.`);
+    setEmailAdjuntarPdf(true);
+    setEmailAdjuntarXml(true);
+    setEmailFeedback(null);
+  };
+
+  const handleSendEmailVenta = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!emailModalVenta) return;
+
+    setSendingEmail(true);
+    setEmailFeedback(null);
+
+    try {
+      const dests = emailDestinatarios
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+
+      if (dests.length === 0) {
+        setEmailFeedback({ error: 'Debe ingresar al menos una dirección de correo de destinatario.' });
+        setSendingEmail(false);
+        return;
+      }
+
+      const res = await fetch(`/api/ventas/${emailModalVenta.id}/enviar-correo`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          destinatarios: dests,
+          asunto: emailAsunto,
+          mensajePersonalizado: emailMensaje,
+          adjuntarPdf: emailAdjuntarPdf,
+          adjuntarXml: emailAdjuntarXml,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        setEmailFeedback({ success: data.message || 'Comprobante fiscal enviado exitosamente por correo.' });
+        setTimeout(() => {
+          setEmailModalVenta(null);
+          setEmailFeedback(null);
+        }, 1500);
+      } else {
+        setEmailFeedback({ error: data.error || 'Error al enviar comprobante por correo.' });
+      }
+    } catch (err) {
+      setEmailFeedback({ error: 'Error de comunicación al enviar correo.' });
+    } finally {
+      setSendingEmail(false);
     }
   };
 
@@ -1081,6 +1151,15 @@ export default function VentasPage() {
                           <Printer className="w-4 h-4 text-emerald-600" />
                         </button>
 
+                        {/* Enviar Comprobante / Factura por Correo */}
+                        <button
+                          onClick={() => handleOpenEmailModal(v)}
+                          className="p-1.5 rounded-lg text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors shadow-xs"
+                          title="Enviar comprobante fiscal por correo electrónico"
+                        >
+                          <Mail className="w-4 h-4" />
+                        </button>
+
                         {/* Modificar Venta */}
                         {!isReadOnly && !isAlmacenista && v.estadoFiscal !== 'TIMBRADA' && (
                           <button
@@ -1572,6 +1651,17 @@ export default function VentasPage() {
                 >
                   <FileDown className="w-4 h-4" /> Factura PDF (CFDI 4.0)
                 </a>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const v = selectedVentaView;
+                    setSelectedVentaView(null);
+                    handleOpenEmailModal(v);
+                  }}
+                  className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 transition-colors active:scale-95 shadow-sm shadow-blue-600/20"
+                >
+                  <Mail className="w-4 h-4" /> Enviar por Correo
+                </button>
               </div>
 
               <div className="w-56 space-y-1 text-xs">
@@ -1671,6 +1761,139 @@ export default function VentasPage() {
                   className="bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-5 py-2 rounded-xl shadow-md shadow-blue-500/20 disabled:opacity-50 transition-all flex items-center gap-1.5 active:scale-95"
                 >
                   {savingEdit ? 'Guardando...' : 'Guardar Cambios'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL ENVIAR COMPROBANTE / FACTURA POR CORREO */}
+      {emailModalVenta && (
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in">
+          <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl border border-slate-200 overflow-hidden">
+            <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-blue-600/30 border border-blue-500/30 flex items-center justify-center text-blue-400">
+                  <Mail className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base">Enviar Comprobante Fiscal por Correo</h3>
+                  <p className="text-xs text-slate-400">Folio: <span className="font-mono text-blue-300 font-bold">{emailModalVenta.folio}</span></p>
+                </div>
+              </div>
+              <button
+                onClick={() => setEmailModalVenta(null)}
+                className="w-7 h-7 rounded-full bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center text-xs font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSendEmailVenta} className="p-6 space-y-4 text-xs">
+              {emailFeedback?.error && (
+                <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl flex items-center gap-2 font-medium">
+                  <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span>{emailFeedback.error}</span>
+                </div>
+              )}
+
+              {emailFeedback?.success && (
+                <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl flex items-center gap-2 font-medium">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>{emailFeedback.success}</span>
+                </div>
+              )}
+
+              <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
+                <p className="text-slate-500">Cliente: <strong className="text-slate-900">{emailModalVenta.cliente?.razonSocial}</strong></p>
+                <p className="text-slate-500">Total Facturado: <strong className="text-blue-600 font-mono font-bold">${Number(emailModalVenta.total).toFixed(2)} MXN</strong></p>
+                <p className="text-slate-500">Estado Fiscal: <strong className="text-emerald-700 font-bold">{emailModalVenta.estadoFiscal === 'TIMBRADA' ? 'CFDI 4.0 Timbrado SAT' : 'Remisión / Prefactura'}</strong></p>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">
+                  Destinatarios (separar con comas para múltiples correos) *
+                </label>
+                <input
+                  type="text"
+                  value={emailDestinatarios}
+                  onChange={(e) => setEmailDestinatarios(e.target.value)}
+                  placeholder="facturacion@cliente.com, pagos@cliente.com"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white font-medium focus:ring-2 focus:ring-blue-500"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">
+                  Asunto del Correo *
+                </label>
+                <input
+                  type="text"
+                  value={emailAsunto}
+                  onChange={(e) => setEmailAsunto(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white font-medium focus:ring-2 focus:ring-blue-500"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">
+                  Mensaje Personalizado
+                </label>
+                <textarea
+                  value={emailMensaje}
+                  onChange={(e) => setEmailMensaje(e.target.value)}
+                  rows={3}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white font-medium focus:ring-2 focus:ring-blue-500"
+                  placeholder="Escribe un mensaje para el receptor..."
+                />
+              </div>
+
+              {/* Opciones de Archivos Adjuntos */}
+              <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                <span className="font-bold text-slate-700 block">Archivos Adjuntos:</span>
+                <label className="flex items-center gap-2 text-slate-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={emailAdjuntarPdf}
+                    onChange={(e) => setEmailAdjuntarPdf(e.target.checked)}
+                    className="w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500"
+                  />
+                  <span>📎 Factura_{emailModalVenta.folio}.pdf (Representación Impresa Oficial)</span>
+                </label>
+                <label className="flex items-center gap-2 text-slate-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={emailAdjuntarXml}
+                    onChange={(e) => setEmailAdjuntarXml(e.target.checked)}
+                    className="w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500"
+                  />
+                  <span>📎 Factura_{emailModalVenta.folio}.xml (Comprobante Fiscal Digital SAT)</span>
+                </label>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setEmailModalVenta(null)}
+                  className="px-4 py-2 font-bold text-slate-600 hover:bg-slate-100 rounded-xl"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={sendingEmail}
+                  className="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-md disabled:opacity-50 flex items-center gap-2"
+                >
+                  {sendingEmail ? (
+                    'Enviando...'
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4" /> Enviar Comprobante
+                    </>
+                  )}
                 </button>
               </div>
             </form>
