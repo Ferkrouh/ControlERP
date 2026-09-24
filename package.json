@@ -23,6 +23,7 @@
     "@ai-sdk/react": "^4.0.108",
     "@prisma/client": "6.4.1",
     "@types/qrcode": "^1.5.6",
+    "@vercel/speed-insights": "^2.0.0",
     "ai": "^7.0.105",
     "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
