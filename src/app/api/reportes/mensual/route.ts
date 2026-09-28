@@ -37,10 +37,10 @@ export async function GET(req: NextRequest) {
       fechaCorte = finMes;
     }
 
-    // Consultas agregadas simultáneas filtradas por período
+    // Consultas compactas en paralelo: el resumen solo necesita valores y conteos.
     const [
       cxcList,
-      cxpList,
+      cxpResumen,
       existencias,
       ventasMes,
       comprasMes,
@@ -52,55 +52,66 @@ export async function GET(req: NextRequest) {
       prisma.cuentaPorCobrar.findMany({
         where: {
           ...whereTenant,
+          estado: { not: 'CANCELADA' },
           ...(dateFilter ? { fechaEmision: { lte: fechaCorte } } : {}),
         },
-        include: { cliente: true },
+        select: { saldoPendiente: true, fechaVencimiento: true },
       }),
       // CxP (Cuentas activas con saldo o emitidas hasta la fecha de corte)
-      prisma.cuentaPorPagar.findMany({
+      prisma.cuentaPorPagar.aggregate({
         where: {
           ...whereTenant,
           ...(dateFilter ? { fechaEmision: { lte: fechaCorte } } : {}),
         },
-        include: { proveedor: true },
+        _sum: { saldoPendiente: true },
+        _count: { _all: true },
       }),
       // Stock y Valuación
       prisma.existencia.findMany({
         where: effectiveTenantId ? { producto: { tenantId: effectiveTenantId } } : {},
-        include: { producto: true, almacen: true },
+        select: {
+          cantidad: true,
+          producto: { select: { costoPromedio: true } },
+          almacen: { select: { nombre: true } },
+        },
       }),
       // Ventas en el período seleccionado
-      prisma.venta.findMany({
+      prisma.venta.aggregate({
         where: {
           ...whereTenant,
+          estado: 'COMPLETADA',
           ...(dateFilter ? { fecha: dateFilter } : {}),
         },
-        include: { cliente: true },
+        _sum: { total: true },
+        _count: { _all: true },
       }),
       // Compras en el período seleccionado
-      prisma.compra.findMany({
+      prisma.compra.aggregate({
         where: {
           ...whereTenant,
           ...(dateFilter ? { fecha: dateFilter } : {}),
         },
-        include: { proveedor: true },
+        _sum: { total: true },
+        _count: { _all: true },
       }),
       // Cobranza CxC en el período seleccionado
-      prisma.pagoCxC.findMany({
+      prisma.pagoCxC.aggregate({
         where: {
           ...(effectiveTenantId ? { cxc: { tenantId: effectiveTenantId } } : {}),
           ...(dateFilter ? { fecha: dateFilter } : {}),
         },
+        _sum: { monto: true },
       }),
       // Pagos CxP en el período seleccionado
-      prisma.pagoCxP.findMany({
+      prisma.pagoCxP.aggregate({
         where: {
           ...(effectiveTenantId ? { cxp: { tenantId: effectiveTenantId } } : {}),
           ...(dateFilter ? { fecha: dateFilter } : {}),
         },
+        _sum: { monto: true },
       }),
       // Ajustes en el período seleccionado
-      prisma.ajusteInventario.findMany({
+      prisma.ajusteInventario.count({
         where: {
           ...whereTenant,
           ...(dateFilter ? { fecha: dateFilter } : {}),
@@ -135,11 +146,8 @@ export async function GET(req: NextRequest) {
       }
     });
 
-    // Análisis de CxP
-    let totalPorPagar = 0;
-    cxpList.forEach((p) => {
-      totalPorPagar += p.saldoPendiente;
-    });
+    // Total de CxP: conserva el comportamiento previo, que incluye todas las cuentas.
+    const totalPorPagar = cxpResumen._sum.saldoPendiente || 0;
 
     // Valuación de inventario global y por almacén (CFF Art. 28)
     let valuacionTotal = 0;
@@ -157,10 +165,10 @@ export async function GET(req: NextRequest) {
     });
 
     // Totales comerciales en el período
-    const totalVendido = ventasMes.reduce((acc, v) => acc + v.total, 0);
-    const totalComprado = comprasMes.reduce((acc, c) => acc + c.total, 0);
-    const cobranzaMesTotal = pagosCobrados.reduce((acc, p) => acc + p.monto, 0);
-    const pagosProveedoresMesTotal = pagosEmitidos.reduce((acc, p) => acc + p.monto, 0);
+    const totalVendido = ventasMes._sum.total || 0;
+    const totalComprado = comprasMes._sum.total || 0;
+    const cobranzaMesTotal = pagosCobrados._sum.monto || 0;
+    const pagosProveedoresMesTotal = pagosEmitidos._sum.monto || 0;
 
     return NextResponse.json({
       periodo: {
@@ -179,11 +187,11 @@ export async function GET(req: NextRequest) {
       totalComprado,
       cobranzaMes: cobranzaMesTotal,
       pagosProveedoresMes: pagosProveedoresMesTotal,
-      ventasCount: ventasMes.length,
-      comprasCount: comprasMes.length,
-      ajustesCount: ajustesMes.length,
+      ventasCount: ventasMes._count._all,
+      comprasCount: comprasMes._count._all,
+      ajustesCount: ajustesMes,
       cxcCount: cxcList.length,
-      cxpCount: cxpList.length,
+      cxpCount: cxpResumen._count._all,
     });
   } catch (error) {
     console.error('Error in monthly reports:', error);

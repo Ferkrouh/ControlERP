@@ -1,6 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth';
+import { z } from 'zod';
+
+const entradaRecepcion = z.object({
+  folioFacturaProveedor: z.string().trim().max(100).optional().default(''),
+  tipoPago: z.enum(['CREDITO', 'CONTADO']).default('CREDITO'),
+  itemsRecibidos: z.array(z.object({
+    productoId: z.string().min(1),
+    cantidad: z.number().finite().positive(),
+    numeroLote: z.string().trim().max(100).optional(),
+    fechaCaducidad: z.string().date().optional(),
+  }).strict()).min(1).max(500),
+}).strict();
+
+class RecepcionError extends Error {
+  constructor(message: string, readonly status: number) {
+    super(message);
+  }
+}
 
 export async function POST(
   req: NextRequest,
@@ -12,8 +30,11 @@ export async function POST(
 
     const { user } = auth;
     const { id: ordenCompraId } = await params;
-    const body = await req.json();
-    const { folioFacturaProveedor, tipoPago = 'CREDITO', itemsRecibidos } = body;
+    const bodyResult = entradaRecepcion.safeParse(await req.json().catch(() => null));
+    if (!bodyResult.success) {
+      return NextResponse.json({ error: 'Revise folio, forma de pago, productos y cantidades de recepción.' }, { status: 400 });
+    }
+    const { folioFacturaProveedor, tipoPago, itemsRecibidos } = bodyResult.data;
 
     const targetTenantId = user.tenantId;
 
@@ -37,8 +58,46 @@ export async function POST(
       return NextResponse.json({ error: 'No autorizado para operar en este negocio' }, { status: 403 });
     }
 
-    if (oc.estado === 'RECIBIDA_TOTAL') {
-      return NextResponse.json({ error: 'Esta orden de compra ya fue surtida en su totalidad previamente.' }, { status: 400 });
+    if (user.rol === 'ALMACENISTA' && (!user.almacenAsignadoId || oc.almacenDestinoId !== user.almacenAsignadoId)) {
+      return NextResponse.json({ error: 'No autorizado para recibir mercancía en este almacén.' }, { status: 403 });
+    }
+
+    if (!['AUTORIZADA', 'RECIBIDA_PARCIAL'].includes(oc.estado)) {
+      return NextResponse.json({ error: 'La orden no está autorizada para recibir mercancía.' }, { status: 409 });
+    }
+
+    const ordenesItemIds = new Set<string>();
+    const itemsPorProducto = new Map<string, (typeof oc.items)[number]>();
+    for (const item of oc.items) {
+      if (itemsPorProducto.has(item.productoId)) {
+        return NextResponse.json({ error: 'La orden contiene productos duplicados; solicite su corrección antes de recibir.' }, { status: 409 });
+      }
+      itemsPorProducto.set(item.productoId, item);
+      ordenesItemIds.add(item.id);
+    }
+
+    const productosSolicitados = new Set<string>();
+    const recepciones = [] as Array<{
+      productoId: string;
+      cantidad: number;
+      numeroLote?: string;
+      fechaCaducidad?: string;
+      itemOrdenId: string;
+    }>;
+    for (const itemRec of itemsRecibidos) {
+      if (productosSolicitados.has(itemRec.productoId)) {
+        return NextResponse.json({ error: 'No repita productos en la misma recepción.' }, { status: 400 });
+      }
+      productosSolicitados.add(itemRec.productoId);
+      const ocItem = itemsPorProducto.get(itemRec.productoId);
+      if (!ocItem || !ordenesItemIds.has(ocItem.id)) {
+        return NextResponse.json({ error: 'La recepción contiene un producto que no pertenece a la orden.' }, { status: 400 });
+      }
+      const pendiente = Math.max(0, ocItem.cantidadSolicitada - ocItem.cantidadRecibida);
+      if (itemRec.cantidad > pendiente) {
+        return NextResponse.json({ error: `La cantidad recibida supera el pendiente autorizado para ${ocItem.producto.sku}.` }, { status: 400 });
+      }
+      recepciones.push({ ...itemRec, itemOrdenId: ocItem.id });
     }
 
     const tenantId = oc.tenantId;
@@ -46,17 +105,22 @@ export async function POST(
 
     // 2. Ejecutar recepción física atómica con 3-Way Matching
     const resultado = await prisma.$transaction(async (tx) => {
+      // The temporary state serializes concurrent receipts. It is only visible if this transaction commits.
+      const ordenReclamada = await tx.ordenCompra.updateMany({
+        where: { id: oc.id, tenantId: oc.tenantId, estado: { in: ['AUTORIZADA', 'RECIBIDA_PARCIAL'] } },
+        data: { estado: 'EN_PROCESO_RECEPCION' },
+      });
+      if (ordenReclamada.count !== 1) {
+        throw new RecepcionError('La orden cambió durante la recepción. Actualice e intente de nuevo.', 409);
+      }
+
       let totalMontoRecibido = 0;
       const itemsCompraData = [];
 
       // Procesar cada partida recibida
-      for (const itemRec of (itemsRecibidos || [])) {
-        const { productoId, cantidad, numeroLote, fechaCaducidad } = itemRec;
-        const cant = Number(cantidad);
-        if (cant <= 0) continue;
-
-        const ocItem = oc.items.find((i) => i.productoId === productoId);
-        if (!ocItem) continue;
+      for (const itemRec of recepciones) {
+        const { productoId, cantidad: cant, numeroLote, fechaCaducidad, itemOrdenId } = itemRec;
+        const ocItem = oc.items.find((i) => i.id === itemOrdenId)!;
 
         const costoUnitario = ocItem.costoUnitario;
         const subtotalPartida = cant * costoUnitario;
@@ -70,10 +134,17 @@ export async function POST(
         });
 
         // Actualizar cantidad recibida en la OC
-        await tx.ordenCompraItem.update({
-          where: { id: ocItem.id },
+        const partidaActualizada = await tx.ordenCompraItem.updateMany({
+          where: {
+            id: ocItem.id,
+            ordenCompraId: oc.id,
+            cantidadRecibida: { lte: ocItem.cantidadSolicitada - cant },
+          },
           data: { cantidadRecibida: { increment: cant } },
         });
+        if (partidaActualizada.count !== 1) {
+          throw new RecepcionError('La cantidad pendiente cambió durante la recepción. Actualice la orden antes de continuar.', 409);
+        }
 
         // Aumentar o crear existencia en almacén destino
         const ex = await tx.existencia.findUnique({
@@ -242,7 +313,10 @@ export async function POST(
       resultado,
     }, { status: 200 });
   } catch (error: any) {
+    if (error instanceof RecepcionError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
     console.error('Error en recepción de OC:', error);
-    return NextResponse.json({ error: error.message || 'Error al procesar recepción de mercancía' }, { status: 500 });
+    return NextResponse.json({ error: 'No fue posible procesar la recepción. Consulte la bitácora con el folio de correlación.' }, { status: 500 });
   }
 }

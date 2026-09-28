@@ -14,7 +14,7 @@ interface NotasCreditoData {
   mes: string; anio: string;
   rows: DevolucionRow[];
   porCliente: ClienteDev[];
-  kpis: { totalCancelaciones: number; totalDevuelto: number; timbradas: number; sinTimbre: number };
+  kpis: { totalCancelaciones: number; totalCancelado: number; timbradas: number; sinTimbre: number };
 }
 
 const fmt = (n: number) => n.toLocaleString('es-MX', { minimumFractionDigits: 2 });
@@ -62,7 +62,7 @@ export default function NotasCreditoReport({ mes, anio }: Props) {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
           { label: 'Cancelaciones', value: data.kpis.totalCancelaciones, prefix: '', color: 'text-slate-900' },
-          { label: 'Total Devuelto', value: data.kpis.totalDevuelto, prefix: '$', color: 'text-rose-700' },
+          { label: 'Importe cancelado', value: data.kpis.totalCancelado, prefix: '$', color: 'text-rose-700' },
           { label: 'Con Timbre SAT', value: data.kpis.timbradas, prefix: '', color: 'text-amber-700', suffix: ' docs' },
           { label: 'Sin Timbre', value: data.kpis.sinTimbre, prefix: '', color: 'text-slate-500', suffix: ' docs' },
         ].map((kpi) => (
@@ -78,7 +78,7 @@ export default function NotasCreditoReport({ mes, anio }: Props) {
       {/* Top clientes con devoluciones */}
       {data.porCliente.length > 0 && (
         <div className="bg-white border border-slate-200 rounded-xl p-4">
-          <p className="text-xs font-semibold text-slate-600 mb-3">Clientes con Mayor Importe Devuelto</p>
+          <p className="text-xs font-semibold text-slate-600 mb-3">Clientes con Mayor Importe Cancelado</p>
           <div className="space-y-2">
             {data.porCliente.slice(0, 5).map((c, i) => (
               <div key={c.razonSocial} className="flex items-center justify-between text-xs">
@@ -142,8 +142,8 @@ export default function NotasCreditoReport({ mes, anio }: Props) {
           </tbody>
           <tfoot className="bg-slate-900 text-white text-xs font-bold">
             <tr>
-              <td colSpan={3} className="px-4 py-2.5 font-semibold">TOTAL DEVOLUCIONES</td>
-              <td className="px-3 py-2.5 text-right font-mono text-rose-300">${fmt(data.kpis.totalDevuelto)}</td>
+              <td colSpan={3} className="px-4 py-2.5 font-semibold">IMPORTE CANCELADO</td>
+              <td className="px-3 py-2.5 text-right font-mono text-rose-300">${fmt(data.kpis.totalCancelado)}</td>
               <td colSpan={3} className="px-3 py-2.5 text-slate-400">{data.kpis.totalCancelaciones} documentos cancelados</td>
             </tr>
           </tfoot>

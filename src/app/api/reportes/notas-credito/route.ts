@@ -31,10 +31,10 @@ export async function GET(req: NextRequest) {
       where: {
         ...whereTenant,
         estado: 'CANCELADA',
-        fecha: { gte: inicio, lt: fin },
+        canceladaEn: { gte: inicio, lt: fin },
       },
       include: { cliente: { select: { razonSocial: true, codigo: true } } },
-      orderBy: { fecha: 'desc' },
+      orderBy: { canceladaEn: 'desc' },
     });
 
     // CxC ajustadas (saldo cero en ventas a crédito canceladas)
@@ -42,7 +42,8 @@ export async function GET(req: NextRequest) {
     const rows = canceladas.map((v) => ({
       ventaId: v.id,
       folio: v.folio,
-      fecha: v.fecha.toISOString().slice(0, 10),
+      fecha: (v.canceladaEn || v.fecha).toISOString().slice(0, 10),
+      fechaVenta: v.fecha.toISOString().slice(0, 10),
       cliente: v.cliente.razonSocial,
       clienteCodigo: v.cliente.codigo,
       importe: v.total,
@@ -50,8 +51,9 @@ export async function GET(req: NextRequest) {
       cxcId: v.cxcId || null,
       estadoFiscal: v.estadoFiscal,
       uuidFiscal: v.uuidFiscal || null,
-      motivo: v.observaciones || 'Sin motivo registrado',
+      motivo: v.motivoCancelacion || 'Sin motivo registrado',
       capturadoPor: v.usuarioNombre,
+      canceladaPorId: v.canceladaPorId,
     }));
 
     // Agrupación por cliente
@@ -63,7 +65,7 @@ export async function GET(req: NextRequest) {
       porCliente[rs].count += 1;
     });
 
-    const totalDevuelto = canceladas.reduce((s, v) => s + v.total, 0);
+    const totalCancelado = canceladas.reduce((s, v) => s + v.total, 0);
     const timbradas = canceladas.filter((v) => v.estadoFiscal === 'TIMBRADA').length;
 
     return NextResponse.json({
@@ -73,7 +75,7 @@ export async function GET(req: NextRequest) {
       porCliente: Object.values(porCliente).sort((a, b) => b.total - a.total),
       kpis: {
         totalCancelaciones: rows.length,
-        totalDevuelto,
+        totalCancelado,
         timbradas,
         sinTimbre: rows.length - timbradas,
       },

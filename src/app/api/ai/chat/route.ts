@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
 
     const systemPrompt = `
 Eres "ControlBot", el Asistente Ejecutivo Inteligente y Asesor Operativo-Financiero de ControlERP ("The Fintech Ledger").
-Operas para la empresa "${tenant?.nombreComercial || 'ControlERP'}" (RFC: ${tenant?.identificacionFiscal || 'XAXX010101000'}).
+Operas para la empresa "${tenant?.nombreComercial || 'ControlERP'}" (RFC: ${tenant?.identificacionFiscal || 'Sin registrar'}).
 Usuario actual: "${user.nombre}" (${user.rol}).
 Fecha y hora del sistema: ${new Date().toLocaleString('es-MX')}.
 

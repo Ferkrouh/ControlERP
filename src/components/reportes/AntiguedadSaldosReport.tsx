@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { descargarCsv } from '@/lib/csv-seguro';
 import { AlertTriangle, FileSpreadsheet } from 'lucide-react';
 
 interface ClienteBucket {
@@ -46,17 +47,9 @@ export default function AntiguedadSaldosReport({ mes, anio }: Props) {
 
   const handleExportCSV = () => {
     if (!data) return;
-    const header = 'Código,Razón Social,Vigente,1-30 Días,31-60 Días,61-90 Días,+90 Días,Total';
-    const rows = data.rows.map((r) =>
-      `${r.codigo},"${r.razonSocial}",${r.vigente},${r.dias1a30},${r.dias31a60},${r.dias61a90},${r.mas90},${r.total}`
-    ).join('\n');
-    const csv = `data:text/csv;charset=utf-8,${header}\n${rows}`;
-    const link = document.createElement('a');
-    link.setAttribute('href', encodeURI(csv));
-    link.setAttribute('download', `Antiguedad_Saldos_${anio}_${mes}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const headers = ['Código','Razón Social','Vigente','1-30 Días','31-60 Días','61-90 Días','+90 Días','Total'];
+    const rows = data.rows.map((r) => [r.codigo, r.razonSocial, r.vigente, r.dias1a30, r.dias31a60, r.dias61a90, r.mas90, r.total]);
+    descargarCsv(`Antiguedad_Saldos_${anio}_${mes}.csv`, [headers, ...rows]);
   };
 
   if (loading) {

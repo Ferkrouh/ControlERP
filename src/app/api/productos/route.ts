@@ -1,6 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth';
+import { z, ZodError } from 'zod';
+import { randomUUID } from 'crypto';
+
+const dinero = z.number().finite().nonnegative().max(1e9).refine(n => Math.abs(Math.round(n*100)-n*100)<1e-6);
+const cantidad = z.number().finite().nonnegative().max(1e9);
+const texto = z.string().trim().min(1).max(200);
+const entrada = z.object({ tenantId: z.string().optional(), sku: z.string().trim().min(1).max(64).regex(/^[A-Za-z0-9][A-Za-z0-9._/-]*$/),
+  nombre: texto, codigoBarras: z.string().trim().max(120).nullish(), categoria: texto.optional(), unidadMedida: z.string().trim().min(1).max(20).optional(),
+  costoPromedio: dinero.optional(), precioVenta: dinero.optional(), stockMinimo: cantidad.optional(), stockMaximo: cantidad.optional(),
+  stockInicial: z.number().finite().refine(n => n === 0).optional(), claveSat: z.string().trim().max(12).optional(),
+  claveUnidadSat: z.string().trim().max(8).optional(), objetoImp: z.string().trim().max(3).optional() });
 
 export async function GET(req: NextRequest) {
   try {
@@ -58,15 +69,11 @@ export async function POST(req: NextRequest) {
     if (auth.errorResponse) return auth.errorResponse;
 
     const { user } = auth;
-    const body = await req.json();
+    const body = entrada.parse(await req.json());
 
     const targetTenantId = user.rol === 'SUPERADMIN' ? (body.tenantId || user.tenantId) : user.tenantId;
     if (!targetTenantId) {
       return NextResponse.json({ error: 'Tenant no especificado' }, { status: 400 });
-    }
-
-    if (!body.sku || !body.nombre) {
-      return NextResponse.json({ error: 'SKU y nombre del producto son obligatorios' }, { status: 400 });
     }
 
     const nuevoProducto = await prisma.$transaction(async (tx) => {
@@ -78,53 +85,25 @@ export async function POST(req: NextRequest) {
           nombre: body.nombre.trim(),
           categoria: body.categoria || 'General',
           unidadMedida: body.unidadMedida || 'PZA',
-          costoPromedio: Number(body.costoPromedio || 0),
-          precioVenta: Number(body.precioVenta || 0),
-          stockMinimo: Number(body.stockMinimo || 0),
-          stockMaximo: Number(body.stockMaximo || 0),
+          costoPromedio: body.costoPromedio ?? 0,
+          precioVenta: body.precioVenta ?? 0,
+          stockMinimo: body.stockMinimo ?? 0,
+          stockMaximo: body.stockMaximo ?? 0,
           claveSat: body.claveSat ? String(body.claveSat).trim() : '01010101',
           claveUnidadSat: body.claveUnidadSat ? String(body.claveUnidadSat).trim() : 'H87',
           objetoImp: body.objetoImp || '02',
         },
       });
-
-      // Si se especificó un almacén para inicializar existencia
-      if (body.almacenId && Number(body.stockInicial) > 0) {
-        // Validar que el almacén pertenezca al tenant
-        const alm = await tx.almacen.findFirst({
-          where: { id: body.almacenId, tenantId: targetTenantId },
-        });
-
-        if (alm) {
-          await tx.existencia.create({
-            data: {
-              almacenId: body.almacenId,
-              productoId: producto.id,
-              cantidad: Number(body.stockInicial),
-            },
-          });
-
-          await tx.movimientoKardex.create({
-            data: {
-              tenantId: targetTenantId,
-              almacenId: body.almacenId,
-              productoId: producto.id,
-              tipoMovimiento: 'ENTRADA_COMPRA',
-              cantidad: Number(body.stockInicial),
-              costoUnitario: Number(body.costoPromedio || 0),
-              saldoResultante: Number(body.stockInicial),
-              folioReferencia: 'INI-001',
-              motivo: `Inventario inicial registrado por ${user.nombre}`,
-            },
-          });
-        }
-      }
-
+      await tx.registroAuditoria.create({ data: { id: randomUUID(), tenantId: targetTenantId, usuarioId: user.id,
+        usuarioNombre: user.nombre, modulo: 'PRODUCTOS', accion: 'CREAR', detalles: `Producto ${producto.sku} creado; stock inicial pendiente de corte`,
+        metadataJson: JSON.stringify({ productoId: producto.id, sku: producto.sku, precioVenta: producto.precioVenta, costoPromedio: producto.costoPromedio }) } });
       return producto;
     });
 
     return NextResponse.json(nuevoProducto, { status: 201 });
   } catch (error) {
+    if (error instanceof ZodError) return NextResponse.json({ error: 'Producto inválido: revise SKU, montos, cantidades y stock inicial' }, { status: 400 });
+    if ((error as {code?:string}).code === 'P2002') return NextResponse.json({ error: 'SKU duplicado en la empresa' }, { status: 409 });
     console.error('Error creating producto:', error);
     return NextResponse.json({ error: 'Error al crear producto' }, { status: 500 });
   }

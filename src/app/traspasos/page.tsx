@@ -17,6 +17,9 @@ import {
 
 export default function TraspasosPage() {
   const { user } = useAuth();
+  const puedeSolicitar = ['SUPERADMIN', 'ADMIN', 'ENCARGADO'].includes(user?.rol || '');
+  const puedeOperar = (almacenId: string) => ['SUPERADMIN', 'ADMIN'].includes(user?.rol || '')
+    || (user?.rol === 'ALMACENISTA' && user.almacenAsignadoId === almacenId);
   const [traspasos, setTraspasos] = useState<any[]>([]);
   const [almacenes, setAlmacenes] = useState<any[]>([]);
   const [productos, setProductos] = useState<any[]>([]);
@@ -143,6 +146,7 @@ export default function TraspasosPage() {
       } else {
         const data = await res.json();
         alert(data.error || 'Error al despachar envío.');
+        if (res.status === 409) await loadData();
       }
     } catch (err) {
       console.error(err);
@@ -172,6 +176,7 @@ export default function TraspasosPage() {
       } else {
         const data = await res.json();
         alert(data.error || 'Error al confirmar recepción.');
+        if (res.status === 409) { setSelectedRecepcion(null); await loadData(); }
       }
     } catch (err) {
       console.error(err);
@@ -194,7 +199,7 @@ export default function TraspasosPage() {
           </p>
         </div>
 
-        {user?.rol !== 'ALMACENISTA' && user?.rol !== 'AUDITOR' && (
+        {puedeSolicitar && (
           <button
             onClick={() => setShowModal(true)}
             className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm px-4 py-2.5 rounded-xl shadow-sm transition-all flex items-center gap-2 self-start sm:self-auto"
@@ -291,12 +296,12 @@ export default function TraspasosPage() {
                     </td>
 
                     <td className="py-3 px-4 text-center">
-                      {trasp.estado === 'SOLICITADO' && (
+                      {trasp.estado === 'SOLICITADO' && puedeOperar(trasp.almacenOrigenId) && (
                         <span className="bg-blue-100 text-blue-800 text-xs font-bold px-2.5 py-0.5 rounded-full inline-flex items-center gap-1">
                           <Clock className="w-3 h-3" /> Solicitado
                         </span>
                       )}
-                      {trasp.estado === 'DESPACHADO' && (
+                      {trasp.estado === 'DESPACHADO' && puedeOperar(trasp.almacenDestinoId) && (
                         <span className="bg-amber-100 text-amber-800 text-xs font-bold px-2.5 py-0.5 rounded-full inline-flex items-center gap-1">
                           <Truck className="w-3 h-3" /> En Tránsito
                         </span>
@@ -315,12 +320,12 @@ export default function TraspasosPage() {
                           target="_blank"
                           rel="noopener noreferrer"
                           className="p-1.5 rounded-lg text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors inline-flex items-center gap-1 text-xs font-semibold"
-                          title="Guía de Traslado / Carta Porte 3.1 PDF"
+                          title="Guía interna de traspaso PDF"
                         >
                           <FileDown className="w-3.5 h-3.5" /> PDF
                         </a>
 
-                        {trasp.estado === 'SOLICITADO' && (
+                        {trasp.estado === 'SOLICITADO' && puedeOperar(trasp.almacenOrigenId) && (
                           <button
                             onClick={() => handleDespachar(trasp.id)}
                             disabled={processingAction}
@@ -330,7 +335,7 @@ export default function TraspasosPage() {
                           </button>
                         )}
 
-                        {trasp.estado === 'DESPACHADO' && (
+                        {trasp.estado === 'DESPACHADO' && puedeOperar(trasp.almacenDestinoId) && (
                           <button
                             onClick={() => {
                               setSelectedRecepcion(trasp);
@@ -439,13 +444,14 @@ export default function TraspasosPage() {
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
+                    disabled
                     checked={requiereCartaPorte}
                     onChange={(e) => setRequiereCartaPorte(e.target.checked)}
                     className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
                   />
                   <div>
-                    <span className="text-xs font-bold text-slate-900 block">¿Requiere Carta Porte 3.1? (Tránsito Carretero Federal)</span>
-                    <span className="text-xs text-slate-500 block">Emite CFDI de Traslado con complemento para amparar el transporte ante la Guardia Nacional / SAT.</span>
+                    <span className="text-xs font-bold text-slate-900 block">Carta Porte: no disponible en el piloto</span>
+                    <span className="text-xs text-slate-500 block">La guía interna de traspaso no sustituye un documento fiscal de transporte.</span>
                   </div>
                 </label>
 
@@ -534,18 +540,23 @@ export default function TraspasosPage() {
               Folio: <strong>{selectedRecepcion.folio}</strong> hacia <strong>{selectedRecepcion.almacenDestinoNombre}</strong>
             </p>
 
+            <p className="text-xs text-slate-600">Capture el total acumulado recibido. El faltante permanecerá pendiente; el traspaso se cerrará al recibir todas las partidas.</p>
             <form onSubmit={handleConfirmarRecepcion} className="space-y-3">
               <div className="space-y-2">
                 {selectedRecepcion.items.map((it: any) => (
                   <div key={it.id} className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
                     <p className="text-xs font-bold text-slate-900">{it.producto.nombre}</p>
                     <div className="flex items-center justify-between text-xs">
-                      <span className="text-slate-500">Cantidad Despachada: <strong>{it.cantidadEnviada} {it.producto.unidadMedida}</strong></span>
+                      <span className="text-slate-500">Enviadas: <strong>{it.cantidadEnviada}</strong> · Ya recibidas: <strong>{it.cantidadRecibida ?? 0}</strong> · Pendientes: <strong>{it.cantidadEnviada - (it.cantidadRecibida ?? 0)} {it.producto.unidadMedida}</strong></span>
                       <div className="flex items-center gap-1.5">
-                        <span className="font-semibold text-slate-700">Recibidas:</span>
+                        <label htmlFor={`recepcion-${it.id}`} className="font-semibold text-slate-700">Total recibido:</label>
                         <input
+                          id={`recepcion-${it.id}`}
                           type="number"
-                          min="0"
+                          min={it.cantidadRecibida ?? 0}
+                          max={it.cantidadEnviada}
+                          step="any"
+                          required
                           value={cantidadesRecibidas[it.id] ?? it.cantidadEnviada}
                           onChange={(e) =>
                             setCantidadesRecibidas({

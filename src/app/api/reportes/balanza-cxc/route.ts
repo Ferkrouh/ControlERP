@@ -25,11 +25,17 @@ export async function GET(req: NextRequest) {
     const fin = new Date(inicio);
     fin.setMonth(fin.getMonth() + 1);
 
-    // Obtener todas las CxC del tenant con cliente
+    // Solo se requieren los campos que forman las filas de la balanza.
     const cxcList = await prisma.cuentaPorCobrar.findMany({
-      where: whereTenant,
-      include: {
-        cliente: true,
+      where: { ...whereTenant, estado: { not: 'CANCELADA' } },
+      select: {
+        id: true,
+        clienteId: true,
+        montoTotal: true,
+        saldoPendiente: true,
+        cliente: {
+          select: { razonSocial: true, codigo: true },
+        },
       },
     });
 
@@ -39,7 +45,7 @@ export async function GET(req: NextRequest) {
         ...(effectiveTenantId ? { cxc: { tenantId: effectiveTenantId } } : {}),
         fecha: { gte: inicio, lt: fin },
       },
-      include: { cxc: true },
+      select: { cxcId: true, monto: true },
     });
 
     // Construir mapa de pagos por cxcId

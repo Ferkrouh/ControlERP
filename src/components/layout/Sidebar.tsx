@@ -211,6 +211,13 @@ export default function Sidebar() {
           color: 'text-cyan-400'
         },
         {
+          title: 'Importar catálogos',
+          href: '/importaciones',
+          icon: FileText,
+          color: 'text-cyan-400',
+          allowedRoles: ['ADMIN']
+        },
+        {
           title: 'Traspasos de Almacén',
           href: '/traspasos',
           icon: ArrowLeftRight,
@@ -462,6 +469,18 @@ export default function Sidebar() {
                 >
                   <History className="w-5 h-5 shrink-0" />
                   {!collapsed && <span>Bitácora de Auditoría</span>}
+                </Link>
+                <Link
+                  href="/superadmin/bitacora"
+                  title="Bitácora de Plataforma"
+                  className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+                    isActive('/superadmin/bitacora')
+                      ? 'bg-purple-600 text-white shadow-md shadow-purple-900/20'
+                      : 'hover:bg-slate-900 text-slate-300 hover:text-white'
+                  } ${collapsed ? 'justify-center px-0 w-10 h-10 mx-auto' : ''}`}
+                >
+                  <ShieldAlert className="w-5 h-5 shrink-0 text-amber-400" />
+                  {!collapsed && <span>Bitácora de Plataforma</span>}
                 </Link>
               </nav>
             </div>

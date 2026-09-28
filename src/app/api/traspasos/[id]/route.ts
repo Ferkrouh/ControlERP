@@ -1,163 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth';
+import { operarTraspaso, TraspasoError } from '@/lib/traspasos';
+import { z } from 'zod';
+import { attachCorrelationId, auditOperationalFailure } from '@/lib/platform-audit';
 
-export async function PATCH(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+const entrada = z.object({ accion: z.enum(['despachar', 'recibir']),
+  recepciones: z.record(z.string(), z.number().finite().nonnegative()).optional() });
+
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  let auditActor: { id: string; email: string; tenantId: string | null } | null = null;
   try {
-    // Auditores no pueden ejecutar traspasos físicos (solo lectura)
-    const auth = await requireAuth(req, ['SUPERADMIN', 'ADMIN', 'ENCARGADO', 'ALMACENISTA']);
+    const auth = await requireAuth(req, ['SUPERADMIN', 'ADMIN', 'ALMACENISTA']);
     if (auth.errorResponse) return auth.errorResponse;
-
-    const { user } = auth;
+    auditActor = auth.user;
+    const parsed = entrada.safeParse(await req.json().catch(() => null));
+    if (!parsed.success) return NextResponse.json({ error: 'Acción o cantidades de recepción inválidas' }, { status: 400 });
     const { id } = await params;
-    const { accion, recepciones } = await req.json(); // accion: 'despachar' | 'recibir'
-
-    const traspaso = await prisma.traspaso.findUnique({
-      where: { id },
-      include: {
-        items: { include: { producto: true } },
-      },
-    });
-
-    if (!traspaso) {
-      return NextResponse.json({ error: 'Traspaso no encontrado' }, { status: 404 });
-    }
-
-    if (user.rol !== 'SUPERADMIN' && traspaso.tenantId !== user.tenantId) {
-      return NextResponse.json({ error: 'No autorizado para operar en este traspaso' }, { status: 403 });
-    }
-
-    // ACCION 1: DESPACHAR
-    if (accion === 'despachar') {
-      if (traspaso.estado !== 'SOLICITADO') {
-        return NextResponse.json({ error: 'El traspaso no está en estado SOLICITADO' }, { status: 400 });
-      }
-
-      // Ejecución Atómica con prisma.$transaction
-      const updated = await prisma.$transaction(async (tx) => {
-        for (const item of traspaso.items) {
-          const existenciaOrigen = await tx.existencia.findFirst({
-            where: {
-              almacenId: traspaso.almacenOrigenId,
-              productoId: item.productoId,
-            },
-          });
-
-          const disponible = existenciaOrigen?.cantidad || 0;
-          if (disponible < item.cantidadEnviada) {
-            throw new Error(`Stock insuficiente en origen para ${item.producto.nombre}. Disponible: ${disponible}, Solicitado: ${item.cantidadEnviada}`);
-          }
-
-          // Descontar de origen
-          await tx.existencia.update({
-            where: { id: existenciaOrigen!.id },
-            data: { cantidad: disponible - item.cantidadEnviada },
-          });
-
-          // Registrar Kárdex salida
-          await tx.movimientoKardex.create({
-            data: {
-              tenantId: traspaso.tenantId,
-              almacenId: traspaso.almacenOrigenId,
-              productoId: item.productoId,
-              tipoMovimiento: 'TRASPASO_SALIDA',
-              cantidad: item.cantidadEnviada,
-              costoUnitario: item.producto.costoPromedio,
-              saldoResultante: disponible - item.cantidadEnviada,
-              folioReferencia: traspaso.folio,
-              motivo: `Salida por traspaso despachado por ${user.nombre}`,
-            },
-          });
-        }
-
-        return await tx.traspaso.update({
-          where: { id },
-          data: {
-            estado: 'DESPACHADO',
-            fechaEnvio: new Date(),
-          },
-        });
-      });
-
-      return NextResponse.json({ success: true, traspaso: updated });
-    }
-
-    // ACCION 2: RECIBIR Y CONFIRMAR FÍSICO
-    if (accion === 'recibir') {
-      if (traspaso.estado !== 'DESPACHADO') {
-        return NextResponse.json({ error: 'El traspaso debe estar DESPACHADO para poder recibirlo' }, { status: 400 });
-      }
-
-      const updated = await prisma.$transaction(async (tx) => {
-        for (const item of traspaso.items) {
-          const cantidadRecibida = recepciones && recepciones[item.id] !== undefined
-            ? Number(recepciones[item.id])
-            : item.cantidadEnviada;
-
-          await tx.traspasoItem.update({
-            where: { id: item.id },
-            data: { cantidadRecibida },
-          });
-
-          // Sumar al almacén de destino
-          let existenciaDestino = await tx.existencia.findFirst({
-            where: {
-              almacenId: traspaso.almacenDestinoId,
-              productoId: item.productoId,
-            },
-          });
-
-          let nuevoSaldo = cantidadRecibida;
-          if (existenciaDestino) {
-            nuevoSaldo = existenciaDestino.cantidad + cantidadRecibida;
-            await tx.existencia.update({
-              where: { id: existenciaDestino.id },
-              data: { cantidad: nuevoSaldo },
-            });
-          } else {
-            await tx.existencia.create({
-              data: {
-                almacenId: traspaso.almacenDestinoId,
-                productoId: item.productoId,
-                cantidad: cantidadRecibida,
-              },
-            });
-          }
-
-          // Registrar Kárdex entrada
-          await tx.movimientoKardex.create({
-            data: {
-              tenantId: traspaso.tenantId,
-              almacenId: traspaso.almacenDestinoId,
-              productoId: item.productoId,
-              tipoMovimiento: 'TRASPASO_ENTRADA',
-              cantidad: cantidadRecibida,
-              costoUnitario: item.producto.costoPromedio,
-              saldoResultante: nuevoSaldo,
-              folioReferencia: traspaso.folio,
-              motivo: `Entrada y confirmación física recibida por ${user.nombre}`,
-            },
-          });
-        }
-
-        return await tx.traspaso.update({
-          where: { id },
-          data: {
-            estado: 'RECIBIDO',
-            fechaRecepcion: new Date(),
-          },
-        });
-      });
-
-      return NextResponse.json({ success: true, traspaso: updated });
-    }
-
-    return NextResponse.json({ error: 'Acción no reconocida' }, { status: 400 });
-  } catch (error: any) {
-    console.error('Error updating traspaso:', error);
-    return NextResponse.json({ error: error.message || 'Error al procesar traspaso' }, { status: 500 });
+    const traspaso = await operarTraspaso(id, parsed.data.accion, parsed.data.recepciones, auth.user);
+    return NextResponse.json({ success: true, traspaso });
+  } catch (error: unknown) {
+    const code = (error as { code?: string })?.code;
+    const conflict = code === 'P2034' || code === 'P1008' || code === 'P2028' || code === 'P2002';
+    const status = error instanceof TraspasoError ? error.status : conflict ? 409 : 500;
+    const correlationId = await auditOperationalFailure(req, auditActor, { categoria: 'TRASPASOS', accion: 'OPERACION_FALLIDA', status });
+    if (status >= 500) console.error('Error al operar traspaso:', error);
+    const response = error instanceof TraspasoError
+      ? NextResponse.json({ error: error.message }, { status })
+      : conflict
+        ? NextResponse.json({ error: 'Operación concurrente; actualice el listado y revise las cantidades antes de reintentar' }, { status })
+        : NextResponse.json({ error: 'Error al procesar traspaso', correlationId }, { status });
+    return attachCorrelationId(response, correlationId);
   }
 }

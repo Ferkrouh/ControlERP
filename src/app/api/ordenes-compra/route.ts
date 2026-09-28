@@ -31,6 +31,17 @@ export async function GET(req: NextRequest) {
       take: 50,
     });
 
+    if (user.rol === 'ALMACENISTA') {
+      const sinCostos = ordenes.map(({ subtotal: _subtotal, impuestos: _impuestos, total: _total, items, ...orden }) => ({
+        ...orden,
+        items: items.map(({ costoUnitario: _costoUnitario, subtotal: _itemSubtotal, producto, ...item }) => {
+          const { costoPromedio: _costoPromedio, ...productoVisible } = producto;
+          return { ...item, producto: productoVisible };
+        }),
+      }));
+      return NextResponse.json(sinCostos);
+    }
+
     return NextResponse.json(ordenes);
   } catch (error: any) {
     console.error('Error fetching ordenes de compra:', error);

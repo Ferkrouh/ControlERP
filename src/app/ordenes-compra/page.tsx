@@ -304,26 +304,31 @@ export default function OrdenesCompraPage() {
   };
 
   const handlePrintOrdenCompra = (oc: any) => {
+    if (user?.rol === 'ALMACENISTA') return;
     const printWindow = window.open('', '_blank', 'width=800,height=600');
     if (!printWindow) return;
 
     const tenant = user?.tenant;
     const primaryColor = tenant?.colorPrimario || '#1e40af';
+    const escapeHtml = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+    })[char]!);
+    const safeColor = /^#[0-9a-f]{6}$/i.test(primaryColor) ? primaryColor : '#1e40af';
 
     const itemsHtml = oc.items?.map((it: any, idx: number) => `
       <tr style="background-color: ${idx % 2 === 0 ? '#ffffff' : '#f8fafc'};">
         <td style="padding: 10px 12px; font-family: ui-monospace, monospace; font-size: 12px; font-weight: 600; color: #0f172a; border-bottom: 1px solid #e2e8f0;">
-          ${it.producto?.sku || 'N/A'}
+          ${escapeHtml(it.producto?.sku || 'N/A')}
         </td>
         <td style="padding: 10px 12px; font-size: 12px; color: #0f172a; border-bottom: 1px solid #e2e8f0;">
-          <div style="font-weight: 600;">${it.producto?.nombre || 'Artículo de Suministro'}</div>
-          <div style="font-size: 12px; color: #64748b; margin-top: 2px;">Unidad: ${it.producto?.unidadMedida || 'H87 Pieza'}</div>
+          <div style="font-weight: 600;">${escapeHtml(it.producto?.nombre || 'Artículo de Suministro')}</div>
+          <div style="font-size: 12px; color: #64748b; margin-top: 2px;">Unidad: ${escapeHtml(it.producto?.unidadMedida || 'Sin especificar')}</div>
         </td>
         <td style="padding: 10px 12px; text-align: center; font-family: ui-monospace, monospace; font-size: 12px; font-weight: 600; color: #0f172a; border-bottom: 1px solid #e2e8f0;">
-          ${it.cantidadSolicitada}
+          ${escapeHtml(it.cantidadSolicitada)}
         </td>
         <td style="padding: 10px 12px; text-align: center; font-family: ui-monospace, monospace; font-size: 12px; color: #64748b; border-bottom: 1px solid #e2e8f0;">
-          ${it.cantidadRecibida || 0}
+          ${escapeHtml(it.cantidadRecibida || 0)}
         </td>
         <td style="padding: 10px 12px; text-align: right; font-family: ui-monospace, monospace; font-size: 12px; color: #0f172a; border-bottom: 1px solid #e2e8f0;">
           $${Number(it.costoUnitario).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
@@ -339,7 +344,7 @@ export default function OrdenesCompraPage() {
       <html lang="es">
         <head>
           <meta charset="utf-8" />
-          <title>Orden de Compra - ${oc.folio}</title>
+          <title>Orden de Compra - ${escapeHtml(oc.folio)}</title>
           <style>
             @page { size: letter; margin: 12mm 15mm; }
             * { box-sizing: border-box; }
@@ -361,52 +366,52 @@ export default function OrdenesCompraPage() {
         </head>
         <body>
           <div class="no-print" style="margin-bottom: 20px; display: flex; justify-content: flex-end; gap: 10px;">
-            <button onclick="window.print()" style="background: ${primaryColor}; color: white; border: none; padding: 8px 18px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 14px;">
+              <button onclick="window.print()" style="background: ${safeColor}; color: white; border: none; padding: 8px 18px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 14px;">
               🖨️ Imprimir Orden de Compra
             </button>
           </div>
 
-          <div style="height: 4px; background: ${primaryColor}; width: 100%; margin-bottom: 20px; border-radius: 8px;"></div>
+          <div style="height: 4px; background: ${safeColor}; width: 100%; margin-bottom: 20px; border-radius: 8px;"></div>
 
           <!-- Cabecera de Empresa y Folio -->
           <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px;">
             <div style="display: flex; gap: 16px; align-items: center; max-width: 60%;">
               ${tenant?.logoUrl ? `
                 <div style="width: 80px; height: 80px; border-radius: 8px; border: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: center; padding: 4px; background: #ffffff;">
-                  <img src="${tenant.logoUrl}" alt="Logo" style="max-width: 100%; max-height: 100%; object-contain: fit;" />
+                  <img src="${escapeHtml(tenant.logoUrl)}" alt="Logo" style="max-width: 100%; max-height: 100%; object-fit: contain;" />
                 </div>
               ` : `
-                <div style="width: 56px; height: 56px; border-radius: 8px; background: ${primaryColor}; color: white; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 900;">
-                  ${tenant?.nombreComercial ? tenant.nombreComercial.charAt(0) : 'C'}
+                <div style="width: 56px; height: 56px; border-radius: 8px; background: ${safeColor}; color: white; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 900;">
+                  ${escapeHtml(tenant?.nombreComercial ? tenant.nombreComercial.charAt(0) : 'C')}
                 </div>
               `}
               <div>
                 <h1 style="margin: 0; font-size: 18px; font-weight: 800; color: #0f172a; letter-spacing: -0.02em;">
-                  ${tenant?.razonSocial || tenant?.nombreComercial || 'CONTROL ERP'}
+                  ${escapeHtml(tenant?.razonSocial || tenant?.nombreComercial || 'CONTROL ERP')}
                 </h1>
                 <p style="margin: 3px 0 0 0; font-size: 12px; font-weight: 700; color: #0f172a; font-family: ui-monospace, monospace;">
-                  RFC: ${tenant?.identificacionFiscal || 'XAXX010101000'} • Régimen: ${tenant?.regimenFiscal || '601 General de Ley'}
+                  RFC: ${escapeHtml(tenant?.identificacionFiscal || 'Sin registrar')} • Régimen: ${escapeHtml(tenant?.regimenFiscal || 'Sin registrar')}
                 </p>
                 <p style="margin: 2px 0 0 0; font-size: 12px; color: #64748b;">
-                  Lugar de Operación: C.P. ${tenant?.codigoPostal || '64000'} • Abastecimiento
+                  Lugar de Operación: C.P. ${escapeHtml(tenant?.codigoPostal || 'Sin registrar')} • Abastecimiento
                 </p>
-                ${tenant?.textoEncabezadoDoc ? `<p style="margin: 4px 0 0 0; font-size: 12px; color: #64748b; font-style: italic;">"${tenant.textoEncabezadoDoc}"</p>` : ''}
+                ${tenant?.textoEncabezadoDoc ? `<p style="margin: 4px 0 0 0; font-size: 12px; color: #64748b; font-style: italic;">"${escapeHtml(tenant.textoEncabezadoDoc)}"</p>` : ''}
               </div>
             </div>
 
             <div style="border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px 18px; background: #f8fafc; min-width: 220px; text-align: right;">
-              <div style="font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: ${primaryColor};">
-                ORDEN DE COMPRA FORMAL
+                <div style="font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: ${safeColor};">
+                ORDEN DE COMPRA
               </div>
               <div style="font-family: ui-monospace, monospace; font-size: 18px; font-weight: 900; color: #0f172a; margin: 4px 0;">
-                ${oc.folio}
+                ${escapeHtml(oc.folio)}
               </div>
               <div style="font-size: 12px; color: #64748b;">
                 Fecha Emisión: <strong>${new Date(oc.fecha).toLocaleDateString('es-MX')}</strong>
               </div>
               <div style="margin-top: 5px;">
                 <span style="background: #eff6ff; color: #1d4ed8; font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 12px; border: 1px solid #e2e8f0;">
-                  ESTADO: ${oc.estado}
+                  ESTADO: ${escapeHtml(oc.estado)}
                 </span>
               </div>
             </div>
@@ -419,13 +424,13 @@ export default function OrdenesCompraPage() {
                 PROVEEDOR ADJUDICADO
               </div>
               <div style="font-size: 14px; font-weight: 800; color: #0f172a;">
-                ${oc.proveedor?.razonSocial || 'Proveedor Registrado'}
+                  ${escapeHtml(oc.proveedor?.razonSocial || 'Proveedor Registrado')}
               </div>
               <div style="font-size: 12px; font-family: ui-monospace, monospace; color: #0f172a; margin-top: 2px;">
-                <strong>RFC:</strong> ${oc.proveedor?.rfc || 'XAXX010101000'}
+                <strong>RFC:</strong> ${escapeHtml(oc.proveedor?.rfc || 'Sin registrar')}
               </div>
               <div style="font-size: 12px; color: #64748b; margin-top: 2px;">
-                <strong>Teléfono:</strong> ${oc.proveedor?.telefono || 'N/A'} • <strong>Email:</strong> ${oc.proveedor?.email || 'N/A'}
+                <strong>Teléfono:</strong> ${escapeHtml(oc.proveedor?.telefono || 'N/A')} • <strong>Email:</strong> ${escapeHtml(oc.proveedor?.email || 'N/A')}
               </div>
             </div>
 
@@ -434,13 +439,13 @@ export default function OrdenesCompraPage() {
                 PUNTO DE ENTREGA & ALMACÉN
               </div>
               <div style="font-size: 14px; font-weight: 700; color: #0f172a;">
-                ${oc.almacenDestino?.nombre || 'Almacén Destino'}
+                ${escapeHtml(oc.almacenDestino?.nombre || 'Sin asignar')}
               </div>
               <div style="font-size: 12px; color: #0f172a; margin-top: 2px;">
-                <strong>Ubicación:</strong> ${oc.almacenDestino?.ubicacion || 'Principal'}
+                <strong>Ubicación:</strong> ${escapeHtml(oc.almacenDestino?.ubicacion || 'Sin registrar')}
               </div>
               <div style="font-size: 12px; color: #0f172a; margin-top: 2px;">
-                <strong>Fecha Esperada:</strong> ${oc.fechaEsperada ? new Date(oc.fechaEsperada).toLocaleDateString('es-MX') : 'Inmediata'}
+                <strong>Fecha Esperada:</strong> ${oc.fechaEsperada ? new Date(oc.fechaEsperada).toLocaleDateString('es-MX') : 'Sin fecha'}
               </div>
             </div>
           </div>
@@ -466,14 +471,14 @@ export default function OrdenesCompraPage() {
           <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; margin-bottom: 24px;">
             <div style="flex: 1; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; background: #f8fafc;">
               <div style="font-size: 12px; font-weight: 800; color: #64748b; text-transform: uppercase;">
-                Importe Total con Letra
+                Importe Total
               </div>
               <div style="font-size: 14px; font-weight: 700; color: #0f172a; margin-top: 4px;">
-                ${Number(oc.total).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })} MXN
+                ${Number(oc.total).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}
               </div>
               ${oc.observaciones ? `
                 <div style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed #cbd5e1; font-size: 12px; color: #0f172a;">
-                  <strong>Notas / Instrucciones de Entrega:</strong> ${oc.observaciones}
+                  <strong>Notas / Instrucciones de Entrega:</strong> ${escapeHtml(oc.observaciones)}
                 </div>
               ` : ''}
             </div>
@@ -494,7 +499,7 @@ export default function OrdenesCompraPage() {
                 </tr>
                 <tr style="background: #f8fafc;">
                   <td style="padding: 10px 14px; font-size: 14px; font-weight: 800; color: #0f172a;">TOTAL COMPRA:</td>
-                  <td style="padding: 10px 14px; text-align: right; font-family: ui-monospace, monospace; font-size: 14px; font-weight: 900; color: ${primaryColor};">
+                  <td style="padding: 10px 14px; text-align: right; font-family: ui-monospace, monospace; font-size: 14px; font-weight: 900; color: ${safeColor};">
                     $${Number(oc.total).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN
                   </td>
                 </tr>
@@ -505,7 +510,7 @@ export default function OrdenesCompraPage() {
           <!-- Pie de Página y Auditoría -->
           <div style="border-top: 1px solid #e2e8f0; padding-top: 12px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #64748b;">
             <div>
-              Orden emitida por <strong>ControlERP SaaS</strong> • Folio: <span style="font-family: ui-monospace, monospace;">${oc.folio}</span>
+              Orden emitida por <strong>ControlERP</strong> • Folio: <span style="font-family: ui-monospace, monospace;">${escapeHtml(oc.folio)}</span>
             </div>
             <div>
               Cadena de Suministro & 3-Way Matching • Documento de Control Operativo
@@ -527,6 +532,7 @@ export default function OrdenesCompraPage() {
   const kpiPendientes = ordenes.filter(o => o.estado === 'AUTORIZADA');
   const kpiParciales = ordenes.filter(o => o.estado === 'RECIBIDA_PARCIAL');
   const kpiSurtidas = ordenes.filter(o => o.estado === 'RECIBIDA_TOTAL');
+  const isAlmacenista = user?.rol === 'ALMACENISTA';
   const totalMontoPendiente = kpiPendientes.reduce((acc, o) => acc + Number(o.total || 0), 0);
   const totalMontoCompras = ordenes.reduce((acc, o) => acc + Number(o.total || 0), 0);
 
@@ -636,9 +642,9 @@ export default function OrdenesCompraPage() {
             <span className="text-2xl font-black text-slate-900 font-mono">{kpiPendientes.length}</span>
             <span className="text-xs text-slate-500">órdenes autorizadas</span>
           </div>
-          <div className="mt-2 text-xs text-blue-700 font-mono font-semibold">
+          {!isAlmacenista && <div className="mt-2 text-xs text-blue-700 font-mono font-semibold">
             ${totalMontoPendiente.toLocaleString('es-MX', { minimumFractionDigits: 2 })} en tránsito
-          </div>
+          </div>}
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm shadow-slate-200/50 hover:shadow-md hover:-translate-y-0.5 transition-all">
@@ -668,9 +674,9 @@ export default function OrdenesCompraPage() {
             <span className="text-2xl font-black text-slate-900 font-mono">{ordenes.length}</span>
             <span className="text-xs text-slate-500">({kpiSurtidas.length} surtidas 100%)</span>
           </div>
-          <div className="mt-2 text-xs text-emerald-700 font-mono font-semibold">
+          {!isAlmacenista && <div className="mt-2 text-xs text-emerald-700 font-mono font-semibold">
             ${totalMontoCompras.toLocaleString('es-MX', { minimumFractionDigits: 2 })} total histórico
-          </div>
+          </div>}
         </div>
       </div>
 
@@ -746,20 +752,20 @@ export default function OrdenesCompraPage() {
                 <th className="py-3.5 px-4">Proveedor</th>
                 <th className="py-3.5 px-4">Almacén Destino</th>
                 <th className="py-3.5 px-4">Estado</th>
-                <th className="py-3.5 px-4 text-right">Monto Total</th>
+                {!isAlmacenista && <th className="py-3.5 px-4 text-right">Monto Total</th>}
                 <th className="py-3.5 px-4 text-center">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="py-8 text-center text-slate-400">
+                  <td colSpan={isAlmacenista ? 6 : 7} className="py-8 text-center text-slate-400">
                     Cargando órdenes de compra...
                   </td>
                 </tr>
               ) : filteredOrdenes.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-10 text-center text-slate-400">
+                  <td colSpan={isAlmacenista ? 6 : 7} className="py-10 text-center text-slate-400">
                     No se encontraron órdenes de compra registradas.
                   </td>
                 </tr>
@@ -781,19 +787,19 @@ export default function OrdenesCompraPage() {
                     <td className="py-3.5 px-4">
                       {getStatusBadge(oc.estado)}
                     </td>
-                    <td className="py-3.5 px-4 text-right font-mono font-bold text-slate-900">
+                    {!isAlmacenista && <td className="py-3.5 px-4 text-right font-mono font-bold text-slate-900">
                       ${Number(oc.total).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
-                    </td>
+                    </td>}
                     <td className="py-3.5 px-4">
                       <div className="flex items-center justify-center gap-2">
-                        <button
+                        {!isAlmacenista && <button
                           onClick={() => handlePrintOrdenCompra(oc)}
                           title="Imprimir Orden de Compra"
                           aria-label={`Imprimir Orden de Compra ${oc.folio}`}
                           className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-slate-800 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/50"
                         >
                           <Printer className="w-4 h-4" />
-                        </button>
+                        </button>}
 
                         {oc.estado !== 'RECIBIDA_TOTAL' && user?.rol !== 'AUDITOR' && (
                           <button
@@ -1186,7 +1192,7 @@ export default function OrdenesCompraPage() {
       )}
 
       {/* MODAL / VISTA DE IMPRESION */}
-      {showPrintModal && printOC && (
+      {showPrintModal && printOC && !isAlmacenista && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in">
           <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-3xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden">
             <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-900 text-white">
@@ -1304,4 +1310,3 @@ export default function OrdenesCompraPage() {
     </div>
   );
 }
-

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/lib/auth-context';
+import { descargarCsv } from '@/lib/csv-seguro';
 import { 
   History, 
   Search, 
@@ -220,33 +221,24 @@ export default function AuditoriaPage() {
     const rows = filteredAndSortedLogs.map((l) => {
       const fechaStr = new Date(l.fecha).toLocaleString('es-MX').replace(',', '');
       return [
-        `"${l.id}"`,
-        `"${fechaStr}"`,
-        `"${l.usuarioNombre}"`,
-        `"${l.modulo}"`,
-        `"${l.accion}"`,
-        `"${l.nivelRiesgo || 'NORMAL'}"`,
-        `"${(l.detalles || '').replace(/"/g, '""')}"`,
-        `"${l.hashEvento || 'N/A'}"`,
-        `"${l.hashPrevio || 'GENESIS'}"`
+        l.id,
+        fechaStr,
+        l.usuarioNombre,
+        l.modulo,
+        l.accion,
+        l.nivelRiesgo || 'NORMAL',
+        l.detalles || '',
+        l.hashEvento || 'N/A',
+        l.hashPrevio || 'GENESIS'
       ];
     });
 
-    const csvContent = 
-      'data:text/csv;charset=utf-8,\uFEFF' +
-      `# EXPEDIENTE FORENSE DE AUDITORÍA TRANSACCIONAL - CONTROL ERP\n` +
-      `# FECHA DE CORTE: ${new Date().toISOString()}\n` +
-      `# ESTADO CRIPTOGRÁFICO: ${integrity?.isIntact ? 'CADENA_INTEGRA_VERIFICADA' : 'CADENA_CON_ANOMALIAS'}\n` +
-      `# ÚLTIMO HASH SELLO: ${integrity?.latestHash || 'N/A'}\n\n` +
-      [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
-
-    const encoded = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encoded);
-    link.setAttribute('download', `Expediente_Forense_Auditoria_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    descargarCsv(`Expediente_Forense_Auditoria_${new Date().toISOString().slice(0, 10)}.csv`, [headers, ...rows], [
+      '# EXPEDIENTE FORENSE DE AUDITORÍA TRANSACCIONAL - CONTROL ERP',
+      `# FECHA DE CORTE: ${new Date().toISOString()}`,
+      `# ESTADO CRIPTOGRÁFICO: ${integrity?.isIntact ? 'CADENA_INTEGRA_VERIFICADA' : 'CADENA_CON_ANOMALIAS'}`,
+      `# ÚLTIMO HASH SELLO: ${integrity?.latestHash || 'N/A'}`, ''
+    ]);
   };
 
   // Función de renderizado de badges de severidad

@@ -28,6 +28,17 @@ export async function GET(req: NextRequest) {
       orderBy: { codigo: 'asc' },
     });
 
+    if (user.rol === 'ALMACENISTA') {
+      const sinCostos = almacenes.map(({ existencias, ...almacen }) => ({
+        ...almacen,
+        existencias: existencias.map(({ producto, ...existencia }) => {
+          const { costoPromedio: _costoPromedio, ...productoVisible } = producto;
+          return { ...existencia, producto: productoVisible };
+        }),
+      }));
+      return NextResponse.json(sinCostos);
+    }
+
     return NextResponse.json(almacenes);
   } catch (error) {
     console.error('Error fetching almacenes:', error);

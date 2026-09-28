@@ -1,20 +1,24 @@
 import bcrypt from 'bcryptjs';
-import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
 import { NextRequest } from 'next/server';
 import { prisma } from './prisma';
 import { RolUsuario, UserSession } from './types';
 
-const JWT_SECRET_KEY = process.env.JWT_SECRET || 'controlerp-super-secret-key-prod-2026-secure-jwt';
-const key = new TextEncoder().encode(JWT_SECRET_KEY);
-export const COOKIE_NAME = 'controlerp_session';
+import { verifyToken, COOKIE_NAME } from './auth-token';
+export { signToken, verifyToken, COOKIE_NAME } from './auth-token';
+export type { TokenPayload } from './auth-token';
 
-export interface TokenPayload {
-  id: string;
-  email: string;
-  rol: RolUsuario;
-  tenantId: string | null;
-  [key: string]: any;
+export function sanitizeTenantForSession<T extends Record<string, any> | null | undefined>(tenant: T): T {
+  if (!tenant) return tenant;
+  const {
+    pacUsuario: _pacUsuario,
+    pacPassword: _pacPassword,
+    csdCertificadoBase64: _csdCertificadoBase64,
+    csdLlaveBase64: _csdLlaveBase64,
+    csdPassword: _csdPassword,
+    ...safeTenant
+  } = tenant;
+  return safeTenant as T;
 }
 
 /**
@@ -28,36 +32,10 @@ export async function hashPassword(password: string): Promise<string> {
  * Compara una contraseña en texto plano contra un hash bcrypt.
  */
 export async function comparePassword(password: string, hash: string): Promise<boolean> {
-  // Soporte de compatibilidad inicial si existiera un hash plano temporal
-  if (!hash.startsWith('$2a$') && !hash.startsWith('$2b$')) {
-    return password === hash;
+  if (!/^\$2[aby]\$\d{2}\$/.test(hash)) {
+    return false;
   }
-  return await bcrypt.compare(password, hash);
-}
-
-/**
- * Crea un token firmado JWT con duración de 7 días.
- */
-export async function signToken(payload: TokenPayload): Promise<string> {
-  return await new SignJWT(payload)
-    .setProtectedHeader({ alg: 'HS256' })
-    .setIssuedAt()
-    .setExpirationTime('7d')
-    .sign(key);
-}
-
-/**
- * Verifica un token JWT y devuelve su payload.
- */
-export async function verifyToken(token: string): Promise<TokenPayload | null> {
-  try {
-    const { payload } = await jwtVerify(token, key, {
-      algorithms: ['HS256'],
-    });
-    return payload as unknown as TokenPayload;
-  } catch (err) {
-    return null;
-  }
+  return await bcrypt.compare(password, hash.replace(/^\$2y\$/, '$2b$'));
 }
 
 /**
@@ -95,6 +73,9 @@ export async function getAuthSession(req?: NextRequest): Promise<UserSession | n
     if (!user || !user.activo) {
       return null;
     }
+    if (user.tenant && (!user.tenant.activo || user.tenant.bloqueadoPorSuscripcion)) {
+      return null;
+    }
 
     return {
       id: user.id,
@@ -102,7 +83,7 @@ export async function getAuthSession(req?: NextRequest): Promise<UserSession | n
       email: user.email,
       rol: user.rol as RolUsuario,
       tenantId: user.tenantId,
-      tenant: user.tenant as any,
+      tenant: sanitizeTenantForSession(user.tenant) as any,
       almacenAsignadoId: user.almacenAsignadoId,
     };
   } catch (error) {

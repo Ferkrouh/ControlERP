@@ -1,13 +1,12 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getSession } from '@/lib/auth';
+import { requireAuth } from '@/lib/auth';
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
-    const session = await getSession();
-    if (!session) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-    }
+    const auth = await requireAuth(request, ['SUPERADMIN', 'ADMIN', 'ENCARGADO', 'AUDITOR']);
+    if (auth.errorResponse) return auth.errorResponse;
+    const { user: session } = auth;
 
     const { searchParams } = new URL(request.url);
     const tenantId = session.rol === 'SUPERADMIN' ? searchParams.get('tenantId') || session.tenantId : session.tenantId;
@@ -34,12 +33,11 @@ export async function GET(request: Request) {
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const session = await getSession();
-    if (!session) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-    }
+    const auth = await requireAuth(request, ['SUPERADMIN', 'ADMIN', 'ENCARGADO']);
+    if (auth.errorResponse) return auth.errorResponse;
+    const { user: session } = auth;
 
     const tenantId = session.tenantId;
     if (!tenantId) {
@@ -100,12 +98,11 @@ export async function POST(request: Request) {
   }
 }
 
-export async function PATCH(request: Request) {
+export async function PATCH(request: NextRequest) {
   try {
-    const session = await getSession();
-    if (!session) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-    }
+    const auth = await requireAuth(request, ['SUPERADMIN', 'ADMIN', 'ENCARGADO']);
+    if (auth.errorResponse) return auth.errorResponse;
+    const { user: session } = auth;
 
     const tenantId = session.tenantId;
     if (!tenantId) {
@@ -125,10 +122,15 @@ export async function PATCH(request: Request) {
     if (etapa === 'GANADA') dataToUpdate.probabilidadPct = 100;
     if (etapa === 'PERDIDA') dataToUpdate.probabilidadPct = 0;
 
-    const actualizada = await prisma.oportunidadCRM.update({
-      where: { id },
+    const actualizada = await prisma.oportunidadCRM.updateMany({
+      where: { id, tenantId },
       data: dataToUpdate,
     });
+
+    if (actualizada.count === 0) {
+      return NextResponse.json({ error: 'Oportunidad no encontrada' }, { status: 404 });
+    }
+    const oportunidadActualizada = await prisma.oportunidadCRM.findFirst({ where: { id, tenantId } });
 
     await prisma.registroAuditoria.create({
       data: {
@@ -137,11 +139,11 @@ export async function PATCH(request: Request) {
         usuarioNombre: session.nombre,
         modulo: 'CRM',
         accion: 'EDITAR',
-        detalles: `Movió oportunidad '${actualizada.nombre}' a etapa ${etapa}`,
+        detalles: `Movió oportunidad '${oportunidadActualizada?.nombre || id}' a etapa ${etapa}`,
       },
     });
 
-    return NextResponse.json(actualizada);
+    return NextResponse.json(oportunidadActualizada);
   } catch (error) {
     console.error('Error al mover etapa CRM:', error);
     return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });

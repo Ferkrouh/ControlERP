@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
+import { enviarSolicitudVenta, leerVentaPendiente } from '@/lib/solicitud-venta-client';
+import { calcularMontosVenta } from '@/lib/montos-venta';
 import { 
   Zap, 
   Search, 
@@ -48,6 +50,7 @@ interface CartPosItem {
 
 export default function PosPage() {
   const { user } = useAuth();
+  const solicitudScope = `${user?.tenantId}:${user?.id}:pos`;
   const [productos, setProductos] = useState<any[]>([]);
   const [clientes, setClientes] = useState<any[]>([]);
   const [almacenes, setAlmacenes] = useState<any[]>([]);
@@ -101,17 +104,32 @@ export default function PosPage() {
         const almData = await resAlm.json();
 
         setProductos(prodData);
+        const recuperada = leerVentaPendiente(solicitudScope);
+        if (recuperada) {
+          const body = recuperada.body;
+          setClienteId(body.clienteId); setAlmacenId(body.almacenId);
+          setTipoPago(body.pos.metodo); setPagoCon(body.pos.recibido);
+          setCart(body.items.map((it: any) => {
+            const prod = prodData.find((p: any) => p.id === it.productoId);
+            return { ...it, nombre: prod?.nombre || it.productoId, sku: prod?.sku || '', unidadMedida: prod?.unidadMedida || '',
+              stockDisponible: prod?.existencias?.find((e: any) => e.almacenId === body.almacenId)?.cantidad || 0,
+              subtotal: calcularMontosVenta([it]).subtotal };
+          }));
+          await checkTurnoCaja(body.almacenId);
+          setPosError('Se recuperó un cobro pendiente de confirmar. Reintente antes de iniciar otro.');
+        }
         setClientes(cliData);
         setAlmacenes(almData);
 
         const defaultAlm = almData.find((a: any) => a.esPrincipal) || almData[0];
-        if (defaultAlm) {
+        const pendiente = leerVentaPendiente(solicitudScope);
+        if (!pendiente && defaultAlm && !almacenId) {
           setAlmacenId(defaultAlm.id);
           checkTurnoCaja(defaultAlm.id);
         }
 
         const publicoGeneral = cliData.find((c: any) => c.rfc === 'XAXX010101000' || c.razonSocial.toLowerCase().includes('público')) || cliData[0];
-        if (publicoGeneral) {
+        if (!pendiente && publicoGeneral && !clienteId) {
           setClienteId(publicoGeneral.id);
         }
       }
@@ -128,7 +146,7 @@ export default function PosPage() {
       if (res.ok) {
         const data = await res.json();
         setTurnoActivo(data.turnoActivo || null);
-        if (!data.turnoActivo) {
+        if (!data.turnoActivo && !leerVentaPendiente(solicitudScope)) {
           setShowAperturaModal(true);
         }
       }
@@ -193,6 +211,10 @@ export default function PosPage() {
   // Agregar al carrito
   const handleAddProduct = (prod: any) => {
     setPosError('');
+    if (!Number.isFinite(prod.precioVenta) || prod.precioVenta < 0 || prod.precioVenta > 1e9
+      || Number(prod.precioVenta.toFixed(2)) !== prod.precioVenta) {
+      setPosError('El precio del producto debe ser válido y tener hasta dos decimales.'); return;
+    }
     const ex = prod.existencias?.find((e: any) => e.almacenId === almacenId);
     const stock = ex ? ex.cantidad : 0;
 
@@ -293,16 +315,15 @@ export default function PosPage() {
     });
   }, [productos, selectedCategory, searchQuery]);
 
-  const subtotal = cart.reduce((acc, i) => acc + i.subtotal, 0);
-  const impuestos = Math.round(subtotal * 0.16 * 100) / 100;
-  const total = subtotal + impuestos;
+  const { subtotal, impuestos, total } = calcularMontosVenta(cart);
   const cambio = Math.max(0, pagoCon - total);
   const totalItemsCount = cart.reduce((acc, i) => acc + i.cantidad, 0);
 
   // Cobrar e imprimir ticket
   const handleCheckout = async () => {
     if (cart.length === 0) return;
-    if (!turnoActivo) {
+    const pendiente = leerVentaPendiente(solicitudScope);
+    if (!turnoActivo && !pendiente) {
       alert('Debe abrir turno de caja antes de cobrar.');
       setShowAperturaModal(true);
       return;
@@ -317,38 +338,21 @@ export default function PosPage() {
     setPosError('');
 
     try {
-      const res = await fetch('/api/ventas', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          clienteId,
-          almacenId,
-          tipoPago: 'CONTADO',
-          observaciones: `Venta POS Mostrador. Pago: ${tipoPago}. Recibido: $${pagoCon || total}`,
-          items: cart.map((i) => ({
-            productoId: i.productoId,
-            cantidad: i.cantidad,
-            precioUnitario: i.precioUnitario,
-          })),
-        }),
+      const { res, data } = await enviarSolicitudVenta(solicitudScope, {
+        clienteId, almacenId, tipoPago: 'CONTADO',
+        observaciones: `Venta POS Mostrador. Pago: ${tipoPago}. Recibido: $${pagoCon || total}`,
+        items: cart.map(i => ({ productoId: i.productoId, cantidad: i.cantidad, precioUnitario: i.precioUnitario })),
+        pos: { turnoId: pendiente?.body.pos.turnoId || turnoActivo.id, metodo: tipoPago, recibido: pagoCon || total },
       });
-
-      const data = await res.json();
       if (res.ok) {
-        setTurnoActivo((prev: any) => ({
-          ...prev,
-          totalEfectivo: prev.totalEfectivo + (tipoPago === 'EFECTIVO' ? total : 0),
-          totalTarjeta: prev.totalTarjeta + (tipoPago === 'TARJETA' ? total : 0),
-          totalVentas: prev.totalVentas + total,
-        }));
-
+        await checkTurnoCaja(almacenId);
         const saleRecord = {
           folio: data.folio,
-          fecha: new Date(),
-          items: [...cart],
-          subtotal,
-          impuestos,
-          total,
+          fecha: data.fecha,
+          items: cart.map(i => ({ ...i, subtotal: calcularMontosVenta([i]).subtotal })),
+          subtotal: data.subtotal,
+          impuestos: data.impuestos,
+          total: data.total,
           pagoCon: pagoCon || total,
           cambio,
           tipoPago,
@@ -367,7 +371,7 @@ export default function PosPage() {
         setPosError(data.error || 'Error al procesar cobro en mostrador');
       }
     } catch (err) {
-      setPosError('Error de comunicación con el servidor');
+      setPosError(err instanceof Error ? err.message : 'Error de comunicación. Reintente la misma venta.');
     } finally {
       setProcessingSale(false);
     }

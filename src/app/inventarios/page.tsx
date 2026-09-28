@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/lib/auth-context';
+import { descargarCsv } from '@/lib/csv-seguro';
 import { 
   Boxes, 
   Plus, 
@@ -64,8 +65,6 @@ export default function InventariosPage() {
   const [costoPromedio, setCostoPromedio] = useState(100);
   const [precioVenta, setPrecioVenta] = useState(180);
   const [stockMinimo, setStockMinimo] = useState(10);
-  const [almacenInicialId, setAlmacenInicialId] = useState('');
-  const [stockInicial, setStockInicial] = useState(25);
   const [saving, setSaving] = useState(false);
 
   // Modal Kárdex
@@ -81,6 +80,10 @@ export default function InventariosPage() {
   const [ajusteObs, setAjusteObs] = useState('');
   const [savingAjuste, setSavingAjuste] = useState(false);
   const [ajusteError, setAjusteError] = useState('');
+  const [ajustePreview, setAjustePreview] = useState<any>(null);
+  const [ajusteClave, setAjusteClave] = useState('');
+  const [ajustePendiente, setAjustePendiente] = useState(false);
+  const ajusteScope = `${user?.tenantId}:${user?.id}`;
 
   useEffect(() => {
     if (user?.tenantId) {
@@ -101,9 +104,18 @@ export default function InventariosPage() {
         const almData = await resAlm.json();
         setProductos(prodData);
         setAlmacenes(almData);
-        if (almData.length > 0 && !almacenInicialId) {
-          setAlmacenInicialId(almData[0].id);
-        }
+        try {
+          const raw = sessionStorage.getItem(`ajuste-pendiente:${ajusteScope}`);
+          if (raw) {
+            const p = JSON.parse(raw);
+            setAjustePreview(p.preview); setAjusteClave(p.clave); setAjustePendiente(true);
+            setAjusteAlmacenId(p.almacenId); setAjusteProductoId(p.productoId);
+            setAjusteNuevoStock(p.nuevo); setAjusteMotivo(p.motivo); setAjusteObs(p.observaciones);
+            setAjusteStockActual(p.preview.partidas[0].cantidadAnterior); setShowAjusteModal(true);
+            setAjusteError('Ajuste pendiente de confirmar. Reintente con la misma solicitud antes de hacer otro.');
+          }
+        } catch { setAjusteError('Revise la solicitud de inventario pendiente antes de continuar.'); }
+
       }
     } catch (e) {
       console.error(e);
@@ -131,8 +143,7 @@ export default function InventariosPage() {
           costoPromedio: Number(costoPromedio),
           precioVenta: Number(precioVenta),
           stockMinimo: Number(stockMinimo),
-          almacenInicialId,
-          stockInicial: Number(stockInicial),
+
         }),
       });
 
@@ -248,6 +259,7 @@ export default function InventariosPage() {
 
   const handleOpenAjuste = (producto?: any) => {
     setAjusteError('');
+    setAjustePreview(null); setAjusteClave(''); setAjustePendiente(false);
     if (almacenes.length > 0) {
       const almId = selectedAlmacen !== 'TODOS' ? selectedAlmacen : almacenes[0].id;
       setAjusteAlmacenId(almId);
@@ -265,40 +277,37 @@ export default function InventariosPage() {
   };
 
   const handleSaveAjuste = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSavingAjuste(true);
-    setAjusteError('');
-
+    e.preventDefault(); setSavingAjuste(true); setAjusteError('');
+    const storageKey = `ajuste-pendiente:${ajusteScope}`;
     try {
-      const res = await fetch('/api/inventarios/ajustes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          almacenId: ajusteAlmacenId,
-          motivo: ajusteMotivo,
-          observaciones: ajusteObs,
-          items: [
-            {
-              productoId: ajusteProductoId,
-              cantidadNueva: Number(ajusteNuevoStock),
-            },
-          ],
-        }),
-      });
-
+      if (!ajustePreview) {
+        const tipo = ['MERMA', 'MERMA_CADUCIDAD', 'DAÑO_TRANSPORTE'].includes(ajusteMotivo) ? 'MERMA' : 'CONTEO_FISICO';
+        const res = await fetch('/api/inventarios/ajustes', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ accion: 'PREVISUALIZAR', almacenId: ajusteAlmacenId, tipo, motivo: ajusteMotivo,
+            observaciones: ajusteObs, items: [{ productoId: ajusteProductoId, cantidadNueva: Number(ajusteNuevoStock) }] }) });
+        const data = await res.json();
+        if (!res.ok) { setAjusteError(data.error || 'No se pudo previsualizar el ajuste.'); return; }
+        setAjustePreview(data); setAjusteClave(crypto.randomUUID());
+        setAjusteStockActual(data.partidas[0].cantidadAnterior);
+        return;
+      }
+      const clave = ajusteClave;
+      sessionStorage.setItem(storageKey, JSON.stringify({ preview: ajustePreview, clave, almacenId: ajusteAlmacenId,
+        productoId: ajusteProductoId, nuevo: ajusteNuevoStock, motivo: ajusteMotivo, observaciones: ajusteObs }));
+      setAjustePendiente(true);
+      const res = await fetch('/api/inventarios/ajustes', { method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': clave },
+        body: JSON.stringify({ accion: 'CONFIRMAR', token: ajustePreview.token }) });
       const data = await res.json();
       if (res.ok) {
-        setShowAjusteModal(false);
-        setAjusteObs('');
-        loadData();
-      } else {
-        setAjusteError(data.error || 'Error al aplicar ajuste.');
-      }
-    } catch (err) {
-      setAjusteError('Error de comunicación con el servidor.');
-    } finally {
-      setSavingAjuste(false);
-    }
+        sessionStorage.removeItem(storageKey); setAjustePendiente(false); setAjustePreview(null);
+        setShowAjusteModal(false); setAjusteObs(''); loadData();
+      } else if (res.status === 409 && /Stock cambió|almacén ya tiene/.test(data.error || '')) {
+        sessionStorage.removeItem(storageKey); setAjustePendiente(false); setAjustePreview(null);
+        setAjusteError(`${data.error} Previsualice de nuevo.`); loadData();
+      } else setAjusteError(data.error || 'Resultado desconocido; reintente la misma solicitud.');
+    } catch (err) { setAjusteError(err instanceof Error ? err.message : 'Resultado desconocido; reintente la misma solicitud.'); }
+    finally { setSavingAjuste(false); }
   };
 
   const isAlmacenista = user?.rol === 'ALMACENISTA';
@@ -414,28 +423,21 @@ export default function InventariosPage() {
       const valor = (p.costoPromedio || 0) * totalStock;
 
       return [
-        `"${p.sku}"`,
-        `"${p.codigoBarras || ''}"`,
-        `"${p.nombre.replace(/"/g, '""')}"`,
-        `"${p.categoria || ''}"`,
-        `"${p.unidadMedida}"`,
+        p.sku,
+        p.codigoBarras || '',
+        p.nombre,
+        p.categoria || '',
+        p.unidadMedida,
         p.costoPromedio || 0,
         p.precioVenta || 0,
         totalStock,
         p.stockMinimo || 0,
         valor.toFixed(2),
-        `"${estado}"`
+        estado
       ];
     });
 
-    const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
-    const encoded = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encoded);
-    link.setAttribute('download', `Inventario_Valuado_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    descargarCsv(`Inventario_Valuado_${new Date().toISOString().slice(0, 10)}.csv`, [headers, ...rows]);
   };
 
   return (
@@ -694,14 +696,14 @@ export default function InventariosPage() {
               </div>
 
               {/* Botón Exportar CSV */}
-              <button
+              {!isAlmacenista && <button
                 onClick={handleExportCSV}
                 className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-semibold text-xs flex items-center gap-1.5 shadow-xs transition-all"
                 title="Exportar inventario valuado en CSV"
               >
                 <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
                 <span>CSV</span>
-              </button>
+              </button>}
             </div>
           </div>
 
@@ -1318,29 +1320,9 @@ export default function InventariosPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 p-3 bg-slate-50 border border-slate-200 rounded-2xl">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Almacén Inicial</label>
-                  <select
-                    value={almacenInicialId}
-                    onChange={(e) => setAlmacenInicialId(e.target.value)}
-                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white"
-                  >
-                    {almacenes.map((a) => (
-                      <option key={a.id} value={a.id}>{a.nombre}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Existencia Inicial (Pzas)</label>
-                  <input
-                    type="number"
-                    value={stockInicial}
-                    onChange={(e) => setStockInicial(Number(e.target.value))}
-                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 font-bold font-mono bg-white"
-                  />
-                </div>
-              </div>
+              <p className="text-xs text-slate-600 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                El producto se crea sin existencias. Cargue stock por almacén mediante un corte inicial o un ajuste previsualizado.
+              </p>
 
               <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
                 <button
@@ -1373,7 +1355,8 @@ export default function InventariosPage() {
                 Ajuste de Stock / Registro de Merma
               </h3>
               <button
-                onClick={() => setShowAjusteModal(false)}
+                disabled={ajustePendiente}
+                onClick={() => { setShowAjusteModal(false); setAjustePreview(null); }}
                 className="text-slate-400 hover:text-slate-600 font-bold text-base"
               >
                 ✕
@@ -1384,6 +1367,7 @@ export default function InventariosPage() {
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">Almacén a Afectar *</label>
                 <select
+                  disabled={!!ajustePreview}
                   value={ajusteAlmacenId}
                   onChange={(e) => {
                     const almId = e.target.value;
@@ -1408,6 +1392,7 @@ export default function InventariosPage() {
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">Artículo del Catálogo *</label>
                 <select
+                  disabled={!!ajustePreview}
                   value={ajusteProductoId}
                   onChange={(e) => {
                     const prodId = e.target.value;
@@ -1444,6 +1429,7 @@ export default function InventariosPage() {
                     type="number"
                     min="0"
                     step="1"
+                    disabled={!!ajustePreview}
                     value={ajusteNuevoStock}
                     onChange={(e) => setAjusteNuevoStock(Number(e.target.value))}
                     className="w-full px-3 py-1.5 text-sm font-bold font-mono border border-blue-300 rounded-xl text-slate-900 bg-white"
@@ -1458,6 +1444,7 @@ export default function InventariosPage() {
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">Motivo del Ajuste *</label>
                 <select
+                  disabled={!!ajustePreview}
                   value={ajusteMotivo}
                   onChange={(e) => setAjusteMotivo(e.target.value)}
                   className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50 font-medium"
@@ -1474,6 +1461,7 @@ export default function InventariosPage() {
                 <label className="block text-xs font-semibold text-slate-700 mb-1">Justificación / Observaciones</label>
                 <input
                   type="text"
+                  disabled={!!ajustePreview}
                   value={ajusteObs}
                   onChange={(e) => setAjusteObs(e.target.value)}
                   placeholder="Ej. Conteo físico de fin de mes nave central"
@@ -1481,6 +1469,10 @@ export default function InventariosPage() {
                 />
               </div>
 
+              {ajustePreview && <p className="text-xs p-3 bg-blue-50 border border-blue-200 rounded-xl text-blue-900">
+                Previsualización: anterior {ajustePreview.partidas[0].cantidadAnterior}, nuevo {ajustePreview.partidas[0].cantidadNueva},
+                diferencia {ajustePreview.partidas[0].diferencia}. Confirme antes de {new Date(ajustePreview.vence).toLocaleString('es-MX')}.
+              </p>}
               {ajusteError && (
                 <p className="text-xs font-semibold text-rose-600 bg-rose-50 p-2.5 rounded-xl border border-rose-200">
                   {ajusteError}
@@ -1490,7 +1482,8 @@ export default function InventariosPage() {
               <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
                 <button
                   type="button"
-                  onClick={() => setShowAjusteModal(false)}
+                  disabled={ajustePendiente}
+                onClick={() => { setShowAjusteModal(false); setAjustePreview(null); }}
                   className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl"
                 >
                   Cancelar
@@ -1500,7 +1493,7 @@ export default function InventariosPage() {
                   disabled={savingAjuste}
                   className="bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-5 py-2 rounded-xl shadow-sm disabled:opacity-50"
                 >
-                  {savingAjuste ? 'Aplicando ajuste...' : 'Confirmar y Ajustar Stock'}
+                  {savingAjuste ? 'Procesando...' : ajustePreview ? 'Confirmar ajuste previsualizado' : 'Previsualizar ajuste'}
                 </button>
               </div>
             </form>

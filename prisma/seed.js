@@ -2,6 +2,11 @@ const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
 const prisma = new PrismaClient();
 
+if (process.env.NODE_ENV === 'production' || process.env.ALLOW_DEMO_RESET !== 'true') {
+  console.error('Seed demo bloqueado: borra y reconstruye datos. Para uso local, establezca ALLOW_DEMO_RESET=true.');
+  process.exit(1);
+}
+
 async function main() {
   console.log('--- Limpiando base de datos para sembrado inicial ---');
   await prisma.registroAuditoria.deleteMany({});

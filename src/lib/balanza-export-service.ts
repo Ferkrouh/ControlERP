@@ -1,7 +1,8 @@
 /**
- * Servicio de Exportación y Generación de Dictamen Ejecutivo de Balanza
- * Estándar: "The Fintech Ledger" - Pulcritud, rigor contable y presentación ejecutiva de alta gama.
+ * Servicio de exportación de reportes internos de balanza
+ * Reporte comercial interno. No certifica cifras ni constituye una declaración fiscal.
  */
+import { construirCsv } from '@/lib/csv-seguro';
 
 export interface BalanzaExportData {
   tenant: {
@@ -49,13 +50,16 @@ export interface BalanzaExportData {
 }
 
 const fmt = (n: number) => n.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const html = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
+  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+}[char]!));
 
 /**
  * Genera el documento HTML ejecutivo de la Balanza listo para impresión/PDF en alta resolución.
  */
 export function generarDictamenBalanzaHtml(data: BalanzaExportData): string {
   const { tenant, periodo, kpis, antiguedad, valuacionPorAlmacen, balanzaClientes = [] } = data;
-  const primaryColor = tenant.colorPrimario || '#0f172a';
+  const primaryColor = /^#[0-9a-fA-F]{6}$/.test(tenant.colorPrimario || '') ? tenant.colorPrimario! : '#0f172a';
   const fechaEmision = new Date().toLocaleString('es-MX', {
     day: '2-digit',
     month: 'long',
@@ -73,7 +77,7 @@ export function generarDictamenBalanzaHtml(data: BalanzaExportData): string {
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Dictamen Ejecutivo de Balanza - ${periodo.mesNombre} ${periodo.anio}</title>
+  <title>Reporte interno de balanza - ${html(periodo.mesNombre)} ${html(periodo.anio)}</title>
   <style>
     @page {
       size: letter portrait;
@@ -294,16 +298,16 @@ export function generarDictamenBalanzaHtml(data: BalanzaExportData): string {
   <!-- Encabezado Corporativo -->
   <div class="header-bar">
     <div>
-      <h1 class="company-title">${tenant.nombreComercial || 'CONTROL ERP'}</h1>
-      <p class="company-sub"><strong>Razón Social:</strong> ${tenant.razonSocial || 'Distribuidora Mayorista S.A. de C.V.'}</p>
-      <p class="company-sub"><strong>RFC:</strong> ${tenant.identificacionFiscal || 'XAXX010101000'} | <strong>Régimen:</strong> ${tenant.regimenFiscal || '601 General de Ley'}</p>
-      <p class="company-sub"><strong>Domicilio Fiscal:</strong> C.P. ${tenant.codigoPostal || '64000'} • Moneda: Pesos Mexicanos (MXN)</p>
+      <h1 class="company-title">${html(tenant.nombreComercial || 'CONTROL ERP')}</h1>
+      ${tenant.razonSocial ? `<p class="company-sub"><strong>Razón Social:</strong> ${html(tenant.razonSocial)}</p>` : ''}
+      ${tenant.identificacionFiscal ? `<p class="company-sub"><strong>RFC:</strong> ${html(tenant.identificacionFiscal)}${tenant.regimenFiscal ? ` | <strong>Régimen:</strong> ${html(tenant.regimenFiscal)}` : ''}</p>` : ''}
+      ${tenant.codigoPostal ? `<p class="company-sub"><strong>C.P.:</strong> ${html(tenant.codigoPostal)} • ` : '<p class="company-sub">'}Moneda: Pesos Mexicanos (MXN)</p>
     </div>
     <div class="doc-badge-box">
-      <div class="doc-type">Dictamen Financiero & Cierre Contable</div>
-      <div class="doc-periodo">${periodo.mesNombre} ${periodo.anio}</div>
-      <div class="doc-meta">Emisión: ${fechaEmision}</div>
-      <div class="doc-meta font-mono">Folio: BAL-${periodo.anio}-${periodo.mesNumero}</div>
+      <div class="doc-type">Reporte interno de saldos comerciales</div>
+      <div class="doc-periodo">${html(periodo.mesNombre)} ${html(periodo.anio)}</div>
+      <div class="doc-meta">Emisión: ${html(fechaEmision)}</div>
+      <div class="doc-meta font-mono">Folio interno: BAL-${html(periodo.anio)}-${html(periodo.mesNumero)}</div>
     </div>
   </div>
 
@@ -327,7 +331,7 @@ export function generarDictamenBalanzaHtml(data: BalanzaExportData): string {
     <div class="kpi-card" style="border-left-color: #f59e0b;">
       <div class="kpi-label">Valuación de Existencias</div>
       <div class="kpi-value font-mono">$${fmt(kpis.valuacionTotal)}</div>
-      <div class="kpi-desc">Costo Promedio (Art. 28 CFF)</div>
+      <div class="kpi-desc">Costo promedio registrado</div>
     </div>
   </div>
 
@@ -382,7 +386,7 @@ export function generarDictamenBalanzaHtml(data: BalanzaExportData): string {
     <!-- Panel 2: Valuación de Existencias por Almacén -->
     <div class="box-panel">
       <div class="section-title" style="margin-top: 0;">
-        <span>Valuación de Inventarios (NIF C-4)</span>
+        <span>Valuación de inventario</span>
         <span class="section-badge font-mono">Activo: $${fmt(kpis.valuacionTotal)}</span>
       </div>
       <table>
@@ -396,7 +400,7 @@ export function generarDictamenBalanzaHtml(data: BalanzaExportData): string {
         <tbody>
           ${Object.entries(valuacionPorAlmacen).map(([almNombre, val]) => `
             <tr>
-              <td><strong>${almNombre}</strong></td>
+              <td><strong>${html(almNombre)}</strong></td>
               <td class="text-center font-mono">${val.piezas.toLocaleString()} pzas</td>
               <td class="text-right font-mono">$${fmt(val.total)}</td>
             </tr>
@@ -433,8 +437,8 @@ export function generarDictamenBalanzaHtml(data: BalanzaExportData): string {
       <tbody>
         ${balanzaClientes.slice(0, 15).map(c => `
           <tr>
-            <td class="font-mono" style="color: #64748b;">${c.codigo}</td>
-            <td><strong>${c.razonSocial}</strong></td>
+            <td class="font-mono" style="color: #64748b;">${html(c.codigo)}</td>
+            <td><strong>${html(c.razonSocial)}</strong></td>
             <td class="text-right font-mono">$${fmt(c.cargos)}</td>
             <td class="text-right font-mono" style="color: #047857;">$${fmt(c.abonos)}</td>
             <td class="text-right font-mono font-bold" style="${c.saldoFinal > 0 ? 'color: #b91c1c;' : 'color: #64748b;'}">$${fmt(c.saldoFinal)}</td>
@@ -454,7 +458,7 @@ export function generarDictamenBalanzaHtml(data: BalanzaExportData): string {
     </table>
   ` : ''}
 
-  <!-- Ratios Financieros & Certificación -->
+  <!-- Indicadores operativos -->
   <div class="box-panel" style="margin-top: 10px; background: #f8fafc; border-left: 3px solid #0ea5e9;">
     <div style="display: flex; justify-content: space-between; align-items: center; font-size: 8.5px;">
       <div>
@@ -464,31 +468,17 @@ export function generarDictamenBalanzaHtml(data: BalanzaExportData): string {
         <strong>Pasivo con Proveedores (CxP):</strong> <span class="font-mono font-bold">$${fmt(kpis.totalPorPagar)}</span>
       </div>
       <div>
-        <strong>Cumplimiento Regulatorio:</strong> <span style="color: #047857; font-weight: 700;">NIF C-4 / CFF Art. 28</span>
+        <strong>Alcance:</strong> <span>Reporte operativo interno; requiere revisión contable antes de uso fiscal.</span>
       </div>
     </div>
   </div>
 
-  <!-- Firmas Oficiales de Auditoría -->
-  <div class="signatures-box">
-    <div class="sig-line">
-      <div class="sig-name">DIRECCIÓN GENERAL</div>
-      <div class="sig-role">${tenant.nombreComercial || 'ControlERP'}</div>
-    </div>
-    <div class="sig-line">
-      <div class="sig-name">CONTADOR GENERAL</div>
-      <div class="sig-role">C.P. Auditor Certificado</div>
-    </div>
-    <div class="sig-line">
-      <div class="sig-name">CONTROL INTERNO & AUDITORÍA</div>
-      <div class="sig-role">Revisión y Dictamen Fiscal</div>
-    </div>
-  </div>
+  <div class="box-panel" style="margin-top: 12px;">Reporte interno de control. No es un dictamen, no está certificado y requiere revisión contable antes de uso fiscal.</div>
 
-  <!-- Footer Legal -->
+  <!-- Footer -->
   <div class="footer-legal">
-    <div>ControlERP SaaS Cloud • Plataforma Multiempresa de Gestión Integral</div>
-    <div>Documento oficial generado con rigor de auditoría y trazabilidad inmutable</div>
+    <div>ControlERP · Reporte interno</div>
+    <div>Generado para consulta y conciliación operativa</div>
     <div>Página 1 de 1</div>
   </div>
 
@@ -552,63 +542,43 @@ export function imprimirDictamenBalanza(data: BalanzaExportData): void {
 export function exportarBalanzaCsvEnriquecido(data: BalanzaExportData): void {
   const { tenant, periodo, kpis, antiguedad, valuacionPorAlmacen, balanzaClientes = [] } = data;
 
-  let csv = `sep=,\n`;
-  csv += `========================================================================================\n`;
-  csv += `DICTAMEN EJECUTIVO DE BALANZA FINANCIERA Y CIERRE CONTABLE\n`;
-  csv += `EMPRESA:,"${tenant.razonSocial || tenant.nombreComercial || 'CONTROL ERP'}"\n`;
-  csv += `RFC:,"${tenant.identificacionFiscal || 'XAXX010101000'}",REGIMEN:,"${tenant.regimenFiscal || '601 General de Ley'}"\n`;
-  csv += `PERIODO:,${periodo.mesNombre} ${periodo.anio},FECHA EMISION:,"${new Date().toLocaleString('es-MX')}"\n`;
-  csv += `========================================================================================\n\n`;
-
-  // SECCION 1: RESUMEN DE BALANZA Y OPERACIONES
-  csv += `--- 1. RESUMEN EJECUTIVO DE BALANZA COMERCIAL Y FINANCIERA ---\n`;
-  csv += `Indicador Financiero / Contable,Monto MXN,Observaciones / Detalle\n`;
-  csv += `Total Ventas Emitidas,${kpis.totalVendido},${kpis.ventasCount} operaciones comerciales\n`;
-  csv += `Cobranza Efectiva Recaudada,${kpis.cobranzaMes},Abonos aplicados a clientes\n`;
-  csv += `Total Compras a Proveedores,${kpis.totalComprado},${kpis.comprasCount} órdenes de compra recibidas\n`;
-  csv += `Pagos Liquidados a Proveedores,${kpis.pagosProveedoresMes},Egresos bancarios en el período\n`;
-  csv += `Cartera Total por Cobrar (CxC),${kpis.totalPorCobrar},Suma de saldos deudores de clientes\n`;
-  csv += `Cartera Vencida (En Mora),${kpis.totalVencido},Riesgo de cartera en mora\n`;
-  csv += `Pasivo Pendiente con Proveedores (CxP),${kpis.totalPorPagar},Obligaciones por liquidar\n`;
-  csv += `Valuacion Total de Inventario,${kpis.valuacionTotal},Valuado a Costo Promedio Ponderado CFF Art. 28\n\n`;
-
-  // SECCION 2: ANTIGUEDAD DE SALDOS
-  csv += `--- 2. SEGMENTACION DE ANTIGÜEDAD DE SALDOS (AGING) ---\n`;
-  csv += `Rango de Vencimiento,Importe MXN,Porcentaje de Cartera,Nivel de Riesgo\n`;
-  csv += `Al Corriente (Vigente),${antiguedad.vigente},${kpis.totalPorCobrar > 0 ? ((antiguedad.vigente / kpis.totalPorCobrar) * 100).toFixed(2) : 0}%,Bajo Riesgo\n`;
-  csv += `1 a 30 Dias de Mora,${antiguedad.dias1a30},${kpis.totalPorCobrar > 0 ? ((antiguedad.dias1a30 / kpis.totalPorCobrar) * 100).toFixed(2) : 0}%,Cobranza Preventiva\n`;
-  csv += `31 a 60 Dias de Mora,${antiguedad.dias31a60},${kpis.totalPorCobrar > 0 ? ((antiguedad.dias31a60 / kpis.totalPorCobrar) * 100).toFixed(2) : 0}%,Gestion Extrajudicial\n`;
-  csv += `+90 Dias (Incobrables),${antiguedad.mas90},${kpis.totalPorCobrar > 0 ? ((antiguedad.mas90 / kpis.totalPorCobrar) * 100).toFixed(2) : 0}%,Deducible Art. 27 LISR\n\n`;
-
-  // SECCION 3: VALUACION POR ALMACEN
-  csv += `--- 3. VALUACION DE EXISTENCIAS POR ALMACEN (NIF C-4) ---\n`;
-  csv += `Almacen / Sucursal,Piezas Fisicas,Valuacion Total MXN,Metodo de Valuacion\n`;
-  Object.entries(valuacionPorAlmacen).forEach(([alm, val]) => {
-    csv += `"${alm}",${val.piezas},${val.total},Costo Promedio Ponderado\n`;
-  });
-  csv += `\n`;
-
-  // SECCION 4: BALANZA DE CLIENTES
-  if (balanzaClientes.length > 0) {
-    csv += `--- 4. BALANZA DETALLADA DE CLIENTES (CUENTAS POR COBRAR) ---\n`;
-    csv += `Codigo,Razon Social,Cargos ($),Abonos ($),Saldo Final ($),Facturas Pendientes\n`;
-    balanzaClientes.forEach(c => {
-      csv += `"${c.codigo}","${c.razonSocial}",${c.cargos},${c.abonos},${c.saldoFinal},${c.cuentas}\n`;
-    });
-    csv += `\n`;
+  const filas: Array<Array<string | number | null | undefined>> = [
+    ['REPORTE INTERNO DE SALDOS COMERCIALES'],
+    ['Empresa', tenant.razonSocial || tenant.nombreComercial || 'Sin nombre registrado'],
+    ...(tenant.identificacionFiscal ? [['RFC', tenant.identificacionFiscal]] : []),
+    ...(tenant.regimenFiscal ? [['Régimen fiscal', tenant.regimenFiscal]] : []),
+    ['Periodo', `${periodo.mesNombre} ${periodo.anio}`], ['Emitido', new Date().toLocaleString('es-MX')], [],
+    ['Resumen', 'Monto MXN', 'Detalle'],
+    ['Ventas registradas', kpis.totalVendido, `${kpis.ventasCount} operaciones comerciales`],
+    ['Cobranza recibida', kpis.cobranzaMes, 'Abonos aplicados a clientes'],
+    ['Compras a proveedores', kpis.totalComprado, `${kpis.comprasCount} recepciones registradas`],
+    ['Pagos a proveedores', kpis.pagosProveedoresMes, 'Pagos del periodo'],
+    ['Cartera por cobrar', kpis.totalPorCobrar, 'Saldo pendiente de clientes'],
+    ['Cartera vencida', kpis.totalVencido, 'Saldo vencido de clientes'],
+    ['Saldo por pagar', kpis.totalPorPagar, 'Obligaciones pendientes con proveedores'],
+    ['Valor de inventario', kpis.valuacionTotal, 'Según costo promedio registrado'], [],
+    ['Antigüedad', 'Importe MXN', 'Porcentaje de cartera'],
+    ['Vigente', antiguedad.vigente, `${kpis.totalPorCobrar > 0 ? ((antiguedad.vigente / kpis.totalPorCobrar) * 100).toFixed(2) : 0}%`],
+    ['1 a 30 días', antiguedad.dias1a30, `${kpis.totalPorCobrar > 0 ? ((antiguedad.dias1a30 / kpis.totalPorCobrar) * 100).toFixed(2) : 0}%`],
+    ['31 a 60 días', antiguedad.dias31a60, `${kpis.totalPorCobrar > 0 ? ((antiguedad.dias31a60 / kpis.totalPorCobrar) * 100).toFixed(2) : 0}%`],
+    ['Más de 90 días', antiguedad.mas90, `${kpis.totalPorCobrar > 0 ? ((antiguedad.mas90 / kpis.totalPorCobrar) * 100).toFixed(2) : 0}%`], [],
+    ['Existencias por almacén', 'Piezas', 'Valor MXN', 'Método'],
+    ...Object.entries(valuacionPorAlmacen).map(([alm, val]) => [alm, val.piezas, val.total, 'Costo promedio registrado']),
+  ];
+  if (balanzaClientes.length) {
+    filas.push([], ['Cartera de clientes', 'Código', 'Cliente', 'Cargos', 'Abonos', 'Saldo', 'Documentos pendientes']);
+    for (const c of balanzaClientes) filas.push(['', c.codigo, c.razonSocial, c.cargos, c.abonos, c.saldoFinal, c.cuentas]);
   }
+  filas.push([], ['Documento interno de control. Requiere revisión contable antes de cualquier uso fiscal.']);
 
-  csv += `========================================================================================\n`;
-  csv += `DICTAMEN: Certificado conforme a Normas de Informacion Financiera (NIF) y Art. 28 CFF.\n`;
-  csv += `EMITIDO POR: ControlERP SaaS Cloud Platform\n`;
-  csv += `========================================================================================\n`;
-
-  const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
+  const csv = construirCsv(filas, ['sep=,']);
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
-  link.setAttribute('href', url);
-  link.setAttribute('download', `Balanza_Financiera_Ejecutiva_${periodo.anio}_${periodo.mesNumero}.csv`);
+  link.href = url;
+  link.download = `Reporte_Saldos_${periodo.anio}_${periodo.mesNumero}.csv`;
   document.body.appendChild(link);
   link.click();
-  document.body.removeChild(link);
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
 }

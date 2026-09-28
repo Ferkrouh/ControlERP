@@ -104,7 +104,7 @@ export default function AuditorDashboard() {
               <Eye className="w-3.5 h-3.5" /> Modo Auditoría Fiscal & Control Interno (Solo Lectura)
             </span>
             <span className="bg-white/10 text-white/90 text-xs px-2.5 py-0.5 rounded-full font-mono">
-              RFC: {tenant?.identificacionFiscal || 'XAXX010101000'}
+              RFC: {tenant?.identificacionFiscal || 'Sin registrar'}
             </span>
           </div>
           <h2 className="text-2xl font-bold mt-2 tracking-tight">Balanza de Comprobación y Trazabilidad Fiscal</h2>

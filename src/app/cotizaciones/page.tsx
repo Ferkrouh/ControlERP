@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth-context';
+import { calcularMontosVenta } from '@/lib/montos-venta';
 import { 
   FileText, 
   Plus, 
@@ -32,6 +33,14 @@ interface CartCotItem {
   precioUnitario: number;
   descuento: number;
   subtotal: number;
+}
+
+function vistaImportes(items: CartCotItem[]) {
+  try {
+    return { ...calcularMontosVenta(items), error: '' };
+  } catch (error) {
+    return { subtotal: 0, impuestos: 0, total: 0, partidas: [], error: error instanceof Error ? error.message : 'Revise los importes de las partidas' };
+  }
 }
 
 export default function CotizacionesPage() {
@@ -147,8 +156,8 @@ export default function CotizacionesPage() {
     const prod = productos.find((p) => p.id === selectedProdId);
     if (!prod) return;
 
-    if (addQty <= 0) {
-      setErrorMsg('La cantidad debe ser mayor a 0');
+    if (!Number.isFinite(addQty) || addQty <= 0 || !Number.isFinite(addPrice) || addPrice < 0) {
+      setErrorMsg('Ingrese una cantidad positiva y un precio válido');
       return;
     }
 
@@ -181,9 +190,7 @@ export default function CotizacionesPage() {
     setCart(cart.filter((_, i) => i !== index));
   };
 
-  const subtotalCart = cart.reduce((acc, i) => acc + i.subtotal, 0);
-  const ivaCart = Math.round(subtotalCart * 0.16 * 100) / 100;
-  const totalCart = subtotalCart + ivaCart;
+  const { subtotal: subtotalCart, impuestos: ivaCart, total: totalCart, error: importeError } = vistaImportes(cart);
 
   const handleCreateCotizacion = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -192,6 +199,7 @@ export default function CotizacionesPage() {
       return;
     }
 
+    if (importeError) { setErrorMsg(importeError); return; }
     setSaving(true);
     setErrorMsg('');
 
@@ -245,6 +253,7 @@ export default function CotizacionesPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          version: convertingCot.version,
           almacenId: convertAlmacenId,
           tipoPago: convertTipoPago,
         }),
@@ -339,7 +348,7 @@ export default function CotizacionesPage() {
       cantidad: Number(d.cantidad || 1),
       precioUnitario: Number(d.precioUnitario || 0),
       descuento: Number(d.descuento || 0),
-      subtotal: Number(d.subtotal || d.cantidad * d.precioUnitario),
+      subtotal: Number(d.subtotal ?? d.cantidad * d.precioUnitario),
     }));
     setEditCart(items);
     if (productos.length > 0) {
@@ -353,7 +362,7 @@ export default function CotizacionesPage() {
   const handleEditAddToCart = () => {
     const prod = productos.find((p) => p.id === editSelectedProdId);
     if (!prod) return;
-    if (editAddQty <= 0) return;
+    if (!Number.isFinite(editAddQty) || editAddQty <= 0 || !Number.isFinite(editAddPrice) || editAddPrice < 0) { setEditError('Ingrese una cantidad positiva y un precio válido'); return; }
 
     const existingIndex = editCart.findIndex((i) => i.productoId === editSelectedProdId);
     if (existingIndex >= 0) {
@@ -384,9 +393,7 @@ export default function CotizacionesPage() {
     setEditCart(editCart.filter((_, i) => i !== index));
   };
 
-  const editSubtotalCart = editCart.reduce((acc, i) => acc + i.subtotal, 0);
-  const editIvaCart = Math.round(editSubtotalCart * 0.16 * 100) / 100;
-  const editTotalCart = editSubtotalCart + editIvaCart;
+  const { subtotal: editSubtotalCart, impuestos: editIvaCart, total: editTotalCart, error: editImporteError } = vistaImportes(editCart);
 
   const handleSaveEditCot = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -396,6 +403,7 @@ export default function CotizacionesPage() {
       return;
     }
 
+    if (editImporteError) { setEditError(editImporteError); return; }
     setSavingEdit(true);
     setEditError('');
 
@@ -404,6 +412,7 @@ export default function CotizacionesPage() {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          version: editingCot.version,
           clienteId: editClienteId,
           vigenciaDias: editVigenciaDias,
           observaciones: editObservaciones,
@@ -440,6 +449,7 @@ export default function CotizacionesPage() {
     try {
       const res = await fetch(`/api/cotizaciones/${cot.id}`, {
         method: 'DELETE',
+        headers: { 'If-Match': cot.version },
       });
 
       const data = await res.json();
@@ -526,7 +536,7 @@ export default function CotizacionesPage() {
                       </td>
                       <td className="py-3 px-4">
                         <p className="font-semibold text-slate-900">{c.cliente?.razonSocial}</p>
-                        <p className="text-xs text-slate-400 font-mono">{c.cliente?.codigo} • RFC: {c.cliente?.rfc || 'XAXX010101000'}</p>
+                        <p className="text-xs text-slate-400 font-mono">{c.cliente?.codigo || 'Sin código'} • RFC: {c.cliente?.rfc || 'Sin registrar'}</p>
                       </td>
                       <td className="py-3 px-4 text-center text-xs">
                         <span className={`inline-flex items-center gap-1 font-semibold ${isExpired ? 'text-rose-600' : 'text-slate-600'}`}>
@@ -611,7 +621,7 @@ export default function CotizacionesPage() {
                           )}
 
                           {/* Convertir a Venta */}
-                          {!isReadOnly && c.estado !== 'CONVERTIDA' && (
+                          {!isReadOnly && ['BORRADOR', 'ENVIADA', 'APROBADA'].includes(c.estado) && new Date(c.fechaVencimiento).getTime() > Date.now() && (
                             <button
                               onClick={() => {
                                 setConvertingCot(c);
@@ -657,10 +667,10 @@ export default function CotizacionesPage() {
             </div>
 
             <form onSubmit={handleCreateCotizacion} className="p-6 overflow-y-auto space-y-6 flex-1 bg-slate-50/50">
-              {errorMsg && (
+              {(errorMsg || importeError) && (
                 <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-xl flex items-center gap-2 font-medium">
                   <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
-                  <span>{errorMsg}</span>
+                  <span>{errorMsg || importeError}</span>
                 </div>
               )}
               {successMsg && (
@@ -1183,10 +1193,10 @@ export default function CotizacionesPage() {
             </div>
 
             <form onSubmit={handleSaveEditCot} className="p-6 overflow-y-auto space-y-5 flex-1 text-xs">
-              {editError && (
+              {(editError || editImporteError) && (
                 <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl flex items-center gap-2 font-medium">
                   <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
-                  <span>{editError}</span>
+                  <span>{editError || editImporteError}</span>
                 </div>
               )}
 

@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth';
+import { randomUUID } from 'crypto';
+import { z } from 'zod';
+import { attachCorrelationId, auditOperationalFailure } from '@/lib/platform-audit';
 
 export async function GET(req: NextRequest) {
   try {
@@ -35,6 +38,11 @@ export async function GET(req: NextRequest) {
 
     const result = traspasos.map((t) => ({
       ...t,
+      items: t.items.map(it => {
+        if (user.rol !== 'ALMACENISTA') return it;
+        const { costoPromedio: _costo, ...producto } = it.producto;
+        return { ...it, producto };
+      }),
       almacenOrigenNombre: mapAlm.get(t.almacenOrigenId) || 'Almacén Origen',
       almacenDestinoNombre: mapAlm.get(t.almacenDestinoId) || 'Almacén Destino',
     }));
@@ -46,161 +54,54 @@ export async function GET(req: NextRequest) {
   }
 }
 
+const solicitud = z.object({
+  tenantId: z.string().min(1).optional(),
+  almacenOrigenId: z.string().min(1), almacenDestinoId: z.string().min(1),
+  observaciones: z.string().max(2000).optional(),
+  requiereCartaPorte: z.boolean().optional(),
+  items: z.array(z.object({ productoId: z.string().min(1),
+    cantidadEnviada: z.number().finite().positive() })).min(1).max(500),
+});
+
 export async function POST(req: NextRequest) {
+  let auditActor: { id: string; email: string; tenantId: string | null } | null = null;
+  let auditTenantId: string | null = null;
   try {
     const auth = await requireAuth(req, ['SUPERADMIN', 'ADMIN', 'ENCARGADO']);
     if (auth.errorResponse) return auth.errorResponse;
-
-    const { user } = auth;
-    const body = await req.json();
-    const { 
-      almacenOrigenId, 
-      almacenDestinoId, 
-      items, 
-      observaciones,
-      requiereCartaPorte = false,
-      distanciaKm = 0,
-      vehiculoPlacas,
-      vehiculoModelo,
-      operadorNombre,
-      operadorRfc,
-      operadorLicencia
-    } = body;
-
-    const targetTenantId = user.rol === 'SUPERADMIN' ? (body.tenantId || user.tenantId) : user.tenantId;
-    if (!targetTenantId) {
-      return NextResponse.json({ error: 'Tenant no especificado' }, { status: 400 });
+    auditActor = auth.user;
+    const parsed = solicitud.safeParse(await req.json().catch(() => null));
+    if (!parsed.success) return NextResponse.json({ error: 'Almacenes, partidas o cantidades inválidas' }, { status: 400 });
+    const body = parsed.data;
+    const targetTenantId = auth.user.rol === 'SUPERADMIN' ? (body.tenantId || auth.user.tenantId) : auth.user.tenantId;
+    auditTenantId = targetTenantId;
+    if (!targetTenantId) return NextResponse.json({ error: 'Seleccione una empresa' }, { status: 400 });
+    if (body.requiereCartaPorte) return NextResponse.json({ error: 'Carta Porte no está habilitada: el piloto no cuenta con PAC real' }, { status: 409 });
+    const ids = body.items.map(it => it.productoId);
+    if (body.almacenOrigenId === body.almacenDestinoId || new Set(ids).size !== ids.length) {
+      return NextResponse.json({ error: 'Seleccione almacenes distintos y una sola partida por producto' }, { status: 400 });
     }
-
-    if (almacenOrigenId === almacenDestinoId) {
-      return NextResponse.json({ error: 'El almacén de origen y destino no pueden ser el mismo' }, { status: 400 });
-    }
-
-    // Validar que ambos almacenes pertenezcan al tenant
-    const almacenes = await prisma.almacen.findMany({
-      where: {
-        id: { in: [almacenOrigenId, almacenDestinoId] },
-        tenantId: targetTenantId,
-      },
+    const traspaso = await prisma.$transaction(async tx => {
+      const almacenes = await tx.almacen.count({ where: { tenantId: targetTenantId,
+        id: { in: [body.almacenOrigenId, body.almacenDestinoId] } } });
+      const productos = await tx.producto.count({ where: { tenantId: targetTenantId, id: { in: ids } } });
+      if (almacenes !== 2 || productos !== ids.length) return null;
+      const creado = await tx.traspaso.create({ data: {
+        tenantId: targetTenantId, folio: `TRASP-${new Date().getFullYear()}-${randomUUID()}`,
+        almacenOrigenId: body.almacenOrigenId, almacenDestinoId: body.almacenDestinoId,
+        observaciones: body.observaciones?.trim() || null,
+        items: { create: body.items },
+      }, include: { items: { include: { producto: true } } } });
+      await tx.registroAuditoria.create({ data: { tenantId: targetTenantId, usuarioId: auth.user.id,
+        usuarioNombre: auth.user.nombre, modulo: 'TRASPASOS', accion: 'SOLICITAR',
+        detalles: `${creado.folio}: ${body.items.length} partidas solicitadas` } });
+      return creado;
     });
-
-    if (almacenes.length !== 2) {
-      return NextResponse.json({ error: 'Almacenes no válidos o no pertenecen a su empresa' }, { status: 400 });
-    }
-
-    const tenant = await prisma.tenant.findUnique({
-      where: { id: targetTenantId },
-    });
-
-    const count = await prisma.traspaso.count({ where: { tenantId: targetTenantId } });
-    const folio = `TRASP-${new Date().getFullYear()}-${String(count + 1).padStart(3, '0')}`;
-
-    let cpFiscalData: any = {
-      requiereCartaPorte: !!requiereCartaPorte,
-      estadoCartaPorte: requiereCartaPorte ? 'PENDIENTE' : 'NO_APLICA',
-      distanciaKm: Number(distanciaKm) || 0,
-      vehiculoPlacas: vehiculoPlacas || null,
-      vehiculoModelo: vehiculoModelo || null,
-      operadorNombre: operadorNombre || null,
-      operadorRfc: operadorRfc || null,
-      operadorLicencia: operadorLicencia || null,
-    };
-
-    // Si requiere Carta Porte 3.1, ejecutar timbrado fiscal SAT
-    if (requiereCartaPorte && tenant) {
-      const { fiscalService } = await import('@/lib/fiscal-adapter');
-      const almOrigen = almacenes.find((a) => a.id === almacenOrigenId)!;
-      const almDestino = almacenes.find((a) => a.id === almacenDestinoId)!;
-
-      const cpRes = await fiscalService.timbrarCartaPorte({
-        folioInterno: folio,
-        distanciaTotalKm: Number(distanciaKm) || 15,
-        emisor: {
-          rfc: tenant.identificacionFiscal,
-          razonSocial: tenant.razonSocial,
-          regimenFiscal: tenant.regimenFiscal || '601',
-          codigoPostal: tenant.codigoPostal || '64000',
-        },
-        receptor: {
-          rfc: tenant.identificacionFiscal,
-          razonSocial: tenant.razonSocial,
-          regimenFiscal: tenant.regimenFiscal || '601',
-          codigoPostal: tenant.codigoPostal || '64000',
-          usoCfdi: 'S01',
-        },
-        ubicaciones: [
-          {
-            tipoUbicacion: 'Origen',
-            rfcRemitenteDestinatario: tenant.identificacionFiscal,
-            nombreRemitenteDestinatario: almOrigen.nombre,
-            fechaHoraSalidaLlegada: new Date(),
-            distanciaRecorrida: 0,
-            codigoPostal: tenant.codigoPostal || '64000',
-          },
-          {
-            tipoUbicacion: 'Destino',
-            rfcRemitenteDestinatario: tenant.identificacionFiscal,
-            nombreRemitenteDestinatario: almDestino.nombre,
-            fechaHoraSalidaLlegada: new Date(Date.now() + 3600000 * 3), // +3 horas estimadas
-            distanciaRecorrida: Number(distanciaKm) || 15,
-            codigoPostal: tenant.codigoPostal || '64000',
-          }
-        ],
-        mercancias: items.map((it: any) => ({
-          bienesTransp: '24102100', // Materiales y artículos comerciales
-          descripcion: it.nombre || 'Mercancía de traspaso multialmacén',
-          cantidad: Number(it.cantidadEnviada),
-          claveUnidad: 'H87',
-          pesoEnKg: Number(it.cantidadEnviada) * 1.5,
-        })),
-        autotransporte: {
-          permSCT: 'TPAF01',
-          numPermisoSCT: 'SCT-PERM-2026-X',
-          configVehicular: 'C2',
-          placaVM: vehiculoPlacas || 'P-102-MX',
-          anioModeloVM: Number(vehiculoModelo) || 2024,
-          aseguraRespCivil: 'SEGUROS GNP',
-          polizaRespCivil: 'POL-GNP-99482',
-        },
-        operador: {
-          rfc: operadorRfc || 'OPME850101XYZ',
-          nombre: operadorNombre || 'Operador de Logística Interna',
-          numLicencia: operadorLicencia || 'LIC-FED-884920',
-        }
-      });
-
-      if (cpRes.success) {
-        cpFiscalData.estadoCartaPorte = 'TIMBRADA';
-        cpFiscalData.uuidCartaPorte = cpRes.uuid;
-        cpFiscalData.fechaTimbradoCP = cpRes.fechaTimbrado;
-        cpFiscalData.xmlCartaPorte = cpRes.xmlTimbrado;
-      }
-    }
-
-    const traspaso = await prisma.traspaso.create({
-      data: {
-        tenantId: targetTenantId,
-        folio,
-        almacenOrigenId,
-        almacenDestinoId,
-        estado: 'SOLICITADO',
-        observaciones,
-        ...cpFiscalData,
-        items: {
-          create: items.map((it: any) => ({
-            productoId: it.productoId,
-            cantidadEnviada: Number(it.cantidadEnviada),
-          })),
-        },
-      },
-      include: {
-        items: { include: { producto: true } },
-      },
-    });
-
+    if (!traspaso) return NextResponse.json({ error: 'Almacenes o productos ajenos a su empresa' }, { status: 400 });
     return NextResponse.json(traspaso, { status: 201 });
   } catch (error) {
-    console.error('Error creating traspaso:', error);
-    return NextResponse.json({ error: 'Error al solicitar traspaso' }, { status: 500 });
+    const correlationId = await auditOperationalFailure(req, auditActor, { categoria: 'TRASPASOS', accion: 'SOLICITUD_FALLIDA', status: 500, tenantId: auditTenantId });
+    console.error('Error al solicitar traspaso:', error);
+    return attachCorrelationId(NextResponse.json({ error: 'Error al solicitar traspaso', correlationId }, { status: 500 }), correlationId);
   }
 }

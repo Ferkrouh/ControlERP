@@ -16,16 +16,11 @@ if [ -f "prisma/schema.postgresql.prisma" ]; then
   cp prisma/schema.postgresql.prisma prisma/schema.prisma
 fi
 
-# 2. Sincronizar estructura de base de datos (tablas, relaciones, índices)
-echo "📦 Aplicando estructura en PostgreSQL (prisma db push)..."
-npx prisma db push --skip-generate || echo "⚠ Advertencia: No se pudo conectar inmediatamente a la BD, reintentando con el servidor..."
+# 2. Aplicar únicamente migraciones versionadas. Una base previa sin historial
+# de migraciones debe baselinarse por separado tras respaldo y revisión.
+echo "📦 Aplicando migraciones PostgreSQL versionadas..."
+npx prisma migrate deploy
 
-# 3. Seed automático opcional
-if [ "$SEED_ON_START" = "true" ]; then
-  echo "🌱 Ejecutando población de datos iniciales (seed)..."
-  node prisma/seed.js || echo "⚠ Advertencia en seed inicial (posiblemente ya existían registros)."
-fi
-
-# 4. Iniciar Next.js en modo producción
+# 3. Iniciar Next.js en modo producción. El seed demo es destructivo y nunca corre al arrancar.
 echo "🚀 Arrancando servidor web en http://0.0.0.0:${PORT:-3000}..."
 exec npm run start -- -p ${PORT:-3000}

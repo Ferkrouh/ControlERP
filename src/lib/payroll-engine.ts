@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { registrarPoliza } from './accounting-engine';
+import { construirCsv } from './csv-seguro';
 
 // Tablas Quincenales de ISR Art. 96 LISR (Vigentes México)
 const TABLA_ISR_QUINCENAL = [
@@ -307,14 +308,15 @@ export async function generarLayoutDispersionBancaria(periodoId: string, tenantI
     include: { empleado: true },
   });
 
-  let csv = 'NUM_EMPLEADO,NOMBRE_COMPLETO,RFC,BANCO,CUENTA_CLABE,IMPORTE_NETO,CONCEPTO\n';
+  const filas: Array<Array<string | number>> = [['NUM_EMPLEADO','NOMBRE_COMPLETO','RFC','BANCO','CUENTA_CLABE','IMPORTE_NETO','CONCEPTO']];
 
   for (const r of recibos) {
     const nombreCompleto = `${r.empleado.nombre} ${r.empleado.apellidoPaterno} ${r.empleado.apellidoMaterno || ''}`.trim();
-    const clabe = r.empleado.cuentaClabe || '000000000000000000';
-    const banco = r.empleado.bancoNombre || 'TRANSFERENCIA';
-    csv += `"${r.empleado.numeroEmpleado}","${nombreCompleto}","${r.empleado.rfc}","${banco}","${clabe}",${r.netoAPagar.toFixed(2)},"PAGO NOMINA"\n`;
+    const clabe = r.empleado.cuentaClabe;
+    const banco = r.empleado.bancoNombre;
+    if (!clabe || !/^\d{18}$/.test(clabe) || !banco) throw new Error(`Cuenta bancaria pendiente de validar para empleado ${r.empleado.numeroEmpleado}`);
+    filas.push([r.empleado.numeroEmpleado,nombreCompleto,r.empleado.rfc,banco,clabe,r.netoAPagar.toFixed(2),'PAGO NOMINA']);
   }
 
-  return csv;
+  return construirCsv(filas);
 }

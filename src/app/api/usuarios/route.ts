@@ -58,6 +58,9 @@ export async function POST(req: NextRequest) {
     if (!nombre || !email || !password) {
       return NextResponse.json({ error: 'Nombre, email y contraseña son obligatorios' }, { status: 400 });
     }
+    if (String(password).length < 12) {
+      return NextResponse.json({ error: 'La contraseña debe tener al menos 12 caracteres.' }, { status: 400 });
+    }
 
     // Un admin de tenant no puede crear superadmins
     if (user.rol !== 'SUPERADMIN' && rol === 'SUPERADMIN') {

@@ -8,7 +8,7 @@ services:
     restart: always
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-controlerp}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-controlerp_secure_password_2026!}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Define POSTGRES_PASSWORD en el entorno}
       POSTGRES_DB: ${POSTGRES_DB:-controlerp_db}
       PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
@@ -32,17 +32,26 @@ services:
     container_name: controlerp-app
     restart: always
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-controlerp}:${POSTGRES_PASSWORD:-controlerp_secure_password_2026!}@postgres:5432/${POSTGRES_DB:-controlerp_db}?schema=public
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-controlerp}:${POSTGRES_PASSWORD:?Define POSTGRES_PASSWORD en el entorno}@postgres:5432/${POSTGRES_DB:-controlerp_db}?schema=public
       - NEXT_PUBLIC_APP_NAME=${NEXT_PUBLIC_APP_NAME:-ControlERP}
-      - JWT_SECRET=${JWT_SECRET:-controlerp_super_secret_jwt_key_cambiar_en_produccion_xyz123}
+      - JWT_SECRET=${JWT_SECRET:?Define JWT_SECRET en el entorno}
       - PORT=3000
-      - SEED_ON_START=${SEED_ON_START:-true}
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/api/health').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
     networks:
       - controlerp-net
 
@@ -51,6 +60,7 @@ services:
     image: cloudflare/cloudflared:latest
     container_name: controlerp-tunnel
     restart: always
+    profiles: ["cloudflare"]
     command: tunnel run
     environment:
       - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN:-}

@@ -4,10 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { 
   BookOpen, 
-  FileCode, 
   Plus, 
   CheckCircle2, 
-  Download, 
   Search, 
   ArrowUpRight, 
   ArrowDownLeft, 
@@ -169,30 +167,17 @@ export default function ContabilidadPage() {
               <span className="p-2 bg-blue-50 text-blue-600 rounded-xl border border-blue-200">
                 <BookOpen className="w-6 h-6" />
               </span>
-              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Contabilidad Electrónica SAT (Anexo 24)</h1>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Control contable interno</h1>
             </div>
             <p className="text-slate-500 text-sm mt-1">
-              Partida doble en tiempo real, balanza de comprobación y exportación fiscal XML oficial
+              Pólizas y balanza para revisión operativa. La exportación fiscal no está habilitada en el piloto.
             </p>
           </div>
 
           <div className="flex items-center gap-3 flex-wrap">
-            <a
-              href="/api/contabilidad/sat-xml?tipo=catalogo"
-              className="px-4 py-2 bg-white hover:bg-slate-50 text-slate-700 text-sm font-medium rounded-xl border border-slate-300 flex items-center gap-2 transition-all shadow-sm"
-              download
-            >
-              <FileCode className="w-4 h-4 text-purple-600" />
-              XML Catálogo SAT
-            </a>
-            <a
-              href="/api/contabilidad/sat-xml?tipo=balanza"
-              className="px-4 py-2 bg-white hover:bg-slate-50 text-slate-700 text-sm font-medium rounded-xl border border-slate-300 flex items-center gap-2 transition-all shadow-sm"
-              download
-            >
-              <Download className="w-4 h-4 text-emerald-600" />
-              XML Balanza SAT
-            </a>
+            <div className="max-w-sm rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900" role="status">
+              XML SAT deshabilitado en el piloto. Requiere validar datos fiscales y formato antes de habilitarlo.
+            </div>
             {user?.rol !== 'AUDITOR' && (
               <button
                 onClick={() => setModalOpen(true)}

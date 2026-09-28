@@ -255,6 +255,10 @@ model Venta {
   total           Float
   estado          String    @default("COMPLETADA") // COMPLETADA, CANCELADA
   cxcId           String?   // Vínculo a CuentaPorCobrar si fue a crédito
+  turnoCajaId     String?   // Venta POS: requiere reversa de caja antes de cancelar
+  canceladaEn     DateTime?
+  canceladaPorId  String?
+  motivoCancelacion String?
   usuarioId       String
   usuarioNombre   String
   observaciones   String?
@@ -534,6 +538,27 @@ model RegistroAuditoria {
   @@index([tenantId, fecha])
   @@index([tenantId, modulo])
   @@index([tenantId, nivelRiesgo])
+}
+
+// Registro operacional global; accesible únicamente por SUPERADMIN.
+model RegistroPlataforma {
+  id            String   @id @default(uuid())
+  tenantId      String?
+  usuarioId     String?
+  usuarioEmail  String?
+  categoria     String
+  accion        String
+  resultado     String   @default("OK")
+  detalles      String
+  correlationId String?
+  ipAddress     String?
+  metadataJson  String?
+  fecha         DateTime @default(now())
+
+  @@index([fecha])
+  @@index([tenantId, fecha])
+  @@index([categoria, fecha])
+  @@index([resultado, fecha])
 }
 
 model Cotizacion {
@@ -1018,3 +1043,61 @@ model IncidenciaNomina {
 }
 
 
+// Conserva el resultado incluso si una operación comercial se cancela posteriormente.
+model SolicitudVenta {
+  id            String   @id @default(uuid())
+  tenantId      String
+  clave         String
+  usuarioId     String
+  hashSolicitud String
+  respuestaJson String
+  fecha         DateTime @default(now())
+
+  @@unique([tenantId, clave])
+  @@index([tenantId, fecha])
+}
+
+// Resultado durable de cargos y abonos, independiente de documentos eliminados.
+model SolicitudCobranza {
+  id            String   @id @default(uuid())
+  tenantId      String
+  clave         String
+  usuarioId     String
+  hashSolicitud String
+  respuestaJson String
+  fecha         DateTime @default(now())
+
+  @@unique([tenantId, clave])
+  @@index([tenantId, fecha])
+}
+
+// Resultado durable de ajustes y cortes de inventario confirmados.
+model SolicitudInventario {
+  id            String   @id @default(uuid())
+  tenantId      String
+  clave         String
+  usuarioId     String
+  hashSolicitud String
+  respuestaJson String
+  fecha         DateTime @default(now())
+
+  @@unique([tenantId, clave])
+  @@index([tenantId, fecha])
+}
+
+model LoteImportacion {
+  id            String   @id @default(uuid())
+  tenantId      String
+  usuarioId     String
+  tipo          String
+  modo          String
+  archivoHash   String
+  filasJson     String
+  erroresJson   String
+  estado        String   @default("PREVISUALIZADO")
+  resultadoJson String?
+  fecha         DateTime @default(now())
+  confirmadoAt  DateTime?
+
+  @@index([tenantId, fecha])
+}

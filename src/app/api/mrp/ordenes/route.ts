@@ -1,13 +1,12 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getSession } from '@/lib/auth';
+import { requireAuth } from '@/lib/auth';
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
-    const session = await getSession();
-    if (!session) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-    }
+    const auth = await requireAuth(request, ['SUPERADMIN', 'ADMIN', 'ENCARGADO', 'ALMACENISTA', 'AUDITOR']);
+    if (auth.errorResponse) return auth.errorResponse;
+    const { user: session } = auth;
 
     const { searchParams } = new URL(request.url);
     const tenantId = session.rol === 'SUPERADMIN' ? searchParams.get('tenantId') || session.tenantId : session.tenantId;
@@ -40,12 +39,11 @@ export async function GET(request: Request) {
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const session = await getSession();
-    if (!session) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-    }
+    const auth = await requireAuth(request, ['SUPERADMIN', 'ADMIN', 'ENCARGADO']);
+    if (auth.errorResponse) return auth.errorResponse;
+    const { user: session } = auth;
 
     const tenantId = session.tenantId;
     if (!tenantId) {
@@ -69,13 +67,21 @@ export async function POST(request: Request) {
       );
     }
 
-    const bom = await prisma.listaMateriales.findUnique({
-      where: { id: listaMaterialesId },
+    const bom = await prisma.listaMateriales.findFirst({
+      where: { id: listaMaterialesId, tenantId },
       include: { insumos: { include: { producto: true } } },
     });
 
     if (!bom || bom.tenantId !== tenantId) {
       return NextResponse.json({ error: 'Lista de materiales no encontrada' }, { status: 404 });
+    }
+
+    const [origen, destino] = await Promise.all([
+      prisma.almacen.findFirst({ where: { id: almacenOrigenId, tenantId } }),
+      prisma.almacen.findFirst({ where: { id: almacenDestinoId, tenantId } }),
+    ]);
+    if (!origen || !destino || almacenOrigenId === almacenDestinoId) {
+      return NextResponse.json({ error: 'Almacenes inválidos para esta empresa' }, { status: 400 });
     }
 
     // Generar folio consecutivo OP-YYYY-XXXX

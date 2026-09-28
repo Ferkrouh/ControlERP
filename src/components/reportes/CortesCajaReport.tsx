@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth-context';
+import { descargarCsv } from '@/lib/csv-seguro';
 import {
   DollarSign,
   CreditCard,
@@ -32,6 +33,10 @@ interface Props {
   mes: string;
   anio: string;
 }
+
+const escaparHtml = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
+  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+}[char]!));
 
 // Sparkline SVG Component
 function Sparkline({ data, color, height = 36, id }: { data: number[]; color: string; height?: number; id: string }) {
@@ -141,21 +146,15 @@ export default function CortesCajaReport({ mes, anio }: Props) {
   // Exportar CSV
   const handleExportCSV = () => {
     if (!cortes.length) return;
-    const headers = 'ID Turno,Sucursal,Cajero,Apertura,Cierre,Fondo Inicial,Ventas Efectivo,Ventas Tarjeta,Ventas SPEI,Total Ventas,Efectivo Esperado,Efectivo Entregado,Diferencia,Estado\n';
+    const headers = ['ID Turno','Sucursal','Cajero','Apertura','Cierre','Fondo Inicial','Ventas Efectivo','Ventas Tarjeta','Ventas SPEI','Total Ventas','Efectivo Esperado','Efectivo Entregado','Diferencia','Estado'];
     const rows = filteredCortes.map((c: any) => {
       const fechaAp = new Date(c.fechaApertura).toLocaleString('es-MX');
       const fechaCi = c.fechaCierre ? new Date(c.fechaCierre).toLocaleString('es-MX') : 'EN CURSO';
-      return `"${c.id.slice(0, 8)}","${c.almacenNombre}","${c.usuarioNombre}","${fechaAp}","${fechaCi}",${c.montoApertura},${c.totalEfectivo},${c.totalTarjeta},${c.totalTransfer},${c.totalVentas},${c.efectivoEsperado},${c.montoCierre || 0},${c.diferencia},"${c.estado}"`;
-    }).join('\n');
-
-    const csvContent = `data:text/csv;charset=utf-8,${headers}${rows}`;
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `Concentrado_Cortes_Caja_${anio}_${mes}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+      return [c.id.slice(0, 8), c.almacenNombre, c.usuarioNombre, fechaAp, fechaCi, c.montoApertura,
+        c.totalEfectivo, c.totalTarjeta, c.totalTransfer, c.totalVentas, c.efectivoEsperado,
+        c.montoCierre || 0, c.diferencia, c.estado];
+    });
+    descargarCsv(`Concentrado_Cortes_Caja_${anio}_${mes}.csv`, [headers, ...rows]);
   };
 
   // Impresión de Ticket Térmico de Corte Z
@@ -184,14 +183,14 @@ export default function CortesCajaReport({ mes, anio }: Props) {
         </head>
         <body>
           <div class="text-center">
-            <h3 style="margin: 0;">${tenant?.nombreComercial || 'CONTROL ERP'}</h3>
-            <p style="margin: 2px 0; font-size: 10px;">RFC: ${tenant?.identificacionFiscal || 'XAXX010101000'}</p>
+            <h3 style="margin: 0;">${escaparHtml(tenant?.nombreComercial || 'CONTROL ERP')}</h3>
+            ${tenant?.identificacionFiscal ? `<p style="margin: 2px 0; font-size: 10px;">RFC: ${escaparHtml(tenant.identificacionFiscal)}</p>` : ''}
             <p style="margin: 2px 0;"><strong>*** CORTE Z DE CAJA POS ***</strong></p>
-            <p style="margin: 2px 0; font-size: 11px;">Sucursal: ${selectedCorte.almacenNombre}</p>
+            <p style="margin: 2px 0; font-size: 11px;">Sucursal: ${escaparHtml(selectedCorte.almacenNombre)}</p>
           </div>
           <div class="border-t"></div>
           <div class="flex-between"><span>FOLIO TURNO:</span><strong>${selectedCorte.id.slice(0, 8).toUpperCase()}</strong></div>
-          <div class="flex-between"><span>CAJERO:</span><span>${selectedCorte.usuarioNombre}</span></div>
+          <div class="flex-between"><span>CAJERO:</span><span>${escaparHtml(selectedCorte.usuarioNombre)}</span></div>
           <div class="flex-between"><span>APERTURA:</span><span>${fechaAp}</span></div>
           <div class="flex-between"><span>CIERRE:</span><span>${fechaCi}</span></div>
           <div class="border-t"></div>
@@ -210,8 +209,8 @@ export default function CortesCajaReport({ mes, anio }: Props) {
             <span>${selectedCorte.diferencia >= 0 ? '+' : ''}$${fmt(selectedCorte.diferencia)}</span>
           </div>
           <div class="text-center" style="margin-top: 15px;">
-            <p style="font-size: 10px; margin: 4px 0;">ESTADO: ${selectedCorte.estado}</p>
-            ${selectedCorte.notasCierre ? `<p style="font-size: 9px; margin: 4px 0;">Notas: ${selectedCorte.notasCierre}</p>` : ''}
+            <p style="font-size: 10px; margin: 4px 0;">ESTADO: ${escaparHtml(selectedCorte.estado)}</p>
+            ${selectedCorte.notasCierre ? `<p style="font-size: 9px; margin: 4px 0;">Notas: ${escaparHtml(selectedCorte.notasCierre)}</p>` : ''}
             <div style="margin-top: 30px; border-top: 1px solid #000; width: 80%; margin-left: auto; margin-right: auto;"></div>
             <p style="font-size: 10px; margin-top: 4px;">FIRMA DE CONFORMIDAD CAJERO</p>
           </div>

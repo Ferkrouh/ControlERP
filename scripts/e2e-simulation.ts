@@ -228,6 +228,7 @@ async function runSimulation() {
     method: 'POST',
     headers: authHeaders,
     body: JSON.stringify({
+      version: cotData.version,
       almacenId: almacenOrigen.id,
       tipoPago: 'CREDITO',
     }),

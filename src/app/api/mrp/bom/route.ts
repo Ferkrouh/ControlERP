@@ -1,13 +1,12 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getSession } from '@/lib/auth';
+import { requireAuth } from '@/lib/auth';
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
-    const session = await getSession();
-    if (!session) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-    }
+    const auth = await requireAuth(request, ['SUPERADMIN', 'ADMIN', 'ENCARGADO', 'ALMACENISTA', 'AUDITOR']);
+    if (auth.errorResponse) return auth.errorResponse;
+    const { user: session } = auth;
 
     const { searchParams } = new URL(request.url);
     const tenantId = session.rol === 'SUPERADMIN' ? searchParams.get('tenantId') || session.tenantId : session.tenantId;
@@ -39,12 +38,11 @@ export async function GET(request: Request) {
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const session = await getSession();
-    if (!session) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-    }
+    const auth = await requireAuth(request, ['SUPERADMIN', 'ADMIN']);
+    if (auth.errorResponse) return auth.errorResponse;
+    const { user: session } = auth;
 
     const tenantId = session.tenantId;
     if (!tenantId) {
@@ -61,11 +59,15 @@ export async function POST(request: Request) {
       );
     }
 
+    const ids = [...new Set([productoId, ...insumos.map((item: any) => item.productoId)])];
+    const productosTenant = await prisma.producto.findMany({ where: { id: { in: ids }, tenantId } });
+    if (productosTenant.length !== ids.length) {
+      return NextResponse.json({ error: 'Todos los productos deben pertenecer a su empresa' }, { status: 400 });
+    }
+
     let costoEstimado = 0;
     for (const item of insumos) {
-      const prodInsumo = await prisma.producto.findUnique({
-        where: { id: item.productoId },
-      });
+      const prodInsumo = productosTenant.find((producto) => producto.id === item.productoId);
       if (prodInsumo) {
         costoEstimado += (prodInsumo.costoPromedio || 0) * Number(item.cantidadRequerida);
       }

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/lib/auth-context';
+import { descargarCsv } from '@/lib/csv-seguro';
 import { 
   Users, 
   Plus, 
@@ -81,9 +82,9 @@ export default function ClientesPage() {
   const [direccion, setDireccion] = useState('');
   const [diasCredito, setDiasCredito] = useState(30);
   const [limiteCredito, setLimiteCredito] = useState(50000);
-  const [regimenFiscal, setRegimenFiscal] = useState('601');
-  const [usoCfdi, setUsoCfdi] = useState('G01');
-  const [codigoPostal, setCodigoPostal] = useState('64000');
+  const [regimenFiscal, setRegimenFiscal] = useState('');
+  const [usoCfdi, setUsoCfdi] = useState('');
+  const [codigoPostal, setCodigoPostal] = useState('');
   const [saving, setSaving] = useState(false);
 
   // Modal Editar Cliente / Límite de Crédito
@@ -141,8 +142,8 @@ export default function ClientesPage() {
           email,
           telefono,
           direccion,
-          diasCredito: Number(diasCredito),
-          limiteCredito: Number(limiteCredito),
+          diasCredito: user.rol === 'ENCARGADO' ? 0 : Number(diasCredito),
+          limiteCredito: user.rol === 'ENCARGADO' ? 0 : Number(limiteCredito),
           regimenFiscal,
           usoCfdi,
           codigoPostal,
@@ -195,9 +196,8 @@ export default function ClientesPage() {
           email: editEmail,
           telefono: editTelefono,
           direccion: editDireccion,
-          diasCredito: Number(editDiasCredito),
-          limiteCredito: Number(editLimiteCredito),
-          estadoCredito: editEstadoCredito,
+          ...(user?.rol !== 'ENCARGADO' ? { diasCredito: Number(editDiasCredito),
+            limiteCredito: Number(editLimiteCredito), estadoCredito: editEstadoCredito } : {}),
         }),
       });
 
@@ -275,11 +275,11 @@ export default function ClientesPage() {
       const facturasVencidas = c.cxc?.filter(x => (x.estado === 'VENCIDA' || new Date(x.fechaVencimiento) < new Date()) && x.saldoPendiente > 0).length || 0;
 
       return [
-        `"${c.codigo}"`,
-        `"${c.razonSocial.replace(/"/g, '""')}"`,
-        `"${c.rfc || ''}"`,
-        `"${c.telefono || ''}"`,
-        `"${c.email || ''}"`,
+        c.codigo,
+        c.razonSocial,
+        c.rfc || '',
+        c.telefono || '',
+        c.email || '',
         c.diasCredito,
         limite.toFixed(2),
         saldo.toFixed(2),
@@ -287,17 +287,9 @@ export default function ClientesPage() {
         `${porcentaje}%`,
         c.estadoCredito,
         facturasVencidas
-      ].join(',');
+      ];
     });
-
-    const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...rows].join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `cartera_clientes_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    descargarCsv(`cartera_clientes_${new Date().toISOString().slice(0, 10)}.csv`, [headers, ...rows]);
   };
 
   // Indicador de morosidad
@@ -1041,7 +1033,7 @@ export default function ClientesPage() {
                     value={rfc}
                     onChange={(e) => setRfc(e.target.value.toUpperCase())}
                     maxLength={13}
-                    placeholder="XAXX010101000"
+                    placeholder="RFC si está disponible"
                     className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300 font-mono font-bold uppercase focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -1062,7 +1054,7 @@ export default function ClientesPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Correo para Facturación
+                    Correo del cliente
                   </label>
                   <input
                     type="email"
@@ -1074,14 +1066,14 @@ export default function ClientesPage() {
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Código Postal (SAT)
+                    Código postal fiscal (opcional)
                   </label>
                   <input
                     type="text"
                     value={codigoPostal}
                     onChange={(e) => setCodigoPostal(e.target.value)}
                     maxLength={5}
-                    placeholder="64000"
+                    placeholder="5 dígitos si está disponible"
                     className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300 font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -1115,7 +1107,8 @@ export default function ClientesPage() {
                       type="number"
                       min="0"
                       step="1000"
-                      value={limiteCredito}
+                      value={user?.rol === 'ENCARGADO' ? 0 : limiteCredito}
+                      disabled={user?.rol === 'ENCARGADO'}
                       onChange={(e) => setLimiteCredito(Number(e.target.value))}
                       className="w-full px-3 py-2 text-sm rounded-xl border border-slate-300 font-bold font-mono text-slate-900 bg-white"
                     />
@@ -1128,7 +1121,8 @@ export default function ClientesPage() {
                       type="number"
                       min="0"
                       max="180"
-                      value={diasCredito}
+                      value={user?.rol === 'ENCARGADO' ? 0 : diasCredito}
+                      disabled={user?.rol === 'ENCARGADO'}
                       onChange={(e) => setDiasCredito(Number(e.target.value))}
                       className="w-full px-3 py-2 text-sm rounded-xl border border-slate-300 font-bold font-mono text-slate-900 bg-white"
                     />
@@ -1247,6 +1241,7 @@ export default function ClientesPage() {
                       min="0"
                       step="1000"
                       value={editLimiteCredito}
+                      disabled={user?.rol === 'ENCARGADO'}
                       onChange={(e) => setEditLimiteCredito(Number(e.target.value))}
                       className="w-full px-3 py-2 text-sm rounded-xl border border-slate-300 font-bold font-mono text-slate-900 bg-white"
                     />
@@ -1260,6 +1255,7 @@ export default function ClientesPage() {
                       min="0"
                       max="180"
                       value={editDiasCredito}
+                      disabled={user?.rol === 'ENCARGADO'}
                       onChange={(e) => setEditDiasCredito(Number(e.target.value))}
                       className="w-full px-3 py-2 text-sm rounded-xl border border-slate-300 font-bold font-mono text-slate-900 bg-white"
                     />
@@ -1270,6 +1266,7 @@ export default function ClientesPage() {
                     </label>
                     <select
                       value={editEstadoCredito}
+                      disabled={user?.rol === 'ENCARGADO'}
                       onChange={(e) => setEditEstadoCredito(e.target.value)}
                       className="w-full px-3 py-2 text-sm rounded-xl border border-slate-300 font-semibold bg-white text-slate-900"
                     >

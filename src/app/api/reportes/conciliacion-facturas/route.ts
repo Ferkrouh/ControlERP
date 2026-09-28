@@ -54,6 +54,7 @@ export async function GET(req: NextRequest) {
     const cxcList = await prisma.cuentaPorCobrar.findMany({
       where: {
         ...whereTenant,
+        estado: { not: 'CANCELADA' },
         fechaEmision: { gte: inicio, lt: fin },
       },
       include: { cliente: true },

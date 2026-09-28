@@ -37,17 +37,25 @@ model Tenant {
   notasSuperadmin       String?   // Notas privadas del Superadmin sobre facturación, cobro o acuerdos
 
   // Módulos autorizados por el Superadmin
+  moduloPos             Boolean   @default(true)
+  moduloCotizaciones    Boolean   @default(true)
   moduloCredito         Boolean   @default(true)
   moduloCxC             Boolean   @default(true)
+  moduloListasPrecio    Boolean   @default(true)
+  moduloOrdenesCompra   Boolean   @default(true)
   moduloProveedores     Boolean   @default(true)
   moduloCxP             Boolean   @default(true)
   moduloMultiAlmacen    Boolean   @default(true)
   moduloTraspasos       Boolean   @default(true)
+  moduloLotes           Boolean   @default(true)
   moduloReportes        Boolean   @default(true)
   moduloFacturacionSAT  Boolean   @default(false)
   moduloTesoreria       Boolean   @default(true)
   moduloManufactura     Boolean   @default(true)
   moduloCrm             Boolean   @default(true)
+  moduloContabilidad    Boolean   @default(true)
+  moduloNomina          Boolean   @default(true)
+  funcionesHabilitadas  String?   // JSON estructurado con flags granulares de sub-funciones del Tenant
 
   // Configuración PAC / Timbrado Fiscal CFDI 4.0
   pacProveedor          String?   @default("FINKOK") // FINKOK, SW_SAPIEN, PRODIGIA, SIMULADOR
@@ -84,23 +92,31 @@ model Tenant {
   ordenesProduccion     OrdenProduccion[]
   oportunidadesCrm      OportunidadCRM[]
   auditorias            RegistroAuditoria[]
+  cuentasContables      CuentaContable[]
+  polizasContables      PolizaContable[]
+  empleados             Empleado[]
+  periodosNomina        PeriodoNomina[]
+  recibosNomina         ReciboNomina[]
+  incidenciasNomina     IncidenciaNomina[]
   createdAt             DateTime  @default(now())
 
   @@index([identificacionFiscal])
 }
 
 model Usuario {
-  id                String      @id @default(uuid())
-  tenantId          String?     // NULL únicamente para el SUPERADMIN de plataforma
-  nombre            String
-  email             String      @unique
-  passwordHash      String
-  rol               String      @default("ENCARGADO") // SUPERADMIN, ADMIN, ENCARGADO, ALMACENISTA, AUDITOR
-  activo            Boolean     @default(true)
-  almacenAsignadoId String?
-  createdAt         DateTime    @default(now())
+  id                    String      @id @default(uuid())
+  tenantId              String?     // NULL únicamente para el SUPERADMIN de plataforma
+  nombre                String
+  email                 String      @unique
+  passwordHash          String
+  rol                   String      @default("ENCARGADO") // SUPERADMIN, ADMIN, ENCARGADO, ALMACENISTA, AUDITOR
+  activo                Boolean     @default(true)
+  almacenAsignadoId     String?
+  comisionPct           Float       @default(3.0)   // % comisión sobre ventas para reportes de cumplimiento
+  metaVentasMensual     Float       @default(0)     // Meta de ventas mensual en MXN configurada por ADMIN
+  createdAt             DateTime    @default(now())
 
-  tenant            Tenant?     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant                Tenant?     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, rol])
 }
@@ -239,6 +255,10 @@ model Venta {
   total           Float
   estado          String    @default("COMPLETADA") // COMPLETADA, CANCELADA
   cxcId           String?   // Vínculo a CuentaPorCobrar si fue a crédito
+  turnoCajaId     String?   // Venta POS: requiere reversa de caja antes de cancelar
+  canceladaEn     DateTime?
+  canceladaPorId  String?
+  motivoCancelacion String?
   usuarioId       String
   usuarioNombre   String
   observaciones   String?
@@ -518,6 +538,27 @@ model RegistroAuditoria {
   @@index([tenantId, fecha])
   @@index([tenantId, modulo])
   @@index([tenantId, nivelRiesgo])
+}
+
+// Registro operacional global; accesible únicamente por SUPERADMIN.
+model RegistroPlataforma {
+  id            String   @id @default(uuid())
+  tenantId      String?
+  usuarioId     String?
+  usuarioEmail  String?
+  categoria     String
+  accion        String
+  resultado     String   @default("OK")
+  detalles      String
+  correlationId String?
+  ipAddress     String?
+  metadataJson  String?
+  fecha         DateTime @default(now())
+
+  @@index([fecha])
+  @@index([tenantId, fecha])
+  @@index([categoria, fecha])
+  @@index([resultado, fecha])
 }
 
 model Cotizacion {
@@ -817,3 +858,246 @@ model OportunidadCRM {
   @@index([tenantId, usuarioAsignado])
 }
 
+// -------------------------------------------------------------
+// FASE 8: CONTABILIDAD ELECTRÓNICA & PÓLIZAS AUTOMÁTICAS (SAT ANEXO 24)
+// -------------------------------------------------------------
+
+model CuentaContable {
+  id                  String          @id @default(uuid())
+  tenantId            String
+  codigo              String          // ej. "101.01", "102.01", "105.01", "115.01", "201.01", "401.01"
+  nombre              String          // ej. "Caja General", "Bancos Nacionales", "Clientes", "Proveedores"
+  tipo                String          // ACTIVO, PASIVO, CAPITAL, RESULTADOS_ACREEDORA, RESULTADOS_DEUDORA
+  naturaleza          String          // DEUDORA, ACREEDORA
+  nivel               Int             @default(1) // 1 Mayor, 2 Subcuenta, 3 Auxiliar
+  codigoAgrupadorSAT  String          // Código oficial SAT Anexo 24 (ej. "101.01", "102.01")
+  saldoInicial        Float           @default(0)
+  saldoActual         Float           @default(0)
+  cuentaPadreId       String?
+  activa              Boolean         @default(true)
+  createdAt           DateTime        @default(now())
+
+  tenant              Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  partidas            PartidaPoliza[]
+
+  @@unique([tenantId, codigo])
+  @@index([tenantId, tipo])
+  @@index([tenantId, codigoAgrupadorSAT])
+}
+
+model PolizaContable {
+  id                  String          @id @default(uuid())
+  tenantId            String
+  folio               String          // POL-ING-2026-0001, POL-EGR-2026-0001, POL-DIA-2026-0001
+  tipo                String          // INGRESO, EGRESO, DIARIO
+  fecha               DateTime
+  concepto            String
+  totalDebe           Float           @default(0)
+  totalHaber          Float           @default(0)
+  cuadrada            Boolean         @default(true)
+  origenModulo        String?         // VENTAS, COMPRAS, CXC, CXP, TESORERIA, MANUFACTURA, NOMINA, MANUAL
+  origenReferenciaId  String?         // ID del documento origen
+  usuarioId           String
+  usuarioNombre       String
+  createdAt           DateTime        @default(now())
+
+  tenant              Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  partidas            PartidaPoliza[]
+
+  @@unique([tenantId, folio])
+  @@index([tenantId, tipo, fecha])
+  @@index([tenantId, origenModulo, origenReferenciaId])
+}
+
+model PartidaPoliza {
+  id                  String          @id @default(uuid())
+  polizaId            String
+  cuentaContableId    String
+  cargo               Float           @default(0) // Debe
+  abono               Float           @default(0) // Haber
+  concepto            String?
+  referenciaFolio     String?
+  uuidFiscalSAT       String?
+
+  poliza              PolizaContable  @relation(fields: [polizaId], references: [id], onDelete: Cascade)
+  cuenta              CuentaContable  @relation(fields: [cuentaContableId], references: [id], onDelete: Cascade)
+
+  @@index([polizaId])
+  @@index([cuentaContableId])
+}
+
+// -------------------------------------------------------------
+// FASE 9: RECURSOS HUMANOS & NÓMINA CFDI 1.2 (SAT)
+// -------------------------------------------------------------
+
+model Empleado {
+  id                     String          @id @default(uuid())
+  tenantId               String
+  numeroEmpleado         String          // EMP-001
+  nombre                 String
+  apellidoPaterno        String
+  apellidoMaterno        String?
+  rfc                    String          // RFC con homoclave
+  curp                   String          // CURP oficial
+  nss                    String?         // Número de Seguridad Social IMSS
+  puesto                 String
+  departamento           String          // VENTAS, ALMACEN, PRODUCCION, ADMINISTRACION
+  fechaIngreso           DateTime
+  tipoContrato           String          @default("01") // 01 Tiempo indeterminado, 02 Determinado
+  tipoJornada            String          @default("01") // 01 Diurna, 02 Nocturna, 03 Mixta
+  regimenContratacion    String          @default("02") // 02 Sueldos, 09 Asimilados a salarios
+  salarioDiario          Float           // Salario diario ordinario
+  salarioDiarioIntegrado Float           // SDI para IMSS
+  salarioBaseCotizacion  Float           // SBC
+  periodicidadPago       String          @default("QUINCENAL") // SEMANAL, CATORCENAL, QUINCENAL, MENSUAL
+  bancoNombre            String?
+  cuentaClabe            String?         // 18 dígitos para dispersión bancaria
+  metodoPago             String          @default("TRANSFERENCIA") // TRANSFERENCIA, CHEQUE, EFECTIVO
+  estado                 String          @default("ACTIVO") // ACTIVO, BAJA, LICENCIA
+  almacenId              String?
+  createdAt              DateTime        @default(now())
+
+  tenant                 Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  recibosNomina          ReciboNomina[]
+  incidencias            IncidenciaNomina[]
+
+  @@unique([tenantId, numeroEmpleado])
+  @@unique([tenantId, rfc])
+  @@index([tenantId, estado])
+  @@index([tenantId, departamento])
+}
+
+model PeriodoNomina {
+  id                    String          @id @default(uuid())
+  tenantId              String
+  folio                 String          // NOM-2026-Q01
+  tipo                  String          @default("QUINCENAL") // SEMANAL, QUINCENAL, MENSUAL, EXTRAORDINARIA
+  fechaInicio           DateTime
+  fechaFin              DateTime
+  fechaPago             DateTime
+  diasPagados           Int             @default(15)
+  totalPercepciones     Float           @default(0)
+  totalDeducciones      Float           @default(0)
+  totalNeto             Float           @default(0)
+  totalCargasPatronales Float           @default(0)
+  estado                String          @default("BORRADOR") // BORRADOR, AUTORIZADA, DISPERSADA, TIMBRADA
+  polizaContableId      String?
+  createdAt             DateTime        @default(now())
+
+  tenant                Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  recibos               ReciboNomina[]
+
+  @@unique([tenantId, folio])
+  @@index([tenantId, estado])
+}
+
+model ReciboNomina {
+  id                  String          @id @default(uuid())
+  tenantId            String
+  periodoNominaId     String
+  empleadoId          String
+  diasTrabajados      Float           @default(15)
+  sueldoOrdinario     Float           @default(0)
+  horasExtra          Float           @default(0)
+  bonos               Float           @default(0)
+  valesDespensa       Float           @default(0)
+  totalPercepciones   Float           @default(0)
+  retencionISR        Float           @default(0)
+  imssObrero          Float           @default(0)
+  otrasDeducciones    Float           @default(0)
+  totalDeducciones    Float           @default(0)
+  netoAPagar          Float           @default(0)
+  imssPatronal        Float           @default(0)
+  infonavitPatronal   Float           @default(0)
+  isnPatronal         Float           @default(0)
+  estado              String          @default("BORRADOR") // BORRADOR, TIMBRADO, CANCELADO
+  uuidSAT             String?         // UUID CFDI Nómina 1.2
+  selloSAT            String?
+  fechaTimbrado       DateTime?
+  cadenaOriginalSAT   String?
+  createdAt           DateTime        @default(now())
+
+  tenant              Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  periodo             PeriodoNomina   @relation(fields: [periodoNominaId], references: [id], onDelete: Cascade)
+  empleado            Empleado        @relation(fields: [empleadoId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, periodoNominaId])
+  @@index([tenantId, empleadoId])
+}
+
+model IncidenciaNomina {
+  id                  String          @id @default(uuid())
+  tenantId            String
+  empleadoId          String
+  fecha               DateTime
+  tipo                String          // FALTA, RETARDO, HORA_EXTRA, VACACIONES, INCAPACIDAD
+  horas               Float           @default(0)
+  justificada         Boolean         @default(false)
+  observaciones       String?
+  createdAt           DateTime        @default(now())
+
+  tenant              Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  empleado            Empleado        @relation(fields: [empleadoId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, empleadoId, fecha])
+}
+
+
+// Conserva el resultado incluso si una operación comercial se cancela posteriormente.
+model SolicitudVenta {
+  id            String   @id @default(uuid())
+  tenantId      String
+  clave         String
+  usuarioId     String
+  hashSolicitud String
+  respuestaJson String
+  fecha         DateTime @default(now())
+
+  @@unique([tenantId, clave])
+  @@index([tenantId, fecha])
+}
+
+// Resultado durable de cargos y abonos, independiente de documentos eliminados.
+model SolicitudCobranza {
+  id            String   @id @default(uuid())
+  tenantId      String
+  clave         String
+  usuarioId     String
+  hashSolicitud String
+  respuestaJson String
+  fecha         DateTime @default(now())
+
+  @@unique([tenantId, clave])
+  @@index([tenantId, fecha])
+}
+
+// Resultado durable de ajustes y cortes de inventario confirmados.
+model SolicitudInventario {
+  id            String   @id @default(uuid())
+  tenantId      String
+  clave         String
+  usuarioId     String
+  hashSolicitud String
+  respuestaJson String
+  fecha         DateTime @default(now())
+
+  @@unique([tenantId, clave])
+  @@index([tenantId, fecha])
+}
+
+model LoteImportacion {
+  id            String   @id @default(uuid())
+  tenantId      String
+  usuarioId     String
+  tipo          String
+  modo          String
+  archivoHash   String
+  filasJson     String
+  erroresJson   String
+  estado        String   @default("PREVISUALIZADO")
+  resultadoJson String?
+  fecha         DateTime @default(now())
+  confirmadoAt  DateTime?
+
+  @@index([tenantId, fecha])
+}

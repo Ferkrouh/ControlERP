@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/lib/auth-context';
+import { descargarCsv } from '@/lib/csv-seguro';
 import { 
   Building2, 
   Plus, 
@@ -112,7 +113,7 @@ export default function NegociosPage() {
     // Admin inicial (solo creación)
     adminNombre: '',
     adminEmail: '',
-    adminPassword: 'admin123'
+    adminPassword: ''
   });
 
   // Confirmación de eliminación
@@ -273,7 +274,7 @@ export default function NegociosPage() {
       moduloCrm: true,
       adminNombre: 'Administrador General',
       adminEmail: '',
-      adminPassword: 'admin123'
+      adminPassword: ''
     });
     setActiveTab('GENERAL');
     setShowModalCrear(true);
@@ -362,7 +363,7 @@ export default function NegociosPage() {
       moduloCrm: tenant.moduloCrm ?? true,
       adminNombre: 'Administrador',
       adminEmail: '',
-      adminPassword: 'admin123'
+      adminPassword: ''
     });
     setShowModalClonar(true);
   };
@@ -524,27 +525,20 @@ export default function NegociosPage() {
       const almCount = t._count?.almacenes || t.almacenes?.length || 0;
       const fechaVencStr = t.fechaVencimientoPlan ? new Date(t.fechaVencimientoPlan).toLocaleDateString('es-MX') : 'Permanente';
       return [
-        `"${t.nombreComercial}"`,
-        `"${t.identificacionFiscal}"`,
-        `"${t.planSuscripcion || 'PROFESIONAL'}"`,
-        `"${sub.label}"`,
-        `"${fechaVencStr}"`,
+        t.nombreComercial,
+        t.identificacionFiscal,
+        t.planSuscripcion || 'PROFESIONAL',
+        sub.label,
+        fechaVencStr,
         userCount,
         t.limiteUsuarios || 10,
         almCount,
-        `"${getTenantStorageEstimate(t)}"`,
-        `"${t.giro}"`
+        getTenantStorageEstimate(t),
+        t.giro
       ];
     });
 
-    const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `reporte_suscripciones_controlerp_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    descargarCsv(`reporte_suscripciones_controlerp_${new Date().toISOString().split('T')[0]}.csv`, [headers, ...rows]);
   };
 
   // Filtrado y Ordenamiento
@@ -1364,6 +1358,20 @@ export default function NegociosPage() {
                             placeholder="admin@empresa.com"
                           />
                         </div>
+                      </div>
+                      <div>
+                        <label className="block font-medium text-slate-700 mb-0.5">Contraseña inicial *</label>
+                        <input
+                          type="password"
+                          autoComplete="new-password"
+                          minLength={12}
+                          value={formData.adminPassword}
+                          onChange={(e) => setFormData({ ...formData, adminPassword: e.target.value })}
+                          className="w-full px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-xs"
+                          placeholder="Mínimo 12 caracteres"
+                          required
+                        />
+                        <p className="mt-1 text-[10px] text-slate-500">Comparte esta clave con el administrador por un canal privado y solicítale cambiarla al iniciar.</p>
                       </div>
                     </div>
                   )}

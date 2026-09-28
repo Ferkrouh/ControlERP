@@ -48,7 +48,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Nombre comercial e identificación fiscal son requeridos' }, { status: 400 });
     }
 
-    const defaultPasswordHash = await hashPassword(body.adminPassword || 'admin123');
+    if (body.adminEmail && (!body.adminPassword || String(body.adminPassword).length < 12)) {
+      return NextResponse.json({ error: 'La contraseña inicial del administrador debe tener al menos 12 caracteres.' }, { status: 400 });
+    }
+
+    const adminPasswordHash = body.adminEmail ? await hashPassword(body.adminPassword) : null;
 
     // Calcular fecha de vencimiento por defecto si no viene dada (ej. 30 días o según plan)
     let fechaVenc: Date | null = null;
@@ -116,7 +120,7 @@ export async function POST(req: NextRequest) {
             tenantId: newTenant.id,
             nombre: body.adminNombre || 'Administrador',
             email: body.adminEmail.toLowerCase().trim(),
-            passwordHash: defaultPasswordHash,
+            passwordHash: adminPasswordHash!,
             rol: 'ADMIN',
           },
         });

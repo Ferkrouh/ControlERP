@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { enviarAbono, leerAbonoPendiente } from '@/lib/solicitud-cobranza-client';
 import { useAuth } from '@/lib/auth-context';
 import { 
   CreditCard, 
@@ -28,7 +29,9 @@ export default function CxCPage() {
   const [montoAbono, setMontoAbono] = useState<number>(0);
   const [metodoPago, setMetodoPago] = useState('TRANSFERENCIA');
   const [referencia, setReferencia] = useState('');
-  const [timbrarRep, setTimbrarRep] = useState(true);
+  const [pendiente, setPendiente] = useState(false);
+  const [avisoCobranza, setAvisoCobranza] = useState('');
+  const solicitudScope = `${user?.tenantId}:${user?.id}`;
   const [processingAbono, setProcessingAbono] = useState(false);
   const [abonoMsg, setAbonoMsg] = useState('');
 
@@ -45,9 +48,18 @@ export default function CxCPage() {
       if (res.ok) {
         const data = await res.json();
         setCxcList(data);
+        const previa = leerAbonoPendiente(solicitudScope);
+        setPendiente(!!previa);
+        if (previa) {
+          const doc = data.find((d: any) => d.id === previa.documentoId);
+          if (doc) {
+            setSelectedDoc(doc); setMontoAbono(previa.body.monto); setMetodoPago(previa.body.metodo); setReferencia(previa.body.referencia);
+            setAbonoMsg('Abono pendiente de confirmar. Reintente los datos originales para recuperar el resultado.');
+          } else setAvisoCobranza('El documento del abono pendiente no está disponible. Solicite conciliación antes de registrar otro cobro.');
+        }
       }
     } catch (e) {
-      console.error(e);
+      setAvisoCobranza(e instanceof Error ? e.message : 'No se pudo cargar la cartera');
     } finally {
       setLoading(false);
     }
@@ -61,31 +73,19 @@ export default function CxCPage() {
     setAbonoMsg('');
 
     try {
-      const res = await fetch(`/api/cxc/${selectedDoc.id}/abono`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          monto: Number(montoAbono),
-          metodo: metodoPago,
-          referencia,
-          timbrarRep,
-          usuarioNombre: user?.nombre || 'Operador Cobranza',
-        }),
+      const { res, data } = await enviarAbono(solicitudScope, selectedDoc.id, {
+        monto: Number(montoAbono), metodo: metodoPago, referencia, timbrarRep: false,
       });
-
-      const data = await res.json();
+      setPendiente(!!leerAbonoPendiente(solicitudScope));
       if (res.ok) {
-        setAbonoMsg('Abono registrado con éxito. El crédito del cliente se actualizó.');
-        setTimeout(() => {
-          setSelectedDoc(null);
-          setAbonoMsg('');
-          fetchCxC();
-        }, 1500);
+        setAvisoCobranza('Abono confirmado. El saldo se actualizó y el estado de crédito se conservó.');
+        setSelectedDoc(null); setAbonoMsg(''); fetchCxC();
       } else {
         setAbonoMsg(data.error || 'Error al procesar el abono.');
       }
     } catch (err) {
-      setAbonoMsg('Error de conexión.');
+      setPendiente(true);
+      setAbonoMsg(err instanceof Error ? err.message : 'Resultado desconocido. Reintente la misma solicitud.');
     } finally {
       setProcessingAbono(false);
     }
@@ -143,6 +143,7 @@ export default function CxCPage() {
 
   return (
     <div className="space-y-6">
+      {avisoCobranza && <p role="status" className="p-3 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-xl">{avisoCobranza}</p>}
       {/* Header Soberano Ejecutivo */}
       <div className="bg-slate-900 border border-slate-800 text-white p-6 rounded-2xl shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -339,15 +340,16 @@ export default function CxCPage() {
                               target="_blank"
                               rel="noopener noreferrer"
                               className="p-1.5 rounded-lg text-purple-700 bg-purple-50 hover:bg-purple-100 transition-colors inline-flex items-center gap-1 text-xs font-semibold"
-                              title="Descargar Recibo Electrónico de Pago (REP 2.0 SAT) en PDF"
+                              title="Descargar recibo interno de abono, sin validez fiscal"
                             >
-                              <FileDown className="w-3.5 h-3.5" /> REP PDF
+                              <FileDown className="w-3.5 h-3.5" /> Recibo PDF
                             </a>
                           )}
 
                           {!isReadOnly && doc.saldoPendiente > 0 && (
                             <button
                               onClick={() => {
+                                if (pendiente || processingAbono) { fetchCxC(); return; }
                                 setSelectedDoc(doc);
                                 setMontoAbono(doc.saldoPendiente);
                                 setReferencia('');
@@ -375,7 +377,7 @@ export default function CxCPage() {
 
       {/* Modal Registrar Abono */}
       {selectedDoc && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 space-y-4">
             <div className="flex items-center justify-between pb-2 border-b border-slate-100">
               <div>
@@ -383,6 +385,7 @@ export default function CxCPage() {
                 <p className="text-xs font-mono text-blue-600 font-bold">{selectedDoc.folio}</p>
               </div>
               <button
+                disabled={processingAbono}
                 onClick={() => setSelectedDoc(null)}
                 className="text-slate-400 hover:text-slate-600 font-bold text-lg"
               >
@@ -392,7 +395,7 @@ export default function CxCPage() {
 
             <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs space-y-1.5">
               <p className="text-slate-500">Cliente: <strong className="text-slate-900">{selectedDoc.cliente.razonSocial}</strong></p>
-              <p className="text-slate-500">Saldo Pendiente de Factura: <strong className="text-slate-900">${selectedDoc.saldoPendiente.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</strong></p>
+              <p className="text-slate-500">Saldo pendiente del documento: <strong className="text-slate-900">${selectedDoc.saldoPendiente.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</strong></p>
               {selectedDoc.pagos && selectedDoc.pagos.length > 0 && (
                 <div className="pt-1.5 border-t border-slate-200 flex items-center justify-between">
                   <span className="text-slate-500">Abonos previos: <strong>{selectedDoc.pagos.length}</strong></span>
@@ -402,7 +405,7 @@ export default function CxCPage() {
                     rel="noopener noreferrer"
                     className="text-purple-700 hover:text-purple-800 hover:underline font-semibold flex items-center gap-1"
                   >
-                    <FileDown className="w-3 h-3" /> Ver Último REP PDF
+                    <FileDown className="w-3 h-3" /> Ver último recibo
                   </a>
                 </div>
               )}
@@ -415,8 +418,9 @@ export default function CxCPage() {
                 </label>
                 <input
                   type="number"
-                  min="1"
-                  max={selectedDoc.saldoPendiente}
+                  min="0.01"
+                  max={pendiente ? undefined : selectedDoc.saldoPendiente}
+                  disabled={pendiente || processingAbono}
                   step="0.01"
                   value={montoAbono}
                   onChange={(e) => setMontoAbono(Number(e.target.value))}
@@ -430,6 +434,7 @@ export default function CxCPage() {
                   Método de Pago
                 </label>
                 <select
+                  disabled={pendiente || processingAbono}
                   value={metodoPago}
                   onChange={(e) => setMetodoPago(e.target.value)}
                   className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 bg-white"
@@ -447,6 +452,7 @@ export default function CxCPage() {
                 </label>
                 <input
                   type="text"
+                  disabled={pendiente || processingAbono}
                   value={referencia}
                   onChange={(e) => setReferencia(e.target.value)}
                   placeholder="Ej. Clave de rastreo o autorización"
@@ -454,21 +460,9 @@ export default function CxCPage() {
                 />
               </div>
 
-              {/* Opción Timbrado Fiscal REP 2.0 */}
-              <div className="p-3 bg-purple-50 border border-purple-200 rounded-xl">
-                <label className="flex items-center gap-2.5 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={timbrarRep}
-                    onChange={(e) => setTimbrarRep(e.target.checked)}
-                    className="w-4 h-4 text-purple-600 rounded border-slate-300 focus:ring-purple-500"
-                  />
-                  <div>
-                    <span className="text-xs font-bold text-purple-900 block">Timbrar Complemento de Pago (REP 2.0)</span>
-                    <span className="text-xs text-purple-700 block">Emite recibo fiscal electrónico ante el SAT con desglose de saldo anterior e insoluto.</span>
-                  </div>
-                </label>
-              </div>
+              <p className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-600">
+                Recibo interno de abono. No constituye CFDI ni REP fiscal. El timbrado está fuera del piloto.
+              </p>
 
               {abonoMsg && (
                 <p className="text-xs font-semibold text-emerald-700 bg-emerald-50 p-2.5 rounded-lg border border-emerald-200">
@@ -479,7 +473,8 @@ export default function CxCPage() {
               <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
                 <button
                   type="button"
-                  onClick={() => setSelectedDoc(null)}
+                  disabled={processingAbono}
+                onClick={() => setSelectedDoc(null)}
                   className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg"
                 >
                   Cancelar
@@ -489,7 +484,7 @@ export default function CxCPage() {
                   disabled={processingAbono}
                   className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-5 py-2 rounded-lg shadow-sm disabled:opacity-50"
                 >
-                  {processingAbono ? 'Aplicando y Timbrando...' : 'Aplicar Abono'}
+                  {processingAbono ? 'Confirmando...' : pendiente ? 'Reintentar abono pendiente' : 'Aplicar Abono'}
                 </button>
               </div>
             </form>

@@ -187,6 +187,10 @@ npm install
 
 ### 3. Configurar variables de entorno
 Crea un archivo `.env` en la raíz del proyecto:
+
+`JWT_SECRET` es obligatorio también en desarrollo: configura un valor aleatorio estable en `.env.local` (ignorado por Git). El middleware y la API deben usar el mismo secreto; no hay una clave de respaldo. En producción debe tener al menos 32 bytes.
+
+Regresión aislada del piloto: `npm run test:ventas`, `npm run test:traspasos`, `npm run test:cotizaciones`, `npm run test:cobranza` y `npm run test:cancelaciones` crean y eliminan sus propias bases temporales. No ejecutan el seed ni modifican datos demo. Para comprobar el build sin interferir con `npm run dev`, usa `CONTROLERP_BUILD_CHECK=1 npx next build` (en PowerShell: `$env:CONTROLERP_BUILD_CHECK='1'; npx next build`).
 ```env
 DATABASE_URL="file:./dev.db"
 JWT_SECRET="tu-clave-secreta-jwt-super-segura"
@@ -208,8 +212,8 @@ npm run prisma:generate
 # Crear tablas en SQLite local
 npm run db:push
 
-# Poblar datos demo (Inquilinos, Catálogo SAT, Usuarios y Productos)
-npm run db:seed
+# Reconstruir la base con datos demo (BORRA los datos existentes; solo local)
+ALLOW_DEMO_RESET=true npm run db:seed
 ```
 
 ### 5. Iniciar servidor de desarrollo
@@ -225,6 +229,9 @@ Abre tu navegador en [http://localhost:3222](http://localhost:3222).
 El proyecto incluye soporte nativo para despliegue en entornos Linux (Ubuntu 22.04/24.04 LTS) mediante Docker y Docker Compose con PostgreSQL.
 
 ### 1. Despliegue con Docker Compose
+
+**Estado del piloto:** la migración inicial PostgreSQL está preparada, pero aún no se ha ensayado contra un servidor PostgreSQL ni se ha probado un restore. No usar estas instrucciones para datos reales hasta completar esas pruebas y la aceptación de las dos empresas. El contenedor aplica `prisma migrate deploy`; una base PostgreSQL existente sin historial de Prisma requiere baselining supervisado con respaldo previo.
+
 ```bash
 # Cambiar la base de datos a PostgreSQL
 npm run db:use:postgres
@@ -232,6 +239,8 @@ npm run db:use:postgres
 # Construir y levantar contenedores
 docker-compose up -d --build
 ```
+
+Para el trabajo de la beta, la importación de catálogos está en `/importaciones`: plantillas CSV, archivos CSV UTF-8/XLSX, vista previa y confirmación. El stock inicial se importa por almacén con una operación de corte independiente. Los Excel reales de las dos empresas quedan pendientes hasta que el responsable del piloto los proporcione después de la beta. Consulte [Etapa 1](ETAPA_1_TICKETS.md) para criterios y evidencia.
 
 ### 2. Script automatizado para Ubuntu Server
 Para aprovisionar un servidor Ubuntu desde cero, utiliza el script incluido:
@@ -268,3 +277,9 @@ Este proyecto está protegido bajo derechos reservados. Para términos de licenc
 <p align="center">
   Desarrollado con precisión contable, operativa y fiscal para el ecosistema empresarial moderno.
 </p>
+
+Contrato de cotizaciones del piloto: GET/listado devuelven `version`; PUT y conversión requieren esa versión en el cuerpo, y DELETE requiere `If-Match`. Si el documento cambió, la API responde 409 y exige recargar/revisar. Una conversión idéntica repetida devuelve la venta original; no duplica stock ni cartera. Ver criterios y límites en `ETAPA_1_TICKETS.md`, ticket E1-03.
+
+Contrato de cobranza: POST `/api/cxc` y `/api/cxc/[id]/abono` requieren `Idempotency-Key`. Reintentos idénticos recuperan el resultado; otra solicitud con esa clave devuelve 409. El cliente conserva los abonos pendientes en la misma pestaña. `timbrarRep: true` se rechaza en el piloto; `/api/cxc/[id]/rep/pdf` conserva su URL histórica y entrega un recibo interno sin validez fiscal. Los abonos no reactivan estados de crédito bloqueados: requieren revisión administrativa explícita. Ver E1-04.
+
+Cancelación del piloto: DELETE `/api/ventas/[id]` requiere `{ "motivo": "..." }`. La venta y CxC se conservan con estado CANCELADA; stock y crédito se revierten una sola vez. Se rechazan ventas con abonos, timbre fiscal o turno POS. PUT solo permite cambiar observaciones, no contado/crédito. La cancelación de contado no efectúa devolución de dinero; debe gestionarse aparte. El timbrado fiscal está deshabilitado sin PAC. Ver E1-05.

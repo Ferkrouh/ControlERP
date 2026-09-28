@@ -2,6 +2,9 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/lib/auth-context';
+import { enviarSolicitudVenta, leerVentaPendiente } from '@/lib/solicitud-venta-client';
+import { calcularMontosVenta } from '@/lib/montos-venta';
+import { descargarCsv } from '@/lib/csv-seguro';
 import { 
   ShoppingCart, 
   Plus, 
@@ -29,7 +32,6 @@ import {
   ShieldCheck,
   PackageCheck,
   Mail,
-  Send
 } from 'lucide-react';
 
 interface CartItem {
@@ -48,6 +50,7 @@ type SortField = 'folio' | 'fecha' | 'cliente' | 'total' | 'subtotal';
 
 export default function VentasPage() {
   const { user } = useAuth();
+  const solicitudScope = `${user?.tenantId}:${user?.id}:ventas`;
   const [ventas, setVentas] = useState<any[]>([]);
   const [clientes, setClientes] = useState<any[]>([]);
   const [almacenes, setAlmacenes] = useState<any[]>([]);
@@ -74,7 +77,6 @@ export default function VentasPage() {
   const [addPrice, setAddPrice] = useState(0);
 
   const [saving, setSaving] = useState(false);
-  const [timbrandoId, setTimbrandoId] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
@@ -84,19 +86,9 @@ export default function VentasPage() {
   // Estados para Modificar Venta
   const [editingVenta, setEditingVenta] = useState<any>(null);
   const [editObservaciones, setEditObservaciones] = useState('');
-  const [editTipoPago, setEditTipoPago] = useState<'CONTADO' | 'CREDITO'>('CONTADO');
   const [savingEdit, setSavingEdit] = useState(false);
   const [editError, setEditError] = useState('');
 
-  // Estados para Enviar Comprobante / Factura por Correo
-  const [emailModalVenta, setEmailModalVenta] = useState<any>(null);
-  const [emailDestinatarios, setEmailDestinatarios] = useState('');
-  const [emailAsunto, setEmailAsunto] = useState('');
-  const [emailMensaje, setEmailMensaje] = useState('');
-  const [emailAdjuntarPdf, setEmailAdjuntarPdf] = useState(true);
-  const [emailAdjuntarXml, setEmailAdjuntarXml] = useState(true);
-  const [sendingEmail, setSendingEmail] = useState(false);
-  const [emailFeedback, setEmailFeedback] = useState<{ success?: string; error?: string } | null>(null);
 
   useEffect(() => {
     if (user?.tenantId) {
@@ -124,9 +116,23 @@ export default function VentasPage() {
         setClientes(cData);
         setAlmacenes(aData);
         setProductos(pData);
+        const pendiente = leerVentaPendiente(solicitudScope);
+        if (pendiente) {
+          const body = pendiente.body;
+          setClienteId(body.clienteId); setAlmacenId(body.almacenId); setTipoPago(body.tipoPago);
+          setObservaciones(body.observaciones); setShowModal(true);
+          setCart(body.items.map((it: any) => {
+            const prod = pData.find((p: any) => p.id === it.productoId);
+            return { ...it, nombre: prod?.nombre || it.productoId, sku: prod?.sku || '', unidadMedida: prod?.unidadMedida || '',
+              stockDisponible: prod?.existencias?.find((e: any) => e.almacenId === body.almacenId)?.cantidad || 0,
+              subtotal: calcularMontosVenta([it]).subtotal };
+          }));
+          setErrorMsg('Se recuperó una venta pendiente de confirmar. Reintente con estos datos antes de emitir otra.');
+        }
 
-        if (cData.length > 0 && !clienteId) setClienteId(cData[0].id);
-        if (aData.length > 0 && !almacenId) setAlmacenId(aData[0].id);
+
+        if (!pendiente && cData.length > 0 && !clienteId) setClienteId(cData[0].id);
+        if (!pendiente && aData.length > 0 && !almacenId) setAlmacenId(aData[0].id);
         if (pData.length > 0 && !selectedProdId) {
           setSelectedProdId(pData[0].id);
           setAddPrice(pData[0].precioVenta || 0);
@@ -139,260 +145,23 @@ export default function VentasPage() {
     }
   };
 
-  // Handler para imprimir factura / comprobante comercial con estética The Fintech Ledger
+  // El mismo documento interno autenticado se usa para descargar e imprimir.
   const handlePrintFactura = (venta: any) => {
-    const printWindow = window.open('', '_blank', 'width=900,height=800');
-    if (!printWindow) {
-      alert('Por favor habilite los pop-ups en su navegador para imprimir comprobantes.');
-      return;
-    }
-
-    const tenant = user?.tenant;
-    const primaryColor = tenant?.colorPrimario || '#1e40af';
-    const isTimbrada = venta.estadoFiscal === 'TIMBRADA';
-
-    const itemsHtml = venta.detalles?.map((d: any, idx: number) => `
-      <tr style="background-color: ${idx % 2 === 0 ? '#ffffff' : '#f8fafc'};">
-        <td style="padding: 10px 12px; font-family: ui-monospace, SFMono-Regular, monospace; font-size: 11px; font-weight: 600; color: #1e293b; border-bottom: 1px solid #e2e8f0;">
-          ${d.producto?.sku || 'N/A'}
-        </td>
-        <td style="padding: 10px 12px; font-size: 12px; color: #0f172a; border-bottom: 1px solid #e2e8f0;">
-          <div style="font-weight: 600;">${d.producto?.nombre || 'Artículo de Catálogo'}</div>
-          <div style="font-size: 10px; color: #64748b; margin-top: 2px;">Clave SAT: 01010101 • Unidad: ${d.producto?.unidadMedida || 'H87 Pieza'}</div>
-        </td>
-        <td style="padding: 10px 12px; text-align: center; font-family: ui-monospace, SFMono-Regular, monospace; font-size: 12px; font-weight: 600; color: #0f172a; border-bottom: 1px solid #e2e8f0;">
-          ${d.cantidad}
-        </td>
-        <td style="padding: 10px 12px; text-align: right; font-family: ui-monospace, SFMono-Regular, monospace; font-size: 12px; color: #334155; border-bottom: 1px solid #e2e8f0;">
-          $${Number(d.precioUnitario).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
-        </td>
-        <td style="padding: 10px 12px; text-align: right; font-family: ui-monospace, SFMono-Regular, monospace; font-size: 12px; color: #64748b; border-bottom: 1px solid #e2e8f0;">
-          $${(Number(d.subtotal) * 0.16).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
-        </td>
-        <td style="padding: 10px 12px; text-align: right; font-family: ui-monospace, SFMono-Regular, monospace; font-size: 12px; font-weight: 700; color: #0f172a; border-bottom: 1px solid #e2e8f0;">
-          $${Number(d.subtotal).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
-        </td>
-      </tr>
-    `).join('') || '';
-
-    const content = `
-      <!DOCTYPE html>
-      <html lang="es">
-        <head>
-          <meta charset="utf-8" />
-          <title>${isTimbrada ? 'Factura CFDI 4.0' : 'Remisión Comercial'} - ${venta.folio}</title>
-          <style>
-            @page { size: letter; margin: 12mm 15mm; }
-            * { box-sizing: border-box; }
-            body {
-              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-              color: #0f172a;
-              margin: 0;
-              padding: 24px;
-              background: #ffffff;
-              -webkit-print-color-adjust: exact;
-              print-color-adjust: exact;
-            }
-            .border-box { border: 1px solid #e2e8f0; border-radius: 8px; }
-            table { width: 100%; border-collapse: collapse; }
-            @media print {
-              body { padding: 0; }
-              .no-print { display: none; }
-            }
-          </style>
-        </head>
-        <body>
-          <!-- Botón flotante para imprimir en pantalla previa -->
-          <div class="no-print" style="margin-bottom: 20px; display: flex; justify-content: flex-end; gap: 10px;">
-            <button onclick="window.print()" style="background: ${primaryColor}; color: white; border: none; padding: 8px 18px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 13px;">
-              🖨️ Imprimir Documento
-            </button>
-          </div>
-
-          <!-- Barra de Acento Superior -->
-          <div style="height: 4px; background: ${primaryColor}; width: 100%; margin-bottom: 20px; border-radius: 2px;"></div>
-
-          <!-- Cabecera Principal -->
-          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px;">
-            <div style="display: flex; gap: 16px; align-items: center; max-width: 60%;">
-              ${tenant?.logoUrl ? `
-                <div style="width: 80px; height: 80px; border-radius: 8px; border: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: center; padding: 4px; background: #ffffff;">
-                  <img src="${tenant.logoUrl}" alt="Logo" style="max-width: 100%; max-height: 100%; object-contain: fit;" />
-                </div>
-              ` : `
-                <div style="width: 56px; height: 56px; border-radius: 8px; background: ${primaryColor}; color: white; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 900;">
-                  ${tenant?.nombreComercial ? tenant.nombreComercial.charAt(0) : 'E'}
-                </div>
-              `}
-              <div>
-                <h1 style="margin: 0; font-size: 18px; font-weight: 800; color: #0f172a; letter-spacing: -0.02em;">
-                  ${tenant?.razonSocial || tenant?.nombreComercial || 'CONTROL ERP'}
-                </h1>
-                <p style="margin: 3px 0 0 0; font-size: 11px; font-weight: 700; color: #475569; font-family: ui-monospace, monospace;">
-                  RFC: ${tenant?.identificacionFiscal || 'XAXX010101000'} • Régimen: ${tenant?.regimenFiscal || '601 General de Ley'}
-                </p>
-                <p style="margin: 2px 0 0 0; font-size: 11px; color: #64748b;">
-                  Lugar de Expedición: C.P. ${tenant?.codigoPostal || '64000'} • Despacho: ${venta.almacen?.nombre || 'Almacén Central'}
-                </p>
-                ${tenant?.textoEncabezadoDoc ? `<p style="margin: 4px 0 0 0; font-size: 10px; color: #94a3b8; font-style: italic;">"${tenant.textoEncabezadoDoc}"</p>` : ''}
-              </div>
-            </div>
-
-            <!-- Caja de Folio y Tipo de Documento -->
-            <div style="border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px 18px; background: #f8fafc; min-width: 220px; text-align: right;">
-              <div style="font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: ${primaryColor};">
-                ${isTimbrada ? 'FACTURA ELECTRÓNICA CFDI 4.0' : 'COMPROBANTE DE VENTA / REMISIÓN'}
-              </div>
-              <div style="font-family: ui-monospace, SFMono-Regular, monospace; font-size: 18px; font-weight: 900; color: #0f172a; margin: 4px 0;">
-                ${venta.folio}
-              </div>
-              <div style="font-size: 11px; color: #64748b;">
-                Fecha: <strong>${new Date(venta.fecha).toLocaleDateString('es-MX')}</strong>
-              </div>
-              <div style="margin-top: 6px;">
-                <span style="background: ${venta.tipoPago === 'CREDITO' ? '#f3e8ff' : '#ecfdf5'}; color: ${venta.tipoPago === 'CREDITO' ? '#6b21a8' : '#047857'}; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 12px; border: 1px solid ${venta.tipoPago === 'CREDITO' ? '#d8b4fe' : '#a7f3d0'};">
-                  CONDICIÓN: ${venta.tipoPago === 'CREDITO' ? 'CRÉDITO COMERCIAL' : 'CONTADO / LIQUIDADO'}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Datos del Cliente / Receptor -->
-          <div style="display: grid; grid-template-columns: 3fr 2fr; gap: 16px; margin-bottom: 20px;">
-            <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; background: #ffffff;">
-              <div style="font-size: 10px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px;">
-                DATOS DEL CLIENTE / RECEPTOR
-              </div>
-              <div style="font-size: 13px; font-weight: 800; color: #0f172a;">
-                ${venta.cliente?.razonSocial || 'Público en General'}
-              </div>
-              <div style="font-size: 11px; font-family: ui-monospace, monospace; color: #334155; margin-top: 2px;">
-                <strong>RFC:</strong> ${venta.cliente?.rfc || 'XAXX010101000'} &nbsp;|&nbsp; <strong>Código:</strong> ${venta.cliente?.codigo || 'CLI-001'}
-              </div>
-              <div style="font-size: 11px; color: #64748b; margin-top: 2px;">
-                <strong>Régimen Fiscal:</strong> ${venta.cliente?.regimenFiscal || '612 Personas Físicas'} • <strong>C.P.:</strong> ${venta.cliente?.codigoPostal || '64000'}
-              </div>
-            </div>
-
-            <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; background: #ffffff;">
-              <div style="font-size: 10px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px;">
-                PARÁMETROS FISCALES
-              </div>
-              <div style="font-size: 11px; color: #334155;">
-                <strong>Uso CFDI:</strong> G03 Gastos en general
-              </div>
-              <div style="font-size: 11px; color: #334155; margin-top: 2px;">
-                <strong>Método Pago:</strong> ${venta.tipoPago === 'CREDITO' ? 'PPD - Pago en parcialidades' : 'PUE - Pago en una sola exhibición'}
-              </div>
-              <div style="font-size: 11px; color: #334155; margin-top: 2px;">
-                <strong>Moneda:</strong> MXN (Pesos Mexicanos)
-              </div>
-            </div>
-          </div>
-
-          <!-- Tabla de Partidas / Conceptos -->
-          <table style="border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; margin-bottom: 20px;">
-            <thead>
-              <tr style="background: #0f172a; color: #ffffff;">
-                <th style="padding: 10px 12px; text-align: left; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; width: 14%;">SKU</th>
-                <th style="padding: 10px 12px; text-align: left; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">Descripción</th>
-                <th style="padding: 10px 12px; text-align: center; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; width: 10%;">Cant.</th>
-                <th style="padding: 10px 12px; text-align: right; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; width: 15%;">P. Unitario</th>
-                <th style="padding: 10px 12px; text-align: right; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; width: 13%;">IVA (16%)</th>
-                <th style="padding: 10px 12px; text-align: right; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; width: 16%;">Importe</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${itemsHtml}
-            </tbody>
-          </table>
-
-          <!-- Bloque de Totales y Resumen -->
-          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; margin-bottom: 24px;">
-            <!-- Importe con Letra y Observaciones -->
-            <div style="flex: 1; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; background: #f8fafc;">
-              <div style="font-size: 10px; font-weight: 800; color: #64748b; text-transform: uppercase;">
-                Importe Total con Letra
-              </div>
-              <div style="font-size: 11px; font-weight: 700; color: #0f172a; margin-top: 4px;">
-                ${Number(venta.total).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })} MXN
-              </div>
-              ${venta.observaciones ? `
-                <div style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed #cbd5e1; font-size: 11px; color: #475569;">
-                  <strong>Notas / Observaciones:</strong> ${venta.observaciones}
-                </div>
-              ` : ''}
-            </div>
-
-            <!-- Tabla de Resumen Monetario -->
-            <div style="width: 280px; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; background: #ffffff;">
-              <table style="width: 100%;">
-                <tr>
-                  <td style="padding: 8px 14px; font-size: 12px; color: #475569; border-bottom: 1px solid #f1f5f9;">Subtotal:</td>
-                  <td style="padding: 8px 14px; text-align: right; font-family: ui-monospace, monospace; font-size: 12px; font-weight: 600; color: #0f172a; border-bottom: 1px solid #f1f5f9;">
-                    $${Number(venta.subtotal).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
-                  </td>
-                </tr>
-                <tr>
-                  <td style="padding: 8px 14px; font-size: 12px; color: #475569; border-bottom: 1px solid #f1f5f9;">IVA Trasladado (16%):</td>
-                  <td style="padding: 8px 14px; text-align: right; font-family: ui-monospace, monospace; font-size: 12px; font-weight: 600; color: #0f172a; border-bottom: 1px solid #f1f5f9;">
-                    $${Number(venta.impuestos).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
-                  </td>
-                </tr>
-                <tr style="background: #f8fafc;">
-                  <td style="padding: 10px 14px; font-size: 13px; font-weight: 800; color: #0f172a;">TOTAL NETO:</td>
-                  <td style="padding: 10px 14px; text-align: right; font-family: ui-monospace, monospace; font-size: 14px; font-weight: 900; color: ${primaryColor};">
-                    $${Number(venta.total).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN
-                  </td>
-                </tr>
-              </table>
-            </div>
-          </div>
-
-          <!-- Pie de Página y Trazabilidad -->
-          <div style="border-top: 1px solid #e2e8f0; padding-top: 12px; display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: #94a3b8;">
-            <div>
-              Documento emitido por <strong>ControlERP SaaS</strong> • Folio de Control: <span style="font-family: ui-monospace, monospace;">${venta.folio}</span>
-            </div>
-            <div>
-              ${isTimbrada ? 'Representación Impresa de un CFDI 4.0' : 'Documento de Control Interno y Despacho Físico'}
-            </div>
-          </div>
-
-          <script>
-            window.onload = function() {
-              window.print();
-            }
-          </script>
-        </body>
-      </html>
-    `;
-
-    printWindow.document.open();
-    printWindow.document.write(content);
-    printWindow.document.close();
+    window.open(`/api/ventas/${encodeURIComponent(venta.id)}/pdf`, '_blank', 'noopener,noreferrer');
   };
 
   const handleDeleteVenta = async (venta: any) => {
-    const confirmDelete = confirm(
-      `¿Estás seguro de eliminar y cancelar la venta "${venta.folio}"?\n\nAl eliminarla, las cantidades despachadas se reintegrarán automáticamente al almacén "${venta.almacen?.nombre}" y se ajustará el saldo del cliente.`
-    );
-    if (!confirmDelete) return;
-
+    const motivo = window.prompt(`Motivo de cancelación de ${venta.folio} (mínimo 10 caracteres):`);
+    if (motivo === null) return;
+    if (motivo.trim().length < 10) { alert('Explique el motivo con al menos 10 caracteres.'); return; }
+    if (!window.confirm(`Cancelar ${venta.folio}: reintegrar stock y conservar su historial. Revise por separado cualquier devolución de dinero.`)) return;
     try {
-      const res = await fetch(`/api/ventas/${venta.id}`, {
-        method: 'DELETE',
-      });
+      const res = await fetch(`/api/ventas/${venta.id}`, { method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ motivo: motivo.trim() }) });
       const data = await res.json();
-      if (res.ok) {
-        alert(data.message || 'Venta eliminada y existencias reintegradas con éxito.');
-        loadData();
-      } else {
-        alert(data.error || 'No se pudo eliminar la venta.');
-      }
-    } catch (err) {
-      alert('Error de conexión al intentar eliminar la venta.');
-    }
+      if (res.ok) { alert(data.message || 'Venta cancelada con historial conservado.'); loadData(); }
+      else alert(data.error || 'No se pudo cancelar la venta.');
+    } catch { alert('No se confirmó la cancelación. Recargue el historial antes de reintentar.'); }
   };
 
   const handleSaveEditVenta = async (e: React.FormEvent) => {
@@ -408,7 +177,6 @@ export default function VentasPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           observaciones: editObservaciones,
-          tipoPago: editTipoPago,
         }),
       });
 
@@ -423,27 +191,6 @@ export default function VentasPage() {
       setEditError('Error de conexión al modificar venta.');
     } finally {
       setSavingEdit(false);
-    }
-  };
-
-  const handleTimbrarVenta = async (ventaId: string, folio: string) => {
-    try {
-      setTimbrandoId(ventaId);
-      setErrorMsg('');
-      const res = await fetch(`/api/ventas/${ventaId}/timbrar`, {
-        method: 'POST',
-      });
-      const data = await res.json();
-      if (res.ok) {
-        alert(`¡Comprobante CFDI 4.0 timbrado exitosamente!\nFolio: ${folio}\nUUID SAT: ${data.uuid}`);
-        await loadData();
-      } else {
-        alert(`Error al timbrar: ${data.error}`);
-      }
-    } catch (err) {
-      alert('Error de comunicación con el servicio de timbrado.');
-    } finally {
-      setTimbrandoId(null);
     }
   };
 
@@ -463,6 +210,12 @@ export default function VentasPage() {
     const existenciaAlm = prod.existencias?.find((e: any) => e.almacenId === almacenId);
     const stockDisponible = existenciaAlm ? existenciaAlm.cantidad : 0;
 
+    if (!Number.isFinite(addQty) || !Number.isFinite(addPrice) || addPrice < 0 || addPrice > 1e9
+      || addQty > 1e6 || Number(addPrice.toFixed(2)) !== addPrice || Number(addQty.toFixed(6)) !== addQty) {
+      setErrorMsg('Revise cantidad y precio: hasta 6 decimales en cantidad y 2 en precio.');
+      return;
+    }
+
     if (addQty <= 0) {
       setErrorMsg('La cantidad debe ser mayor a cero.');
       return;
@@ -475,6 +228,9 @@ export default function VentasPage() {
       setErrorMsg(`Stock insuficiente en este almacén. Solo hay ${stockDisponible} ${prod.unidadMedida} disponibles.`);
       return;
     }
+
+    try { calcularMontosVenta([...cart.filter(it => it.productoId !== selectedProdId), { cantidad: cantidadTotal, precioUnitario: addPrice }]); }
+    catch { setErrorMsg('La venta excede el importe máximo permitido.'); return; }
 
     if (existingIndex >= 0) {
       const updatedCart = [...cart];
@@ -506,9 +262,7 @@ export default function VentasPage() {
     setCart(updated);
   };
 
-  const subtotalCart = cart.reduce((acc, it) => acc + it.subtotal, 0);
-  const ivaCart = Math.round(subtotalCart * 0.16 * 100) / 100;
-  const totalCart = subtotalCart + ivaCart;
+  const { subtotal: subtotalCart, impuestos: ivaCart, total: totalCart } = calcularMontosVenta(cart);
 
   const handleCreateVenta = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -522,25 +276,12 @@ export default function VentasPage() {
     setSuccessMsg('');
 
     try {
-      const res = await fetch('/api/ventas', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          clienteId,
-          almacenId,
-          tipoPago,
-          observaciones,
-          items: cart.map((it) => ({
-            productoId: it.productoId,
-            cantidad: it.cantidad,
-            precioUnitario: it.precioUnitario,
-          })),
-        }),
+      const { res, data } = await enviarSolicitudVenta(solicitudScope, {
+        clienteId, almacenId, tipoPago, observaciones,
+        items: cart.map(it => ({ productoId: it.productoId, cantidad: it.cantidad, precioUnitario: it.precioUnitario })),
       });
-
-      const data = await res.json();
       if (res.ok) {
-        setSuccessMsg(`¡Venta ${data.folio} procesada con éxito!`);
+        setSuccessMsg(`Venta ${data.folio} procesada. ${data.advertenciaCredito || ""}`);
         setCart([]);
         setObservaciones('');
         setTimeout(() => {
@@ -552,67 +293,9 @@ export default function VentasPage() {
         setErrorMsg(data.error || 'Error al emitir venta.');
       }
     } catch (err) {
-      setErrorMsg('Error de conexión.');
+      setErrorMsg(err instanceof Error ? err.message : 'Error de conexión. Reintente la misma venta.');
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleOpenEmailModal = (venta: any) => {
-    setEmailModalVenta(venta);
-    setEmailDestinatarios(venta.cliente?.email || '');
-    setEmailAsunto(`Factura Electrónica CFDI 4.0 - Folio: ${venta.folio}`);
-    setEmailMensaje(`Estimado(a) ${venta.cliente?.razonSocial || 'Cliente'},\n\nLe enviamos adjunto su comprobante fiscal digital CFDI 4.0 correspondiente a su compra.\n\nAgradecemos su preferencia.`);
-    setEmailAdjuntarPdf(true);
-    setEmailAdjuntarXml(true);
-    setEmailFeedback(null);
-  };
-
-  const handleSendEmailVenta = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!emailModalVenta) return;
-
-    setSendingEmail(true);
-    setEmailFeedback(null);
-
-    try {
-      const dests = emailDestinatarios
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean);
-
-      if (dests.length === 0) {
-        setEmailFeedback({ error: 'Debe ingresar al menos una dirección de correo de destinatario.' });
-        setSendingEmail(false);
-        return;
-      }
-
-      const res = await fetch(`/api/ventas/${emailModalVenta.id}/enviar-correo`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          destinatarios: dests,
-          asunto: emailAsunto,
-          mensajePersonalizado: emailMensaje,
-          adjuntarPdf: emailAdjuntarPdf,
-          adjuntarXml: emailAdjuntarXml,
-        }),
-      });
-
-      const data = await res.json();
-      if (res.ok) {
-        setEmailFeedback({ success: data.message || 'Comprobante fiscal enviado exitosamente por correo.' });
-        setTimeout(() => {
-          setEmailModalVenta(null);
-          setEmailFeedback(null);
-        }, 1500);
-      } else {
-        setEmailFeedback({ error: data.error || 'Error al enviar comprobante por correo.' });
-      }
-    } catch (err) {
-      setEmailFeedback({ error: 'Error de comunicación al enviar correo.' });
-    } finally {
-      setSendingEmail(false);
     }
   };
 
@@ -626,6 +309,8 @@ export default function VentasPage() {
       'Almacen',
       'Tipo Pago',
       'Estado Fiscal',
+      'Estado Comercial',
+      'Motivo Cancelación',
       'UUID SAT',
       'Subtotal',
       'IVA',
@@ -633,27 +318,21 @@ export default function VentasPage() {
     ];
 
     const rows = filteredVentas.map(v => [
-      `"${v.folio}"`,
-      `"${new Date(v.fecha).toLocaleDateString('es-MX')}"`,
-      `"${(v.cliente?.razonSocial || 'Público General').replace(/"/g, '""')}"`,
-      `"${v.cliente?.rfc || 'XAXX010101000'}"`,
-      `"${v.almacen?.nombre || ''}"`,
+      v.folio,
+      new Date(v.fecha).toLocaleDateString('es-MX'),
+      v.cliente?.razonSocial || 'Público General',
+      v.cliente?.rfc || '',
+      v.almacen?.nombre || '',
       v.tipoPago,
       v.estadoFiscal,
-      `"${v.uuidFiscal || ''}"`,
+      v.estado,
+      v.motivoCancelacion || '',
+      v.uuidFiscal || '',
       (v.subtotal || 0).toFixed(2),
       (v.impuestos || 0).toFixed(2),
       (v.total || 0).toFixed(2)
-    ].join(','));
-
-    const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...rows].join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `ventas_comerciales_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    ]);
+    descargarCsv(`ventas_comerciales_${new Date().toISOString().slice(0, 10)}.csv`, [headers, ...rows]);
   };
 
   // KPIs calculados
@@ -663,7 +342,7 @@ export default function VentasPage() {
     let contadoTotal = 0;
     let creditoTotal = 0;
 
-    ventas.forEach(v => {
+    ventas.filter(v => v.estado === 'COMPLETADA').forEach(v => {
       const tot = v.total || 0;
       volumenTotal += tot;
       if (v.estadoFiscal === 'TIMBRADA') timbradasTotal += tot;
@@ -672,7 +351,7 @@ export default function VentasPage() {
     });
 
     return {
-      totalVentas: ventas.length,
+      totalVentas: ventas.filter(v => v.estado === 'COMPLETADA').length,
       volumenTotal,
       timbradasTotal,
       contadoTotal,
@@ -748,14 +427,14 @@ export default function VentasPage() {
             <div>
               <div className="flex items-center gap-2.5 flex-wrap">
                 <h1 className="text-2xl font-bold tracking-tight text-white">
-                  Área Comercial & Facturación CFDI 4.0
+                  Ventas y cartera comercial
                 </h1>
                 <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-bold px-2.5 py-0.5 rounded-full inline-flex items-center gap-1.5">
-                  <CheckCircle2 className="w-3.5 h-3.5" /> PAC Multi-Proveedor
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Piloto sin PAC
                 </span>
               </div>
               <p className="text-sm text-slate-400 mt-1">
-                Emisión de ventas de mostrador y crédito con timbrado fiscal, deducción multialmacén y afectación a cuentas por cobrar.
+                Ventas de mostrador y crédito, stock por almacén y cuentas por cobrar. Los documentos son internos.
               </p>
             </div>
           </div>
@@ -773,6 +452,7 @@ export default function VentasPage() {
             {!isReadOnly && !isAlmacenista && (
               <button
                 onClick={() => {
+                  if (leerVentaPendiente(solicitudScope)) { loadData(); return; }
                   setCart([]);
                   setErrorMsg('');
                   setSuccessMsg('');
@@ -803,7 +483,7 @@ export default function VentasPage() {
         {/* Volumen Total de Ventas */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-md shadow-slate-900/5 hover:shadow-xl hover:-translate-y-0.5 transition-all">
           <div className="flex items-center justify-between text-slate-500">
-            <span className="text-xs font-semibold uppercase tracking-wider">Facturación Bruta</span>
+            <span className="text-xs font-semibold uppercase tracking-wider">Ventas registradas</span>
             <div className="p-2 bg-blue-50 text-blue-600 rounded-xl">
               <DollarSign className="w-4 h-4" />
             </div>
@@ -828,7 +508,7 @@ export default function VentasPage() {
             ${kpis.timbradasTotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
           </p>
           <p className="text-xs text-slate-500 mt-1">
-            Volumen fiscal con UUID SAT certificado
+            Ventas con estado fiscal timbrado en el historial
           </p>
         </div>
 
@@ -1028,7 +708,7 @@ export default function VentasPage() {
                     <td className="py-3.5 px-4">
                       <p className="font-semibold text-slate-900 text-xs">{v.cliente?.razonSocial || 'Público General'}</p>
                       <p className="text-xs text-slate-500 font-mono mt-0.5">
-                        {v.cliente?.codigo || 'CLI-000'} • {v.cliente?.rfc || 'XAXX010101000'}
+                        {v.cliente?.codigo || 'Sin código'} • {v.cliente?.rfc || 'RFC sin registrar'}
                       </p>
                     </td>
 
@@ -1052,7 +732,9 @@ export default function VentasPage() {
 
                     {/* Estado Fiscal SAT */}
                     <td className="py-3.5 px-4 text-center">
-                      {v.estadoFiscal === 'TIMBRADA' ? (
+                      {v.estado === 'CANCELADA' ? (
+                        <span className="inline-flex bg-rose-100 text-rose-800 text-xs font-bold px-2.5 py-0.5 rounded-full">CANCELADA</span>
+                      ) : v.estadoFiscal === 'TIMBRADA' ? (
                         <div className="flex flex-col items-center">
                           <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 text-xs font-bold px-2.5 py-0.5 rounded-full">
                             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" /> CFDI 4.0
@@ -1091,20 +773,8 @@ export default function VentasPage() {
                     {/* Acciones */}
                     <td className="py-3.5 px-4 text-center">
                       <div className="flex items-center justify-center gap-1.5">
-                        {/* Timbrar CFDI 4.0 oficial ante el SAT */}
-                        {v.estadoFiscal !== 'TIMBRADA' && !isReadOnly && !isAlmacenista && (
-                          <button
-                            onClick={() => handleTimbrarVenta(v.id, v.folio)}
-                            disabled={timbrandoId === v.id}
-                            className="p-1.5 rounded-lg text-white bg-blue-600 hover:bg-blue-700 transition-colors shadow-sm"
-                            title="Timbrar CFDI 4.0 oficial ante el SAT"
-                          >
-                            <FileCheck className={`w-4 h-4 ${timbrandoId === v.id ? 'animate-spin' : ''}`} />
-                          </button>
-                        )}
-
                         {/* Descargar XML sellado */}
-                        {v.estadoFiscal === 'TIMBRADA' && v.xmlSat && (
+                        {v.estado === 'COMPLETADA' && v.estadoFiscal === 'TIMBRADA' && v.xmlSat && (
                           <button
                             onClick={() => {
                               const blob = new Blob([v.xmlSat], { type: 'application/xml' });
@@ -1131,42 +801,32 @@ export default function VentasPage() {
                           <Eye className="w-4 h-4" />
                         </button>
 
-                        {/* PDF Factura CFDI 4.0 Oficial */}
-                        <a
+                        {/* Remisión comercial interna */}
+                        {v.estado === 'COMPLETADA' && <a
                           href={`/api/ventas/${v.id}/pdf`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="p-1.5 rounded-lg text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 transition-colors inline-flex items-center justify-center shadow-xs"
-                          title="Factura PDF CFDI 4.0 Oficial (SAT)"
+                          title="Descargar remisión interna PDF"
                         >
                           <FileDown className="w-4 h-4" />
-                        </a>
+                        </a>}
 
                         {/* Imprimir Factura / Comprobante */}
-                        <button
+                        {v.estado === 'COMPLETADA' && <button
                           onClick={() => handlePrintFactura(v)}
                           className="p-1.5 rounded-lg text-slate-600 hover:text-emerald-600 hover:bg-slate-100 transition-colors"
                           title="Imprimir comprobante formal"
                         >
                           <Printer className="w-4 h-4 text-emerald-600" />
-                        </button>
-
-                        {/* Enviar Comprobante / Factura por Correo */}
-                        <button
-                          onClick={() => handleOpenEmailModal(v)}
-                          className="p-1.5 rounded-lg text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors shadow-xs"
-                          title="Enviar comprobante fiscal por correo electrónico"
-                        >
-                          <Mail className="w-4 h-4" />
-                        </button>
+                        </button>}
 
                         {/* Modificar Venta */}
-                        {!isReadOnly && !isAlmacenista && v.estadoFiscal !== 'TIMBRADA' && (
+                        {v.estado === 'COMPLETADA' && !isReadOnly && !isAlmacenista && v.estadoFiscal !== 'TIMBRADA' && (
                           <button
                             onClick={() => {
                               setEditingVenta(v);
                               setEditObservaciones(v.observaciones || '');
-                              setEditTipoPago(v.tipoPago);
                               setEditError('');
                             }}
                             className="p-1.5 rounded-lg text-slate-600 hover:text-amber-600 hover:bg-slate-100 transition-colors"
@@ -1177,7 +837,7 @@ export default function VentasPage() {
                         )}
 
                         {/* Eliminar Venta */}
-                        {!isReadOnly && !isAlmacenista && (user?.rol === 'ADMIN' || user?.rol === 'SUPERADMIN') && v.estadoFiscal !== 'TIMBRADA' && (
+                        {v.estado === 'COMPLETADA' && !v.turnoCajaId && !isReadOnly && !isAlmacenista && (user?.rol === 'ADMIN' || user?.rol === 'SUPERADMIN') && v.estadoFiscal !== 'TIMBRADA' && (
                           <button
                             onClick={() => handleDeleteVenta(v)}
                             className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-slate-100 transition-colors"
@@ -1209,7 +869,7 @@ export default function VentasPage() {
                 </div>
                 <div>
                   <h3 className="text-base sm:text-lg font-bold text-white tracking-tight flex items-center gap-2">
-                    Terminal de Emisión de Venta & CFDI 4.0
+                    Registrar venta
                   </h3>
                   <p className="text-xs text-slate-400">
                     Despacho de almacén con afectación en tiempo real de kárdex y línea de crédito
@@ -1235,7 +895,7 @@ export default function VentasPage() {
                   </span>
                   {selectedClienteObj && (
                     <span className="text-xs font-mono text-slate-500">
-                      RFC: <strong className="text-slate-800">{selectedClienteObj.rfc || 'XAXX010101000'}</strong>
+                      RFC: <strong className="text-slate-800">{selectedClienteObj.rfc || 'Sin registrar'}</strong>
                     </span>
                   )}
                 </div>
@@ -1588,7 +1248,7 @@ export default function VentasPage() {
               <div>
                 <p className="text-slate-500 font-medium">Cliente Receptor:</p>
                 <p className="font-bold text-slate-900 text-sm">{selectedVentaView.cliente?.razonSocial}</p>
-                <p className="text-xs font-mono text-slate-500">RFC: {selectedVentaView.cliente?.rfc || 'XAXX010101000'}</p>
+                <p className="text-xs font-mono text-slate-500">RFC: {selectedVentaView.cliente?.rfc || 'Sin registrar'}</p>
               </div>
               <div className="text-right">
                 <p className="text-slate-500 font-medium">Almacén de Salida:</p>
@@ -1601,6 +1261,12 @@ export default function VentasPage() {
               </div>
             </div>
 
+            {selectedVentaView.estado === 'CANCELADA' && (
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-900">
+                <strong>Venta cancelada:</strong> {selectedVentaView.motivoCancelacion || 'Motivo no disponible'}
+                {selectedVentaView.canceladaEn && ` · ${new Date(selectedVentaView.canceladaEn).toLocaleString('es-MX')}`}
+              </div>
+            )}
             {selectedVentaView.observaciones && (
               <div className="p-3 bg-amber-50/60 border border-amber-200/80 rounded-xl text-xs text-amber-900">
                 <strong>Notas:</strong> {selectedVentaView.observaciones}
@@ -1649,19 +1315,8 @@ export default function VentasPage() {
                   rel="noopener noreferrer"
                   className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 transition-colors active:scale-95 shadow-sm shadow-rose-600/20"
                 >
-                  <FileDown className="w-4 h-4" /> Factura PDF (CFDI 4.0)
+                  <FileDown className="w-4 h-4" /> Remisión interna PDF
                 </a>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const v = selectedVentaView;
-                    setSelectedVentaView(null);
-                    handleOpenEmailModal(v);
-                  }}
-                  className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 transition-colors active:scale-95 shadow-sm shadow-blue-600/20"
-                >
-                  <Mail className="w-4 h-4" /> Enviar por Correo
-                </button>
               </div>
 
               <div className="w-56 space-y-1 text-xs">
@@ -1717,18 +1372,9 @@ export default function VentasPage() {
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Condición de Pago</label>
-                <select
-                  value={editTipoPago}
-                  onChange={(e) => setEditTipoPago(e.target.value as any)}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 font-medium"
-                >
-                  <option value="CONTADO">Contado</option>
-                  <option value="CREDITO">Crédito</option>
-                </select>
-              </div>
-
+              <p className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-xl p-3">
+                Condición emitida: <strong>{editingVenta.tipoPago}</strong>. Para cambiarla se requiere un flujo de reversa y nueva emisión.
+              </p>
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">Notas u Observaciones</label>
                 <textarea
@@ -1768,138 +1414,8 @@ export default function VentasPage() {
         </div>
       )}
 
-      {/* MODAL ENVIAR COMPROBANTE / FACTURA POR CORREO */}
-      {emailModalVenta && (
-        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in">
-          <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl border border-slate-200 overflow-hidden">
-            <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-blue-600/30 border border-blue-500/30 flex items-center justify-center text-blue-400">
-                  <Mail className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-base">Enviar Comprobante Fiscal por Correo</h3>
-                  <p className="text-xs text-slate-400">Folio: <span className="font-mono text-blue-300 font-bold">{emailModalVenta.folio}</span></p>
-                </div>
-              </div>
-              <button
-                onClick={() => setEmailModalVenta(null)}
-                className="w-7 h-7 rounded-full bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center text-xs font-bold"
-              >
-                ✕
-              </button>
-            </div>
 
-            <form onSubmit={handleSendEmailVenta} className="p-6 space-y-4 text-xs">
-              {emailFeedback?.error && (
-                <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl flex items-center gap-2 font-medium">
-                  <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
-                  <span>{emailFeedback.error}</span>
-                </div>
-              )}
 
-              {emailFeedback?.success && (
-                <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl flex items-center gap-2 font-medium">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <span>{emailFeedback.success}</span>
-                </div>
-              )}
-
-              <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
-                <p className="text-slate-500">Cliente: <strong className="text-slate-900">{emailModalVenta.cliente?.razonSocial}</strong></p>
-                <p className="text-slate-500">Total Facturado: <strong className="text-blue-600 font-mono font-bold">${Number(emailModalVenta.total).toFixed(2)} MXN</strong></p>
-                <p className="text-slate-500">Estado Fiscal: <strong className="text-emerald-700 font-bold">{emailModalVenta.estadoFiscal === 'TIMBRADA' ? 'CFDI 4.0 Timbrado SAT' : 'Remisión / Prefactura'}</strong></p>
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">
-                  Destinatarios (separar con comas para múltiples correos) *
-                </label>
-                <input
-                  type="text"
-                  value={emailDestinatarios}
-                  onChange={(e) => setEmailDestinatarios(e.target.value)}
-                  placeholder="facturacion@cliente.com, pagos@cliente.com"
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white font-medium focus:ring-2 focus:ring-blue-500"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">
-                  Asunto del Correo *
-                </label>
-                <input
-                  type="text"
-                  value={emailAsunto}
-                  onChange={(e) => setEmailAsunto(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white font-medium focus:ring-2 focus:ring-blue-500"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">
-                  Mensaje Personalizado
-                </label>
-                <textarea
-                  value={emailMensaje}
-                  onChange={(e) => setEmailMensaje(e.target.value)}
-                  rows={3}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white font-medium focus:ring-2 focus:ring-blue-500"
-                  placeholder="Escribe un mensaje para el receptor..."
-                />
-              </div>
-
-              {/* Opciones de Archivos Adjuntos */}
-              <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
-                <span className="font-bold text-slate-700 block">Archivos Adjuntos:</span>
-                <label className="flex items-center gap-2 text-slate-700 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={emailAdjuntarPdf}
-                    onChange={(e) => setEmailAdjuntarPdf(e.target.checked)}
-                    className="w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500"
-                  />
-                  <span>📎 Factura_{emailModalVenta.folio}.pdf (Representación Impresa Oficial)</span>
-                </label>
-                <label className="flex items-center gap-2 text-slate-700 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={emailAdjuntarXml}
-                    onChange={(e) => setEmailAdjuntarXml(e.target.checked)}
-                    className="w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500"
-                  />
-                  <span>📎 Factura_{emailModalVenta.folio}.xml (Comprobante Fiscal Digital SAT)</span>
-                </label>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setEmailModalVenta(null)}
-                  className="px-4 py-2 font-bold text-slate-600 hover:bg-slate-100 rounded-xl"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={sendingEmail}
-                  className="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-md disabled:opacity-50 flex items-center gap-2"
-                >
-                  {sendingEmail ? (
-                    'Enviando...'
-                  ) : (
-                    <>
-                      <Send className="w-4 h-4" /> Enviar Comprobante
-                    </>
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -37,12 +37,17 @@ model Tenant {
   notasSuperadmin       String?   // Notas privadas del Superadmin sobre facturación, cobro o acuerdos
 
   // Módulos autorizados por el Superadmin
+  moduloPos             Boolean   @default(true)
+  moduloCotizaciones    Boolean   @default(true)
   moduloCredito         Boolean   @default(true)
   moduloCxC             Boolean   @default(true)
+  moduloListasPrecio    Boolean   @default(true)
+  moduloOrdenesCompra   Boolean   @default(true)
   moduloProveedores     Boolean   @default(true)
   moduloCxP             Boolean   @default(true)
   moduloMultiAlmacen    Boolean   @default(true)
   moduloTraspasos       Boolean   @default(true)
+  moduloLotes           Boolean   @default(true)
   moduloReportes        Boolean   @default(true)
   moduloFacturacionSAT  Boolean   @default(false)
   moduloTesoreria       Boolean   @default(true)
@@ -50,6 +55,7 @@ model Tenant {
   moduloCrm             Boolean   @default(true)
   moduloContabilidad    Boolean   @default(true)
   moduloNomina          Boolean   @default(true)
+  funcionesHabilitadas  String?   // JSON estructurado con flags granulares de sub-funciones del Tenant
 
   // Configuración PAC / Timbrado Fiscal CFDI 4.0
   pacProveedor          String?   @default("FINKOK") // FINKOK, SW_SAPIEN, PRODIGIA, SIMULADOR
@@ -98,17 +104,19 @@ model Tenant {
 }
 
 model Usuario {
-  id                String      @id @default(uuid())
-  tenantId          String?     // NULL únicamente para el SUPERADMIN de plataforma
-  nombre            String
-  email             String      @unique
-  passwordHash      String
-  rol               String      @default("ENCARGADO") // SUPERADMIN, ADMIN, ENCARGADO, ALMACENISTA, AUDITOR
-  activo            Boolean     @default(true)
-  almacenAsignadoId String?
-  createdAt         DateTime    @default(now())
+  id                    String      @id @default(uuid())
+  tenantId              String?     // NULL únicamente para el SUPERADMIN de plataforma
+  nombre                String
+  email                 String      @unique
+  passwordHash          String
+  rol                   String      @default("ENCARGADO") // SUPERADMIN, ADMIN, ENCARGADO, ALMACENISTA, AUDITOR
+  activo                Boolean     @default(true)
+  almacenAsignadoId     String?
+  comisionPct           Float       @default(3.0)   // % comisión sobre ventas para reportes de cumplimiento
+  metaVentasMensual     Float       @default(0)     // Meta de ventas mensual en MXN configurada por ADMIN
+  createdAt             DateTime    @default(now())
 
-  tenant            Tenant?     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant                Tenant?     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, rol])
 }
@@ -247,6 +255,10 @@ model Venta {
   total           Float
   estado          String    @default("COMPLETADA") // COMPLETADA, CANCELADA
   cxcId           String?   // Vínculo a CuentaPorCobrar si fue a crédito
+  turnoCajaId     String?   // Venta POS: requiere reversa de caja antes de cancelar
+  canceladaEn     DateTime?
+  canceladaPorId  String?
+  motivoCancelacion String?
   usuarioId       String
   usuarioNombre   String
   observaciones   String?
@@ -526,6 +538,27 @@ model RegistroAuditoria {
   @@index([tenantId, fecha])
   @@index([tenantId, modulo])
   @@index([tenantId, nivelRiesgo])
+}
+
+// Registro operacional global; accesible únicamente por SUPERADMIN.
+model RegistroPlataforma {
+  id            String   @id @default(uuid())
+  tenantId      String?
+  usuarioId     String?
+  usuarioEmail  String?
+  categoria     String
+  accion        String
+  resultado     String   @default("OK")
+  detalles      String
+  correlationId String?
+  ipAddress     String?
+  metadataJson  String?
+  fecha         DateTime @default(now())
+
+  @@index([fecha])
+  @@index([tenantId, fecha])
+  @@index([categoria, fecha])
+  @@index([resultado, fecha])
 }
 
 model Cotizacion {
@@ -1010,3 +1043,61 @@ model IncidenciaNomina {
 }
 
 
+// Conserva el resultado incluso si una operación comercial se cancela posteriormente.
+model SolicitudVenta {
+  id            String   @id @default(uuid())
+  tenantId      String
+  clave         String
+  usuarioId     String
+  hashSolicitud String
+  respuestaJson String
+  fecha         DateTime @default(now())
+
+  @@unique([tenantId, clave])
+  @@index([tenantId, fecha])
+}
+
+// Resultado durable de cargos y abonos, independiente de documentos eliminados.
+model SolicitudCobranza {
+  id            String   @id @default(uuid())
+  tenantId      String
+  clave         String
+  usuarioId     String
+  hashSolicitud String
+  respuestaJson String
+  fecha         DateTime @default(now())
+
+  @@unique([tenantId, clave])
+  @@index([tenantId, fecha])
+}
+
+// Resultado durable de ajustes y cortes de inventario confirmados.
+model SolicitudInventario {
+  id            String   @id @default(uuid())
+  tenantId      String
+  clave         String
+  usuarioId     String
+  hashSolicitud String
+  respuestaJson String
+  fecha         DateTime @default(now())
+
+  @@unique([tenantId, clave])
+  @@index([tenantId, fecha])
+}
+
+model LoteImportacion {
+  id            String   @id @default(uuid())
+  tenantId      String
+  usuarioId     String
+  tipo          String
+  modo          String
+  archivoHash   String
+  filasJson     String
+  erroresJson   String
+  estado        String   @default("PREVISUALIZADO")
+  resultadoJson String?
+  fecha         DateTime @default(now())
+  confirmadoAt  DateTime?
+
+  @@index([tenantId, fecha])
+}

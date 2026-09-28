@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { comparePassword, signToken, COOKIE_NAME } from '@/lib/auth';
+import { comparePassword, signToken, COOKIE_NAME, sanitizeTenantForSession } from '@/lib/auth';
 import { RolUsuario } from '@/lib/types';
+import { writePlatformAudit } from '@/lib/platform-audit';
+import { clearLoginFailures, isLoginRateLimited, recordLoginFailure } from '@/lib/login-rate-limit';
 
 export async function POST(req: NextRequest) {
   try {
@@ -14,12 +16,24 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const normalizedEmail = String(email).toLowerCase().trim();
+    const ipAddress = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+    const rateLimitKey = `${ipAddress}:${normalizedEmail}`;
+    const ipRateLimitKey = `ip:${ipAddress}`;
+    if (isLoginRateLimited(rateLimitKey) || isLoginRateLimited(ipRateLimitKey, 100)) {
+      await writePlatformAudit({ categoria: 'AUTENTICACION', accion: 'LOGIN_RATE_LIMIT', resultado: 'DENEGADO', detalles: 'Intento de acceso bloqueado por exceso de intentos', usuarioEmail: normalizedEmail, ipAddress });
+      return NextResponse.json({ error: 'Demasiados intentos. Espere 15 minutos antes de volver a intentar.' }, { status: 429 });
+    }
+
     const user = await prisma.usuario.findUnique({
-      where: { email: email.toLowerCase().trim() },
+      where: { email: normalizedEmail },
       include: { tenant: true },
     });
 
     if (!user) {
+      recordLoginFailure(rateLimitKey);
+      recordLoginFailure(ipRateLimitKey);
+      await writePlatformAudit({ categoria: 'AUTENTICACION', accion: 'LOGIN', resultado: 'DENEGADO', detalles: 'Intento de acceso con credenciales no válidas', usuarioEmail: String(email).toLowerCase().trim(), ipAddress });
       return NextResponse.json(
         { error: 'Credenciales inválidas.' },
         { status: 401 }
@@ -27,6 +41,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (!user.activo) {
+      await writePlatformAudit({ categoria: 'AUTENTICACION', accion: 'LOGIN', resultado: 'DENEGADO', detalles: 'Intento de acceso a cuenta desactivada', usuarioId: user.id, usuarioEmail: user.email, tenantId: user.tenantId, ipAddress });
       return NextResponse.json(
         { error: 'Esta cuenta de usuario ha sido desactivada. Contacte al administrador.' },
         { status: 403 }
@@ -35,6 +50,7 @@ export async function POST(req: NextRequest) {
 
     if (user.tenant) {
       if (!user.tenant.activo) {
+        await writePlatformAudit({ categoria: 'AUTENTICACION', accion: 'LOGIN', resultado: 'DENEGADO', detalles: 'Intento de acceso a tenant desactivado', usuarioId: user.id, usuarioEmail: user.email, tenantId: user.tenantId, ipAddress });
         return NextResponse.json(
           { error: 'El acceso para esta empresa se encuentra suspendido. Contacte al administrador de plataforma.' },
           { status: 403 }
@@ -43,6 +59,7 @@ export async function POST(req: NextRequest) {
 
       // Bloqueo explícito administrativo por Superadmin (Modo Flexible con Facturación Externa)
       if (user.rol !== 'SUPERADMIN' && user.tenant.bloqueadoPorSuscripcion) {
+        await writePlatformAudit({ categoria: 'AUTENTICACION', accion: 'LOGIN', resultado: 'DENEGADO', detalles: 'Intento de acceso a tenant bloqueado por suscripción', usuarioId: user.id, usuarioEmail: user.email, tenantId: user.tenantId, ipAddress });
         const fechaVenc = user.tenant.fechaVencimientoPlan 
           ? new Date(user.tenant.fechaVencimientoPlan).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })
           : 'indefinida';
@@ -58,6 +75,9 @@ export async function POST(req: NextRequest) {
 
     const isValid = await comparePassword(password, user.passwordHash);
     if (!isValid) {
+      recordLoginFailure(rateLimitKey);
+      recordLoginFailure(ipRateLimitKey);
+      await writePlatformAudit({ categoria: 'AUTENTICACION', accion: 'LOGIN', resultado: 'DENEGADO', detalles: 'Contraseña incorrecta', usuarioId: user.id, usuarioEmail: user.email, tenantId: user.tenantId, ipAddress });
       return NextResponse.json(
         { error: 'Credenciales inválidas.' },
         { status: 401 }
@@ -71,6 +91,10 @@ export async function POST(req: NextRequest) {
       rol: user.rol as RolUsuario,
       tenantId: user.tenantId,
     });
+    clearLoginFailures(rateLimitKey);
+    clearLoginFailures(ipRateLimitKey);
+
+    await writePlatformAudit({ categoria: 'AUTENTICACION', accion: 'LOGIN', resultado: 'OK', detalles: 'Inicio de sesión correcto', usuarioId: user.id, usuarioEmail: user.email, tenantId: user.tenantId, ipAddress });
 
     const response = NextResponse.json({
       success: true,
@@ -80,7 +104,7 @@ export async function POST(req: NextRequest) {
         email: user.email,
         rol: user.rol,
         tenantId: user.tenantId,
-        tenant: user.tenant,
+        tenant: sanitizeTenantForSession(user.tenant),
         almacenAsignadoId: user.almacenAsignadoId,
       },
     });

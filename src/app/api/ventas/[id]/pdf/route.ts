@@ -8,7 +8,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const auth = await requireAuth(req, ['SUPERADMIN', 'ADMIN', 'ENCARGADO', 'ALMACENISTA', 'AUDITOR']);
+    const auth = await requireAuth(req, ['SUPERADMIN', 'ADMIN', 'ENCARGADO', 'AUDITOR']);
     if (auth.errorResponse) return auth.errorResponse;
 
     const { user } = auth;
@@ -36,14 +36,19 @@ export async function GET(
       return NextResponse.json({ error: 'No autorizado para acceder a este documento' }, { status: 403 });
     }
 
+    if (venta.estado !== 'COMPLETADA') {
+      return NextResponse.json({ error: 'La venta está cancelada. Consulte su historial y motivo de cancelación.' }, { status: 409 });
+    }
+
     const pdfBuffer = await generateFacturaPdf(venta, venta.tenant);
 
     return new NextResponse(pdfBuffer as unknown as BodyInit, {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `inline; filename="Factura-${venta.folio}.pdf"`,
+        'Content-Disposition': `inline; filename="Remision-${venta.folio}.pdf"`,
         'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'X-Content-Type-Options': 'nosniff',
       },
     });
   } catch (error) {

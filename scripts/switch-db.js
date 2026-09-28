@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
+const { execSync, execFileSync } = require('child_process');
 
 const target = process.argv[2]; // 'postgres' | 'sqlite'
 
@@ -10,13 +10,18 @@ if (!target || !['postgres', 'sqlite'].includes(target)) {
 }
 
 const rootDir = path.resolve(__dirname, '..');
+execFileSync(process.execPath, [path.join(__dirname, 'check-schema-parity.js')], { stdio: 'inherit' });
 const schemaPath = path.join(rootDir, 'prisma', 'schema.prisma');
 const pgSchemaPath = path.join(rootDir, 'prisma', 'schema.postgresql.prisma');
 const sqliteSchemaPath = path.join(rootDir, 'prisma', 'schema.sqlite.prisma');
 
-// Si no existen los backups base, crearlos desde schema.prisma
+// Las dos plantillas deben existir y conservar paridad antes de conmutar.
 if (!fs.existsSync(schemaPath)) {
   console.error('No se encontró prisma/schema.prisma');
+  process.exit(1);
+}
+if (!fs.existsSync(pgSchemaPath) || !fs.existsSync(sqliteSchemaPath)) {
+  console.error('Falta una plantilla Prisma; no se permite conmutación automática.');
   process.exit(1);
 }
 

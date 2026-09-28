@@ -33,6 +33,9 @@ export async function GET(
     if (user.rol !== 'SUPERADMIN' && traspaso.tenantId !== user.tenantId) {
       return NextResponse.json({ error: 'No autorizado para acceder a este traspaso' }, { status: 403 });
     }
+    if (user.rol === 'ALMACENISTA' && user.almacenAsignadoId !== traspaso.almacenOrigenId && user.almacenAsignadoId !== traspaso.almacenDestinoId) {
+      return NextResponse.json({ error: 'Almacén no asignado' }, { status: 403 });
+    }
 
     // Resolver nombres de almacenes origen y destino
     const [almacenOrigen, almacenDestino] = await Promise.all([
@@ -52,8 +55,9 @@ export async function GET(
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `inline; filename="CartaPorte-${traspaso.folio}.pdf"`,
+        'Content-Disposition': `inline; filename="GuiaTraspaso-${traspaso.folio}.pdf"`,
         'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'X-Content-Type-Options': 'nosniff',
       },
     });
   } catch (error) {

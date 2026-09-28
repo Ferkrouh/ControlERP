@@ -1,215 +1,44 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth';
-
-// GET: Obtener detalle completo de una venta
-export async function GET(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+import { cancelarVenta, editarObservacionesVenta, entradaCancelacion, entradaEdicionVenta } from '@/lib/cancelacion-venta';
+import { VentaError } from '@/lib/ventas';
+import { ZodError } from 'zod';
+type Context = { params: Promise<{ id: string }> };
+function errorVenta(error: unknown) {
+  if (error instanceof VentaError) return NextResponse.json({ error: error.message }, { status: error.status });
+  if (error instanceof ZodError) return NextResponse.json({ error: 'Motivo u observaciones inválidos' }, { status: 400 });
+  console.error('Error en venta:', error);
+  return NextResponse.json({ error: 'No se pudo confirmar el resultado. Recargue e intente de nuevo.' }, { status: 500 });
+}
+export async function GET(req: NextRequest, { params }: Context) {
   try {
-    const auth = await requireAuth(req, ['SUPERADMIN', 'ADMIN', 'ENCARGADO', 'AUDITOR', 'ALMACENISTA']);
+    const auth = await requireAuth(req, ['SUPERADMIN','ADMIN','ENCARGADO','AUDITOR']);
     if (auth.errorResponse) return auth.errorResponse;
-
-    const { user } = auth;
     const { id } = await params;
-
-    const venta = await prisma.venta.findUnique({
-      where: { id },
-      include: {
-        cliente: true,
-        almacen: true,
-        detalles: {
-          include: { producto: true },
-        },
-      },
-    });
-
-    if (!venta) {
-      return NextResponse.json({ error: 'Venta no encontrada' }, { status: 404 });
-    }
-
-    if (user.rol !== 'SUPERADMIN' && venta.tenantId !== user.tenantId) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
-    }
-
+    const venta = await prisma.venta.findFirst({ where: { id,
+      ...(auth.user.rol === 'SUPERADMIN' ? {} : { tenantId: auth.user.tenantId ?? '' }) },
+      include: { cliente: true, almacen: true, detalles: { include: { producto: true } } } });
+    if (!venta) return NextResponse.json({ error: 'Venta no encontrada' }, { status: 404 });
     return NextResponse.json(venta);
-  } catch (error: any) {
-    console.error('Error fetching venta:', error);
-    return NextResponse.json({ error: 'Error al consultar venta' }, { status: 500 });
-  }
+  } catch (error) { return errorVenta(error); }
 }
-
-// PUT: Modificar observaciones o condición de pago de una venta
-export async function PUT(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function PUT(req: NextRequest, { params }: Context) {
   try {
-    const auth = await requireAuth(req, ['SUPERADMIN', 'ADMIN', 'ENCARGADO']);
+    const auth = await requireAuth(req, ['SUPERADMIN','ADMIN','ENCARGADO']);
     if (auth.errorResponse) return auth.errorResponse;
-
-    const { user } = auth;
-    const { id } = await params;
-    const body = await req.json();
-    const { observaciones, tipoPago } = body;
-
-    const ventaExistente = await prisma.venta.findUnique({
-      where: { id },
-      include: { cliente: true },
-    });
-
-    if (!ventaExistente) {
-      return NextResponse.json({ error: 'Venta no encontrada' }, { status: 404 });
-    }
-
-    if (user.rol !== 'SUPERADMIN' && ventaExistente.tenantId !== user.tenantId) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
-    }
-
-    const updated = await prisma.venta.update({
-      where: { id },
-      data: {
-        observaciones: observaciones !== undefined ? (observaciones?.trim() || null) : ventaExistente.observaciones,
-        tipoPago: tipoPago || ventaExistente.tipoPago,
-      },
-    });
-
-    // Registrar en auditoría
-    await prisma.registroAuditoria.create({
-      data: {
-        tenantId: ventaExistente.tenantId,
-        usuarioId: user.id,
-        usuarioNombre: user.nombre,
-        modulo: 'VENTAS',
-        accion: 'MODIFICACION',
-        detalles: `Modificación en venta ${ventaExistente.folio}: ${observaciones ? 'observaciones actualizadas' : ''} ${tipoPago ? `tipo de pago: ${tipoPago}` : ''}`,
-      },
-    });
-
-    return NextResponse.json(updated);
-  } catch (error: any) {
-    console.error('Error updating venta:', error);
-    return NextResponse.json({ error: 'Error al actualizar venta' }, { status: 500 });
-  }
+    const { id } = await params; const data = entradaEdicionVenta.parse(await req.json().catch(() => null));
+    if (data.observaciones === undefined) return NextResponse.json({ error: 'Indique observaciones para modificar' }, { status: 400 });
+    return NextResponse.json(await editarObservacionesVenta(id, data.observaciones, data.tipoPago, auth.user));
+  } catch (error) { return errorVenta(error); }
 }
-
-// DELETE: Cancelar / Eliminar una venta con reversión de inventario y CxC
-export async function DELETE(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function DELETE(req: NextRequest, { params }: Context) {
   try {
-    const auth = await requireAuth(req, ['SUPERADMIN', 'ADMIN']);
+    const auth = await requireAuth(req, ['SUPERADMIN','ADMIN']);
     if (auth.errorResponse) return auth.errorResponse;
-
-    const { user } = auth;
-    const { id } = await params;
-
-    const venta = await prisma.venta.findUnique({
-      where: { id },
-      include: {
-        cliente: true,
-        detalles: true,
-      },
-    });
-
-    if (!venta) {
-      return NextResponse.json({ error: 'Venta no encontrada' }, { status: 404 });
-    }
-
-    if (user.rol !== 'SUPERADMIN' && venta.tenantId !== user.tenantId) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
-    }
-
-    // Transacción atómica para revertir existencias, kárdex, CxC y borrar la venta
-    await prisma.$transaction(async (tx) => {
-      // 1. Revertir existencias de cada artículo al almacén y asentar contrarrecibo en Kárdex
-      for (const det of venta.detalles) {
-        const existencia = await tx.existencia.findUnique({
-          where: {
-            almacenId_productoId: {
-              almacenId: venta.almacenId,
-              productoId: det.productoId,
-            },
-          },
-        });
-
-        const stockPrevio = existencia?.cantidad || 0;
-        const nuevoStock = stockPrevio + det.cantidad;
-
-        if (existencia) {
-          await tx.existencia.update({
-            where: { id: existencia.id },
-            data: { cantidad: nuevoStock },
-          });
-        }
-
-        // Registrar devolución/cancelación en Kárdex
-        await tx.movimientoKardex.create({
-          data: {
-            tenantId: venta.tenantId,
-            almacenId: venta.almacenId,
-            productoId: det.productoId,
-            tipoMovimiento: 'ENTRADA_CANCELACION_VENTA',
-            cantidad: det.cantidad,
-            costoUnitario: det.costoUnitario,
-            saldoResultante: nuevoStock,
-            folioReferencia: venta.folio,
-            motivo: `Cancelación / Eliminación de venta ${venta.folio}`,
-          },
-        });
-      }
-
-      // 2. Si tenía CxC asociada, disminuir saldo del cliente y eliminar la cuenta por cobrar
-      if (venta.cxcId) {
-        const cxc = await tx.cuentaPorCobrar.findUnique({
-          where: { id: venta.cxcId },
-        });
-
-        if (cxc) {
-          const cliente = await tx.cliente.findUnique({
-            where: { id: venta.clienteId },
-          });
-
-          if (cliente) {
-            const nuevoSaldoCliente = Math.max(0, cliente.saldoActual - cxc.saldoPendiente);
-            await tx.cliente.update({
-              where: { id: venta.clienteId },
-              data: {
-                saldoActual: nuevoSaldoCliente,
-                estadoCredito: nuevoSaldoCliente < cliente.limiteCredito && cliente.estadoCredito === 'BLOQUEADO' ? 'ACTIVO' : cliente.estadoCredito,
-              },
-            });
-          }
-
-          await tx.cuentaPorCobrar.delete({
-            where: { id: venta.cxcId },
-          });
-        }
-      }
-
-      // 3. Eliminar la venta (cascade borra detalles)
-      await tx.venta.delete({
-        where: { id: venta.id },
-      });
-
-      // 4. Bitácora de Auditoría
-      await tx.registroAuditoria.create({
-        data: {
-          tenantId: venta.tenantId,
-          usuarioId: user.id,
-          usuarioNombre: user.nombre,
-          modulo: 'VENTAS',
-          accion: 'CANCELACION',
-          detalles: `Eliminación y reversión total de la venta ${venta.folio} de ${venta.cliente?.razonSocial || 'Cliente'} por $${venta.total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}. Stock reintegrado al almacén.`,
-        },
-      });
-    });
-
-    return NextResponse.json({ success: true, message: `Venta ${venta.folio} eliminada y existencias reintegradas.` });
-  } catch (error: any) {
-    console.error('Error deleting venta:', error);
-    return NextResponse.json({ error: error.message || 'Error al eliminar la venta' }, { status: 500 });
-  }
+    const { id } = await params; const { motivo } = entradaCancelacion.parse(await req.json().catch(() => null));
+    const { venta, repetida } = await cancelarVenta(id, motivo, auth.user);
+    return NextResponse.json({ success: true, message: repetida ? `Venta ${venta.folio} ya cancelada.` : `Venta ${venta.folio} cancelada; historial conservado.`, venta },
+      { headers: { 'Idempotency-Replayed': String(repetida) } });
+  } catch (error) { return errorVenta(error); }
 }

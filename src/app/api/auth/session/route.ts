@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthSession, COOKIE_NAME, signToken } from '@/lib/auth';
+import { getAuthSession, COOKIE_NAME, signToken, sanitizeTenantForSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { RolUsuario } from '@/lib/types';
 
@@ -9,6 +9,10 @@ export async function GET(req: NextRequest) {
 
     if (!session) {
       return NextResponse.json({ currentUser: null, users: [] }, { status: 200 });
+    }
+
+    if (process.env.NODE_ENV === 'production') {
+      return NextResponse.json({ currentUser: session, users: [] }, { status: 200 });
     }
 
     // Para entornos de desarrollo/demo local, permitimos listar usuarios disponibles del tenant o globales si es superadmin
@@ -30,7 +34,7 @@ export async function GET(req: NextRequest) {
         email: u.email,
         rol: u.rol as RolUsuario,
         tenantId: u.tenantId,
-        tenant: u.tenant,
+        tenant: sanitizeTenantForSession(u.tenant),
       })),
     });
   } catch (error) {
@@ -45,7 +49,14 @@ export async function GET(req: NextRequest) {
  */
 export async function POST(req: NextRequest) {
   try {
+    if (process.env.NODE_ENV === 'production') {
+      return NextResponse.json({ error: 'Cambio de usuario disponible solo en desarrollo.' }, { status: 404 });
+    }
+
     const session = await getAuthSession(req);
+    if (!session || session.rol !== 'SUPERADMIN') {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
+    }
     const { email } = await req.json();
 
     if (!email) {
@@ -59,14 +70,6 @@ export async function POST(req: NextRequest) {
 
     if (!targetUser) {
       return NextResponse.json({ error: 'Usuario no encontrado' }, { status: 404 });
-    }
-
-    // Validación de seguridad: si no es SUPERADMIN, solo puede cambiar a usuarios dentro de su propio tenant
-    if (session && session.rol !== 'SUPERADMIN' && targetUser.tenantId !== session.tenantId) {
-      return NextResponse.json(
-        { error: 'No autorizado para cambiar a un usuario de otra empresa.' },
-        { status: 403 }
-      );
     }
 
     const token = await signToken({
@@ -83,7 +86,7 @@ export async function POST(req: NextRequest) {
         email: targetUser.email,
         rol: targetUser.rol,
         tenantId: targetUser.tenantId,
-        tenant: targetUser.tenant,
+        tenant: sanitizeTenantForSession(targetUser.tenant),
         almacenAsignadoId: targetUser.almacenAsignadoId,
       },
     });
@@ -92,7 +95,7 @@ export async function POST(req: NextRequest) {
       name: COOKIE_NAME,
       value: token,
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: false,
       sameSite: 'lax',
       path: '/',
       maxAge: 60 * 60 * 24 * 7,
